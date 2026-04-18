@@ -1,0 +1,16 @@
+{
+  "name": "projektil-control",
+  "version": "1.0.0",
+  "description": "PROJEKTIL Show Control — Tauri App",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:debug": "tauri build --debug"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  }
+}

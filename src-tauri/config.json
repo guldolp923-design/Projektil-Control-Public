@@ -1,0 +1,18 @@
+{
+  "cam_01_ip": "192.168.1.22",
+  "cam_02_ip": "192.168.1.23",
+  "d40_01_ip": "192.168.1.51",
+  "d40_02_ip": "192.168.1.52",
+  "d40_oca_port": 50014,
+  "hotline": "+41 XX XXX XX XX",
+  "nas_ip": "192.168.1.21",
+  "nas_port": 5000,
+  "pixera_ip": "192.168.1.31",
+  "pixera_octo1_ip": "192.168.1.32",
+  "pixera_octo2_ip": "192.168.1.33",
+  "pixera_port": 1338,
+  "power_disp_ip": "192.168.1.5",
+  "projector_count": 16,
+  "projector_start": 101,
+  "ups_ip": "192.168.1.6"
+}
