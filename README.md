@@ -3,7 +3,7 @@
 ## Projektstruktur
 
 ```
-projektil-tauri/
+projektil-control/
 ├── frontend/
 │   ├── index.html          ← Komplettes UI (HTML/CSS/JS)
 │   └── js/
@@ -38,7 +38,7 @@ Falls Windows 10: https://developer.microsoft.com/microsoft-edge/webview2/
 
 ```bash
 # 1. Im Projektordner oeffnen
-cd projektil-tauri
+cd projektil-control
 
 # 2. Dependencies installieren
 npm install
