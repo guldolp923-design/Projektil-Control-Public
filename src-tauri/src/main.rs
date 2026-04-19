@@ -7,9 +7,12 @@ use tauri::{
     AppHandle, Emitter, Manager,
 };
 use std::fs;
+use std::fs::OpenOptions;
 use std::collections::HashMap;
+use std::io::{BufRead, BufReader};
 use std::net::{TcpListener, TcpStream, UdpSocket};
 use std::io::{Write, Read};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
@@ -25,6 +28,180 @@ struct CameraStreamHandle {
 
 static CAMERA_STREAMS: OnceLock<Mutex<HashMap<String, CameraStreamHandle>>> = OnceLock::new();
 const CAMERA_MJPEG_PORT: u16 = 41777;
+const LOG_RETENTION_DAYS: u64 = 90;
+const LOG_RETENTION_MS: u64 = LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const LOG_PRUNE_INTERVAL_MS: u64 = 12 * 60 * 60 * 1000;
+
+static APP_LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
+static LAST_LOG_PRUNE_MS: OnceLock<Mutex<u64>> = OnceLock::new();
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct AppLogEntry {
+    timestamp_ms: u64,
+    level: String,
+    message: String,
+}
+
+fn now_timestamp_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn cutoff_timestamp_ms() -> u64 {
+    now_timestamp_ms().saturating_sub(LOG_RETENTION_MS)
+}
+
+fn resolve_log_dir(app: Option<&AppHandle>) -> Result<PathBuf, String> {
+    if let Some(dir) = APP_LOG_DIR.get() {
+        return Ok(dir.clone());
+    }
+
+    if let Some(handle) = app {
+        let dir = handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("App data dir konnte nicht ermittelt werden: {}", e))?
+            .join("logs");
+        fs::create_dir_all(&dir)
+            .map_err(|e| format!("Log-Verzeichnis konnte nicht erstellt werden: {}", e))?;
+        let _ = APP_LOG_DIR.set(dir.clone());
+        return Ok(dir);
+    }
+
+    Err("Log-Verzeichnis ist nicht initialisiert".to_string())
+}
+
+fn system_log_path(app: Option<&AppHandle>) -> Result<PathBuf, String> {
+    Ok(resolve_log_dir(app)?.join("system.log"))
+}
+
+fn error_log_path(app: Option<&AppHandle>) -> Result<PathBuf, String> {
+    Ok(resolve_log_dir(app)?.join("error.log"))
+}
+
+fn read_log_entries(path: &PathBuf) -> Vec<AppLogEntry> {
+    let file = match fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return Vec::new(),
+    };
+
+    let cutoff = cutoff_timestamp_ms();
+    BufReader::new(file)
+        .lines()
+        .filter_map(|line| {
+            let text = line.ok()?;
+            let entry = serde_json::from_str::<AppLogEntry>(&text).ok()?;
+            if entry.timestamp_ms >= cutoff {
+                Some(entry)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn rewrite_log_entries(path: &PathBuf, entries: &[AppLogEntry]) -> Result<(), String> {
+    let mut out = String::new();
+    for entry in entries {
+        let line = serde_json::to_string(entry)
+            .map_err(|e| format!("Log-Serialisierung fehlgeschlagen: {}", e))?;
+        out.push_str(&line);
+        out.push('\n');
+    }
+    fs::write(path, out).map_err(|e| format!("Log-Datei konnte nicht geschrieben werden: {}", e))
+}
+
+fn append_log_entry(path: &PathBuf, entry: &AppLogEntry) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Ungültiger Log-Dateipfad".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|e| format!("Log-Verzeichnis konnte nicht erstellt werden: {}", e))?;
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|e| format!("Log-Datei konnte nicht geöffnet werden: {}", e))?;
+
+    let line = serde_json::to_string(entry)
+        .map_err(|e| format!("Log-Serialisierung fehlgeschlagen: {}", e))?;
+    writeln!(file, "{}", line).map_err(|e| format!("Log-Eintrag konnte nicht geschrieben werden: {}", e))
+}
+
+fn prune_old_logs(app: Option<&AppHandle>) -> Result<(), String> {
+    let sys_path = system_log_path(app)?;
+    let err_path = error_log_path(app)?;
+
+    let sys_entries = read_log_entries(&sys_path);
+    let err_entries = read_log_entries(&err_path);
+
+    rewrite_log_entries(&sys_path, &sys_entries)?;
+    rewrite_log_entries(&err_path, &err_entries)?;
+    Ok(())
+}
+
+fn maybe_prune_logs(app: Option<&AppHandle>) {
+    let now = now_timestamp_ms();
+    let gate = LAST_LOG_PRUNE_MS.get_or_init(|| Mutex::new(0));
+    let mut should_prune = false;
+
+    if let Ok(mut last) = gate.lock() {
+        if now.saturating_sub(*last) >= LOG_PRUNE_INTERVAL_MS {
+            *last = now;
+            should_prune = true;
+        }
+    }
+
+    if should_prune {
+        let _ = prune_old_logs(app);
+    }
+}
+
+fn write_app_log(level: &str, message: &str, timestamp_ms: u64, app: Option<&AppHandle>) -> Result<(), String> {
+    let clean_level = if level.eq_ignore_ascii_case("error") {
+        "error".to_string()
+    } else {
+        "info".to_string()
+    };
+    let clean_message = message.replace('\n', " ").replace('\r', " ");
+    let entry = AppLogEntry {
+        timestamp_ms,
+        level: clean_level.clone(),
+        message: clean_message,
+    };
+
+    let sys_path = system_log_path(app)?;
+    append_log_entry(&sys_path, &entry)?;
+
+    if clean_level == "error" {
+        let err_path = error_log_path(app)?;
+        append_log_entry(&err_path, &entry)?;
+    }
+
+    maybe_prune_logs(app);
+    Ok(())
+}
+
+fn install_panic_logging_hook() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        let location = panic_info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "unbekannter Ort".to_string());
+        let payload = if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
+            (*msg).to_string()
+        } else if let Some(msg) = panic_info.payload().downcast_ref::<String>() {
+            msg.clone()
+        } else {
+            "Unbekannter Panic-Fehler".to_string()
+        };
+        let msg = format!("PANIC: {} @ {}", payload, location);
+        let _ = write_app_log("error", &msg, now_timestamp_ms(), None);
+    }));
+}
 
 fn camera_streams() -> &'static Mutex<HashMap<String, CameraStreamHandle>> {
     CAMERA_STREAMS.get_or_init(|| Mutex::new(HashMap::new()))
@@ -196,7 +373,7 @@ fn acquire_camera_stream(ip: &str, stream_id: u8) -> Result<Arc<Mutex<Option<Vec
     }
 
     map.get(&key)
-        .ok_or_else(|| "Camera stream nicht verfuegbar".to_string())
+        .ok_or_else(|| "Camera stream nicht verfügbar".to_string())
         .map(|h| h.latest_frame.clone())
 }
 
@@ -435,16 +612,29 @@ fn check_ups_anomalies(data: &serde_json::Map<String, serde_json::Value>, cfg: &
 // TCP Ping
 // ============================================================
 #[tauri::command]
-async fn http_ping(ip: String, port: u16) -> Result<bool, String> {
+async fn http_ping(ip: String, port: u16) -> Result<String, String> {
     let addr = format!("{}:{}", ip, port);
     match TcpStream::connect_timeout(
         &addr.parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?,
-        Duration::from_millis(1500),
+        Duration::from_millis(3000),
     ) {
-        Ok(_) => Ok(true),
-        Err(_) => Ok(false),
+        Ok(_) => Ok("OK".to_string()),
+        Err(e) => {
+            let err_str = e.to_string().to_lowercase();
+            // Windows Fehler 10061 = WSAECONNREFUSED
+            if err_str.contains("10061") || err_str.contains("connection refused") || err_str.contains("verweigerte") {
+                Ok("REFUSED".to_string())
+            } else if err_str.contains("timed out") || err_str.contains("timeout") {
+                Ok("TIMEOUT".to_string())
+            } else if err_str.contains("host") || err_str.contains("network") || err_str.contains("unreachable") || err_str.contains("erreichbar") {
+                Ok("UNREACHABLE".to_string())
+            } else {
+                Ok("REFUSED".to_string())
+            }
+        }
     }
 }
+
 
 // ============================================================
 // Panasonic AW-UE40/50 PTZ CGI proxy
@@ -1315,7 +1505,7 @@ fn open_external_url(url: String) -> Result<bool, String> {
         Command::new("open")
             .arg(&url)
             .spawn()
-            .map_err(|e| format!("Konnte Browser nicht oeffnen: {}", e))?;
+            .map_err(|e| format!("Konnte Browser nicht öffnen: {}", e))?;
         return Ok(true);
     }
 
@@ -1324,7 +1514,7 @@ fn open_external_url(url: String) -> Result<bool, String> {
         Command::new("cmd")
             .args(["/C", "start", "", &url])
             .spawn()
-            .map_err(|e| format!("Konnte Browser nicht oeffnen: {}", e))?;
+            .map_err(|e| format!("Konnte Browser nicht öffnen: {}", e))?;
         return Ok(true);
     }
 
@@ -1333,12 +1523,44 @@ fn open_external_url(url: String) -> Result<bool, String> {
         Command::new("xdg-open")
             .arg(&url)
             .spawn()
-            .map_err(|e| format!("Konnte Browser nicht oeffnen: {}", e))?;
+            .map_err(|e| format!("Konnte Browser nicht öffnen: {}", e))?;
         return Ok(true);
     }
 
     #[allow(unreachable_code)]
-    Err("Diese Plattform wird fuer URL-Open nicht unterstuetzt".to_string())
+    Err("Diese Plattform wird für URL-Open nicht unterstützt".to_string())
+}
+
+#[tauri::command]
+fn append_app_log(app: AppHandle, level: String, message: String, timestamp_ms: Option<u64>) -> Result<bool, String> {
+    write_app_log(&level, &message, timestamp_ms.unwrap_or_else(now_timestamp_ms), Some(&app))?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn load_app_logs(app: AppHandle, limit: Option<usize>) -> Result<serde_json::Value, String> {
+    prune_old_logs(Some(&app))?;
+
+    let sys_path = system_log_path(Some(&app))?;
+    let err_path = error_log_path(Some(&app))?;
+    let mut system_entries = read_log_entries(&sys_path);
+    let mut error_entries = read_log_entries(&err_path);
+
+    system_entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+    error_entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+
+    let max_items = limit.unwrap_or(2000);
+    if system_entries.len() > max_items {
+        system_entries.truncate(max_items);
+    }
+    if error_entries.len() > max_items {
+        error_entries.truncate(max_items);
+    }
+
+    Ok(serde_json::json!({
+        "system": system_entries,
+        "errors": error_entries
+    }))
 }
 
 fn pjlink_read_line(stream: &mut TcpStream) -> Result<String, String> {
@@ -1616,9 +1838,13 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            let app_handle = app.handle().clone();
+            let _ = resolve_log_dir(Some(&app_handle));
+            install_panic_logging_hook();
+            let _ = write_app_log("info", "Application startup", now_timestamp_ms(), Some(&app_handle));
             start_camera_mjpeg_server();
             let sep       = tauri::menu::PredefinedMenuItem::separator(app)?;
-            let show      = MenuItem::with_id(app, "show",      "PROJEKTIL oeffnen", true, None::<&str>)?;
+            let show      = MenuItem::with_id(app, "show",      "PROJEKTIL öffnen", true, None::<&str>)?;
             let mute_all  = MenuItem::with_id(app, "mute_all",  "Alle Mute",         true, None::<&str>)?;
             let power_all = MenuItem::with_id(app, "power_all", "PowerAll",          true, None::<&str>)?;
             let emergency = MenuItem::with_id(app, "emergency", "Emergency Stop",    true, None::<&str>)?;
@@ -1657,7 +1883,7 @@ fn main() {
             ups_get_status, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_set_power, pjlink_set_shutter,
             minimize_window, toggle_fullscreen,
-            hide_to_tray, quit_app, open_external_url, get_config
+            hide_to_tray, quit_app, open_external_url, append_app_log, load_app_logs, get_config
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten");

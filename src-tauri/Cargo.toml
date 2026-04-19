@@ -1,6 +1,6 @@
 [package]
 name = "projektil-control"
-version = "1.0.3-beta"
+version = "1.0.4-beta"
 description = "PROJEKTIL Show Control"
 authors = ["WE ARE PROJEKTIL AG"]
 edition = "2021"

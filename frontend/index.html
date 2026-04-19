@@ -309,9 +309,53 @@ body.emergency-locked .btn-o{background:#9a3412}
 .ptz-zoom{display:grid;grid-template-rows:repeat(3,30px);gap:4px}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* STARTUP SCREEN */
+.startup-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 20%, rgba(75,52,180,.45) 0%, rgba(10,8,40,.92) 55%, rgba(5,4,24,.98) 100%);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .28s ease,visibility 0s linear .28s}
+.startup-overlay.show{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .28s ease,visibility 0s linear 0s}
+.startup-card{width:min(620px,92vw);background:linear-gradient(180deg,rgba(19,16,74,.97) 0%,rgba(13,11,52,.98) 100%);border:1px solid rgba(122,108,248,.26);border-radius:20px;padding:28px 24px 22px;box-shadow:0 30px 90px rgba(0,0,0,.55);opacity:0;transform:translateY(12px) scale(.985);transition:opacity .28s ease,transform .32s ease}
+.startup-overlay.show .startup-card{opacity:1;transform:translateY(0) scale(1)}
+.startup-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.startup-brand{display:flex;flex-direction:column;gap:6px}
+.startup-logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;letter-spacing:.9px}
+.startup-sub{font-size:12px;color:var(--muted);line-height:1.45}
+.startup-version{display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:999px;border:1px solid rgba(122,108,248,.28);background:rgba(122,108,248,.12);font-size:11px;color:#d8d2ff;font-family:var(--mono);white-space:nowrap}
+.startup-bar-wrap{height:14px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.startup-bar{height:100%;width:0%;background:linear-gradient(90deg,#f32d55 0%,#d946ef 45%,#7a6cf8 100%);transition:width .22s ease}
+.startup-meta{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.startup-status{font-size:13px;color:#ece9ff;font-weight:600}
+.startup-progress-count{font-size:11px;color:#c9c4f7;font-family:var(--mono);padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.startup-detail{margin-top:8px;font-size:11px;color:var(--muted);font-family:var(--mono)}
 </style>
 </head>
 <body>
+
+<div class="startup-overlay" id="startup-overlay">
+  <div class="startup-card">
+    <div class="startup-head">
+      <div class="startup-brand">
+        <div class="startup-logo">
+          <svg viewBox="0 0 32.4 50" style="height:24px;width:auto" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4.2" y="4.8" fill="#F32D55" width="8.1" height="8.1"/>
+            <rect x="20.3" y="4.8" fill="#F32D55" width="8.1" height="8.1"/>
+            <rect x="4.2" y="21" fill="#F32D55" width="8.1" height="8.1"/>
+            <rect x="20.3" y="21" fill="#F32D55" width="8.1" height="8.1"/>
+            <rect x="4.2" y="37.1" fill="#F32D55" width="8.1" height="8.1"/>
+          </svg>
+          <span>PROJEKTIL CONTROL</span>
+        </div>
+        <div class="startup-sub">System wird gestartet. Netzwerkgeräte und Dienste werden geprüft.</div>
+      </div>
+      <div class="startup-version" id="startup-version">v1.0.4-beta</div>
+    </div>
+    <div class="startup-bar-wrap"><div class="startup-bar" id="startup-bar"></div></div>
+    <div class="startup-meta">
+      <div class="startup-status" id="startup-status">Starte Verbindungsprüfung...</div>
+      <div class="startup-progress-count" id="startup-progress-count">0/12</div>
+    </div>
+    <div class="startup-detail" id="startup-detail">Initialisiere Projektil Control...</div>
+  </div>
+</div>
 
 <!-- TITLEBAR -->
 <div class="titlebar">
@@ -544,7 +588,7 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="setting-block">
             <div>
               <div class="setting-label" data-l10n-key="startup_mode_title">Startmodus</div>
-              <div class="setting-hint" data-l10n-key="startup_mode_hint" style="margin-bottom:10px">Legt fest, ob die App standardmaessig im Admin- oder Viewer-Modus startet.</div>
+              <div class="setting-hint" data-l10n-key="startup_mode_hint" style="margin-bottom:10px">Legt fest, ob die App standardmässig im Admin- oder Viewer-Modus startet.</div>
             </div>
             <div style="display:flex;gap:8px">
               <button class="btn lang-option" id="startup-mode-admin" onclick="setStartupMode('admin')" style="margin-bottom:0;flex:1">
@@ -561,18 +605,18 @@ body.emergency-locked .btn-o{background:#9a3412}
           </div>
           <div class="setting-block">
             <div class="setting-label" data-l10n-key="update_title">Update</div>
-            <div class="setting-hint" data-l10n-key="update_hint" style="margin-bottom:10px">Prueft, ob eine neuere Version verfuegbar ist.</div>
+            <div class="setting-hint" data-l10n-key="update_hint" style="margin-bottom:10px">Prüft, ob eine neuere Version verfügbar ist.</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <button class="btn btn-g" data-view-allow onclick="checkForUpdates()" data-l10n-key="check_updates">Auf Updates pruefen</button>
+              <button class="btn btn-g" data-view-allow onclick="checkForUpdates()" data-l10n-key="check_updates">Auf Updates prüfen</button>
               <button class="btn btn-o" id="update-download-btn" data-view-allow onclick="downloadAndUpdate()" style="display:none" data-l10n-key="download_update">Download & Update</button>
             </div>
-            <div class="demo-state" id="update-status" style="margin-top:10px" data-l10n-key="update_idle">Noch nicht geprueft.</div>
+            <div class="demo-state" id="update-status" style="margin-top:10px" data-l10n-key="update_idle">Noch nicht geprüft.</div>
           </div>
           <div class="setting-block">
             <div class="toggle-row">
               <div>
                 <div class="setting-label" data-l10n-key="demo_mode_title">Demo-Modus</div>
-                <div class="setting-hint" data-l10n-key="demo_mode_hint">Simuliert alle Geraete als online und fuellt Anzeigen mit Demo-Werten.</div>
+                <div class="setting-hint" data-l10n-key="demo_mode_hint">Simuliert alle Geräte als online und füllt Anzeigen mit Demo-Werten.</div>
               </div>
               <label class="switch" for="demo-mode-toggle">
                 <input type="checkbox" id="demo-mode-toggle" onchange="setDemoMode(this.checked)">
@@ -1104,8 +1148,13 @@ async function invoke(cmd, args) {
 
 async function tcpPing(ip,port){
   const r=await invoke('http_ping',{ip,port:Number(port)});
-  if(r===true) return true; if(r===false) return false;
-  try{await fetch(`http://${ip}:${port}/`,{signal:AbortSignal.timeout(1500),mode:'no-cors',cache:'no-store'});return true;}catch{return false;}
+  const result=String(r||'').toUpperCase();
+  if(result==='OK') return true;
+  if(result==='TIMEOUT') throw 'Timeout';
+  if(result==='REFUSED') throw 'Verbindung abgelehnt';
+  if(result==='UNREACHABLE') throw 'Gerät nicht erreichbar';
+  if(result.startsWith('ERROR:')) throw result.substring(6).trim();
+  return false;
 }
 
 let cfg={};
@@ -1126,7 +1175,7 @@ let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
-const APP_VERSION_FALLBACK = '1.0.3-beta';
+const APP_VERSION_FALLBACK = '1.0.4-beta';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -1157,27 +1206,27 @@ const locales = {
     language_selection_label: 'Sprache',
     software_version_title: 'Software-Version',
     update_title: 'Update',
-    update_hint: 'Prueft, ob eine neuere Version verfuegbar ist.',
-    check_updates: 'Auf Updates pruefen',
+    update_hint: 'Prüft, ob eine neuere Version verfügbar ist.',
+    check_updates: 'Auf Updates prüfen',
     download_update: 'Download & Update',
-    update_idle: 'Noch nicht geprueft.',
-    update_checking: 'Pruefe auf neue Version...',
+    update_idle: 'Noch nicht geprüft.',
+    update_checking: 'Prüfe auf neue Version...',
     update_up_to_date: 'Du hast bereits die neueste Version ({version}).',
-    update_available: 'Neue Version verfuegbar: {version}.',
-    update_none: 'Keine gueltige Release-Version gefunden.',
-    update_failed: 'Update-Pruefung fehlgeschlagen.',
+    update_available: 'Neue Version verfügbar: {version}.',
+    update_none: 'Keine gültige Release-Version gefunden.',
+    update_failed: 'Update-Prüfung fehlgeschlagen.',
     update_download_started: 'Download wurde im Browser gestartet: {version}',
-    update_demo_blocked: 'Im Demo-Modus ist die Update-Pruefung deaktiviert.',
+    update_demo_blocked: 'Im Demo-Modus ist die Update-Prüfung deaktiviert.',
     lang_deutsch: 'Deutsch',
     lang_english: 'English',
     demo_mode_title: 'Demo-Modus',
-    demo_mode_hint: 'Simuliert alle Geraete als online und fuellt Anzeigen mit Demo-Werten.',
-    demo_mode_active: 'Demo-Modus aktiv. Alle Geraete werden als online simuliert.',
+    demo_mode_hint: 'Simuliert alle Geräte als online und füllt Anzeigen mit Demo-Werten.',
+    demo_mode_active: 'Demo-Modus aktiv. Alle Geräte werden als online simuliert.',
     demo_mode_inactive: 'Demo-Modus ist aus. Es werden Live-Daten verwendet.',
     demo_mode_enabled_log: 'Demo-Modus aktiviert',
     demo_mode_disabled_log: 'Demo-Modus deaktiviert',
     startup_mode_title: 'Startmodus',
-    startup_mode_hint: 'Legt fest, ob die App standardmaessig im Admin- oder Viewer-Modus startet.',
+    startup_mode_hint: 'Legt fest, ob die App standardmässig im Admin- oder Viewer-Modus startet.',
     startup_mode_admin_label: 'Admin',
     startup_mode_viewer_label: 'Viewer',
     startup_mode_admin: 'Startmodus: Admin',
@@ -1187,8 +1236,8 @@ const locales = {
     view_mode_title: 'View-Modus',
     view_mode_hint: 'Nur Live-Daten und Navigation in der Navbar. Alle Steuerbefehle und Tasten sind gesperrt.',
     view_mode_locked_button: 'Schloss aktiv',
-    view_mode_unlocked_button: 'Schloss schliessen',
-    view_mode_status_locked: 'View-Modus aktiv. Nur Navbar-Navigation und Live-Daten sind verfuegbar.',
+    view_mode_unlocked_button: 'Schloss schließen',
+    view_mode_status_locked: 'View-Modus aktiv. Nur Navbar-Navigation und Live-Daten sind verfügbar.',
     view_mode_status_unlocked: 'View-Modus aus. Die Bedienung ist freigegeben.',
     view_mode_unlock_title: 'View-Modus entsperren',
     view_mode_unlock_hint: 'Zum Verlassen des View-Modus bitte den 4-stelligen Code eingeben.',
@@ -1202,10 +1251,10 @@ const locales = {
     projector_count_saved: 'Projektor-Anzahl auf {count} gesetzt',
     warnings_label: 'Warnung(en)',
     system_warning: 'Systemwarnung',
-    gain_dialog_default_title: 'Amplifier Gain aendern',
+    gain_dialog_default_title: 'Amplifier Gain ändern',
     gain_dialog_default_subtitle: 'AMP 01 Kanal A',
     target_value: 'Zielwert',
-    gain_range_help: 'Wertebereich: -57.5 bis +6.0 dB, Schritte: 0.5 dB. Gib z. B. „6“ fuer +6 dB oder „-3.5“ fuer -3.5 dB ein.',
+    gain_range_help: 'Wertebereich: -57.5 bis +6.0 dB, Schritte: 0.5 dB. Gib z. B. „6“ für +6 dB oder „-3.5“ für -3.5 dB ein.',
     powerall_warmup: 'PowerAll (Warmup)',
     poweroff_all: 'PowerOff All',
     director_31: 'Director (.31)',
@@ -1242,7 +1291,7 @@ const locales = {
     d40_amp_01: 'D40 AMP 01',
     d40_amp_02: 'D40 AMP 02',
     test_pattern: 'Testbild',
-    white: 'Weiss',
+    white: 'Weiß',
     blackout: 'Blackout',
     all_on: 'Alle EIN',
     amp01_offline: 'AMP 01 — OFFLINE',
@@ -1290,7 +1339,7 @@ const locales = {
     cam_mode_snapshot: 'Snapshot',
     cam_mode_stream: 'Stream',
     cam_mode_snapshot_hint: 'Schonend: ca. 1 Bild pro Sekunde.',
-    cam_mode_stream_hint: 'Fluessiger: schnellere Aktualisierung (mehr CPU/Netz).',
+    cam_mode_stream_hint: 'Flüssiger: schnellere Aktualisierung (mehr CPU/Netz).',
     cam_mode_snapshot_log: 'Kamera Vorschau-Modus: Snapshot',
     cam_mode_stream_log: 'Kamera Vorschau-Modus: Stream',
     preset_1: 'Preset 1',
@@ -1305,10 +1354,10 @@ const locales = {
     nas_offline: 'NAS — OFFLINE',
     raid_status: 'RAID Status',
     system_log: 'System Log',
-    emergency_confirm_action: '⚠ EMERGENCY — AKTION BESTAETIGEN ⚠',
+    emergency_confirm_action: '⚠ EMERGENCY — AKTION BESTÄTIGEN ⚠',
     emergency_line_stop_now: 'Die Show wird sofort gestoppt!',
-    emergency_line_no_restart: 'Ein Neustart der Show ist nicht moeglich!',
-    emergency_line_projectors_white: 'Projektoren schalten auf Weissbild!',
+    emergency_line_no_restart: 'Ein Neustart der Show ist nicht möglich!',
+    emergency_line_projectors_white: 'Projektoren schalten auf Weißbild!',
     emergency_hotline_note: '⚠ Die Hotline muss kontaktiert werden ⚠',
     emergency_hotline_lock_title: 'Bitte Hotline kontaktieren',
     schedule_title: 'Tagesplan',
@@ -1335,7 +1384,7 @@ const locales = {
     projector_state_startup: 'Startup',
     projector_state_cooldown: 'Cooldown',
     projector_state_standby: 'Standby',
-    janitza_offline_unreachable: 'Messgeraet OFFLINE oder nicht erreichbar',
+    janitza_offline_unreachable: 'Messgerät OFFLINE oder nicht erreichbar',
     ups_online_mains: 'Online / Netz',
     ups_battery_mode: 'Batterie!',
     pixera_connected: 'Pixera: verbunden',
@@ -1347,13 +1396,13 @@ const locales = {
     amp_sync_log: 'AMP 0{amp} SYNC: Ch {channel} {state}',
     muted_state: 'stumm',
     unmuted_state: 'aktiv',
-    gain_click_title: 'Klicken zum Aendern',
+    gain_click_title: 'Klicken zum Ändern',
     mute: 'Mute',
     muted: '🔇 Stumm',
     projector_on: 'ON',
     projector_off: 'OFF',
     invalid_number: 'Ungültiger Wert. Bitte eine Zahl eingeben.',
-    invalid_range: 'Wert ausserhalb des Bereichs -57.5 bis +6.0 dB.',
+    invalid_range: 'Wert außerhalb des Bereichs -57.5 bis +6.0 dB.',
     gain_not_available: 'Aktueller Gain-Wert ist noch nicht verfügbar. Bitte zuerst den AMP-Status laden.',
     gain_set_error: 'Fehler beim Setzen des Gain-Werts.',
     poweroff_executed: 'PowerOff ausgeführt',
@@ -1689,6 +1738,11 @@ function updateAppVersionUI(){
   const el = document.getElementById('app-version-display');
   if(!el) return;
   el.textContent = `v${appVersion || APP_VERSION_FALLBACK}`;
+
+  const startupVersion = document.getElementById('startup-version');
+  if(startupVersion){
+    startupVersion.textContent = `v${appVersion || APP_VERSION_FALLBACK}`;
+  }
 }
 
 function updateUpdateUI(){
@@ -2186,6 +2240,7 @@ window.setProjectorCount=(value)=>{
 // INIT
 // ============================================================
 async function init(){
+  sessionStartMs=Date.now();
   cfg=await invoke('get_config');
   cfg.pixera_api_root = (cfg.pixera_api_root||'erwer').toString();
   cfg.pixera_pjlink_module = (cfg.pixera_pjlink_module||'PJ_Link__16ch').toString();
@@ -2208,6 +2263,7 @@ async function init(){
   localStorage.setItem('emergencyLockActive', '0');
   applyProjectorIpConfig();
   translatePage();
+  await loadPersistedLogs();
   updateStartupModeSettingsUI();
   updateViewModeUI();
   updateEmergencyLockUI();
@@ -2224,11 +2280,19 @@ async function init(){
   updateCameraModeUI();
   startClock();
   switchTab(currentTab, document.querySelector(`[data-tab="${currentTab}"]`));
+  let startupFailedConnections=[];
   if(demoMode){
     applyDemoMode();
+    closeStartupOverlay();
   } else {
-    await pollAll();
-    await pollD40Status();
+    showStartupOverlay();
+    startupFailedConnections=await runStartupConnectivityChecks();
+    startupFailedConnections.forEach(item=>{
+      addError(`[Startup] ${item.name} (${item.host}:${item.port}) OFFLINE | Grund: ${item.reason} | Dauer: ${item.durationMs}ms`,{showBanner:false});
+    });
+    finalizeStartupScreen(startupFailedConnections);
+    pollAll().catch(e=>console.error('pollAll failed',e));
+    pollD40Status().catch(e=>console.error('pollD40Status failed',e));
   }
   setInterval(pollAll,10000);
   setInterval(pollD40Status,5000);
@@ -3292,16 +3356,16 @@ async function updateCameraPreview(cam){
     }else{
       img.style.display='none';
       fallback.style.display='flex';
-      fallback.textContent='Preview nicht verfuegbar';
+      fallback.textContent='Preview nicht verfügbar';
       if(!window.__camPreviewWarned[cam]){
-        addError(`CAM 0${cam} Preview nicht verfuegbar (kein gueltiges Bild).`);
+        addError(`CAM 0${cam} Preview nicht verfügbar (kein gültiges Bild).`);
         window.__camPreviewWarned[cam]=true;
       }
     }
   }catch(e){
     img.style.display='none';
     fallback.style.display='flex';
-    fallback.textContent='Preview nicht verfuegbar';
+    fallback.textContent='Preview nicht verfügbar';
     if(!window.__camPreviewWarned[cam]){
       addError(`CAM 0${cam} Preview Fehler: ${e}`);
       window.__camPreviewWarned[cam]=true;
@@ -3359,24 +3423,105 @@ async function refreshCameraPreviews(){
 // ============================================================
 const logs=[],errors=[];
 let errorIdCounter=1;
+const MAX_LOG_ENTRIES_UI=2000;
+const MAX_ERROR_ENTRIES_UI=1000;
+let persistedLogsLoaded=false;
+let sessionStartMs=Date.now();
 
-function addLog(type,msg){
-  logs.unshift({type,msg,time:new Date().toLocaleTimeString('de-CH')});
-  if(logs.length>100)logs.pop();
-  renderLog();
+function formatLogTime(ts, withDate=false){
+  const d = new Date(Number(ts)||Date.now());
+  return withDate ? d.toLocaleString('de-CH') : d.toLocaleTimeString('de-CH');
 }
 
-function addError(msg){
-  // 60s duplicate suppression
-  const now=Date.now();
-  if(errors.find(e=>e.msg===msg&&(now-e.ts)<60000))return;
-  errors.push({id:errorIdCounter++,msg,time:new Date().toLocaleString('de-CH'),ts:now});
+async function persistAppLog(type,msg,ts){
+  if(!isTauri) return;
+  try{
+    await invoke('append_app_log',{level:type,message:String(msg||''),timestampMs:Number(ts)||Date.now()});
+  }catch(e){
+    console.error('[persist-log]',e);
+  }
+}
+
+async function loadPersistedLogs(){
+  if(!isTauri || persistedLogsLoaded) return;
+  persistedLogsLoaded=true;
+  try{
+    const data=await invoke('load_app_logs',{limit:2000});
+    const systemEntries=Array.isArray(data?.system)?data.system:[];
+    const errorEntries=Array.isArray(data?.errors)?data.errors:[];
+
+    logs.length=0;
+    for(const entry of systemEntries){
+      const ts=Number(entry?.timestamp_ms)||Date.now();
+      logs.push({
+        type:String(entry?.level||'info').toLowerCase()==='error'?'error':'info',
+        msg:String(entry?.message||''),
+        ts,
+        time:formatLogTime(ts,false)
+      });
+      if(logs.length>=MAX_LOG_ENTRIES_UI) break;
+    }
+
+    errors.length=0;
+    errorIdCounter=1;
+    for(let i=errorEntries.length-1;i>=0;i--){
+      const entry=errorEntries[i];
+      const ts=Number(entry?.timestamp_ms)||Date.now();
+      if(ts<sessionStartMs) break;
+      addError(String(entry?.message||''),{
+        timestampMs:ts,
+        persist:false,
+        showBanner:false,
+        suppressDuplicate:false,
+        logToSystem:false
+      });
+      if(errors.length>=MAX_ERROR_ENTRIES_UI) break;
+    }
+
+    renderLog();
+    renderErrors();
+    updateErrorBadge();
+    if(errors.length>0){
+      document.getElementById('tb-warn-pill')?.classList.add('show');
+      document.getElementById('tb-warn-count').textContent=errors.length;
+    }
+  }catch(e){
+    console.error('[load-persisted-logs]',e);
+  }
+}
+
+function addLog(type,msg,opts={}){
+  const ts=Number(opts.timestampMs)||Date.now();
+  const persist=opts.persist!==false;
+  logs.unshift({type,msg,ts,time:formatLogTime(ts,false)});
+  if(logs.length>MAX_LOG_ENTRIES_UI)logs.pop();
+  renderLog();
+  if(persist){
+    persistAppLog(type,msg,ts);
+  }
+}
+
+function addError(msg,opts={}){
+  const now=Number(opts.timestampMs)||Date.now();
+  const persist=opts.persist!==false;
+  const suppressDuplicate=opts.suppressDuplicate!==false;
+  const showBanner=opts.showBanner!==false;
+  const logToSystem=opts.logToSystem!==false;
+  if(suppressDuplicate && errors.find(e=>e.msg===msg&&(now-e.ts)<60000))return;
+  errors.unshift({id:errorIdCounter++,msg,time:formatLogTime(now,true),ts:now});
+  if(errors.length>MAX_ERROR_ENTRIES_UI) errors.shift();
   renderErrors();updateErrorBadge();
-  document.getElementById('warn-text').textContent=msg;
-  document.getElementById('warn-banner').classList.add('show');
-  document.getElementById('tb-warn-pill').classList.add('show');
+  if(showBanner){
+    document.getElementById('warn-text').textContent=msg;
+    document.getElementById('warn-banner').classList.add('show');
+    document.getElementById('tb-warn-pill').classList.add('show');
+  }
   document.getElementById('tb-warn-count').textContent=errors.length;
-  addLog('error',msg);
+  if(logToSystem){
+    addLog('error',msg,{timestampMs:now,persist});
+  }else if(persist){
+    persistAppLog('error',msg,now);
+  }
 }
 
 function updateErrorBadge(){
@@ -3512,6 +3657,117 @@ let _tlHandleCache=null;
 let _pixeraApiOnline=false;
 let _pixeraApiConsecutiveOk=0;
 let _pixeraApiConsecutiveFail=0;
+
+function startupSetProgress(done,total,label){
+  const pct=Math.max(0,Math.min(100,Math.round((done/Math.max(1,total))*100)));
+  const bar=document.getElementById('startup-bar');
+  const status=document.getElementById('startup-status');
+  const count=document.getElementById('startup-progress-count');
+  if(bar) bar.style.width=`${pct}%`;
+  if(status && label) status.textContent=label;
+  if(count) count.textContent=`${Math.min(done,total)}/${total}`;
+}
+
+function showStartupOverlay(){
+  const overlay=document.getElementById('startup-overlay');
+  if(overlay) overlay.classList.add('show');
+}
+
+function closeStartupOverlay(){
+  const overlay=document.getElementById('startup-overlay');
+  if(overlay) overlay.classList.remove('show');
+}
+
+window.closeStartupOverlay=closeStartupOverlay;
+
+async function runStartupConnectivityChecks(){
+  const pixeraPort=Number(cfg.pixera_port||1338);
+  const nasPort=Number(cfg.nas_port||5000);
+  const poePingPort=Number(cfg.poe_switch_ping_port||443);
+  const rutxPingPort=Number(cfg.rutx50_ping_port||443);
+  const octoPort=Number(cfg.pixera_octo_port||4000);
+  const checks=[
+    {name:'Pixera Director', host:cfg.pixera_ip, port:pixeraPort, run:()=>tcpPing(cfg.pixera_ip,pixeraPort)},
+    {name:'D40 AMP 01', host:cfg.d40_01_ip, port:80, run:()=>tcpPing(cfg.d40_01_ip,80)},
+    {name:'D40 AMP 02', host:cfg.d40_02_ip, port:80, run:()=>tcpPing(cfg.d40_02_ip,80)},
+    {name:'NAS', host:cfg.nas_ip, port:nasPort, run:()=>tcpPing(cfg.nas_ip,nasPort)},
+    {name:'PoE Switch', host:cfg.poe_switch_ip||DEFAULT_POE_IP, port:poePingPort, run:()=>tcpPing(cfg.poe_switch_ip||DEFAULT_POE_IP,poePingPort)},
+    {name:'RUTX50', host:cfg.rutx50_ip||DEFAULT_RUTX50_IP, port:rutxPingPort, run:()=>tcpPing(cfg.rutx50_ip||DEFAULT_RUTX50_IP,rutxPingPort)},
+    {name:'UPS', host:cfg.ups_ip, port:443, run:()=>tcpPing(cfg.ups_ip,443)},
+    {name:'Janitza', host:cfg.power_disp_ip, port:80, run:()=>tcpPing(cfg.power_disp_ip,80)},
+    {name:'Cam 01', host:cfg.cam_01_ip, port:80, run:()=>tcpPing(cfg.cam_01_ip,80)},
+    {name:'Cam 02', host:cfg.cam_02_ip, port:80, run:()=>tcpPing(cfg.cam_02_ip,80)},
+    {name:'Pixera Octo 01', host:cfg.pixera_octo1_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo1_ip,octoPort)},
+    {name:'Pixera Octo 02', host:cfg.pixera_octo2_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo2_ip,octoPort)}
+  ];
+
+  const failed=[];
+  let completed=0;
+  const startTime=Date.now();
+  const maxDurationMs=10000;
+  const detail=document.getElementById('startup-detail');
+  startupSetProgress(0,checks.length,'Prüfe Verbindungen...');
+  if(detail) detail.textContent='Lokale Netzwerkverbindungen werden parallel geprüft.';
+
+  const progressInterval=setInterval(()=>{
+    const elapsed=Date.now()-startTime;
+    const estimatedDone=Math.max(completed,Math.floor((Math.min(elapsed,maxDurationMs)/maxDurationMs)*checks.length));
+    startupSetProgress(Math.min(estimatedDone,checks.length), checks.length, 'Prüfe Verbindungen...');
+  },200);
+
+  const allSettledResults=await Promise.allSettled(checks.map(async(item)=>{
+    const startedAt=Date.now();
+    let ok=false;
+    let reason='Timeout oder keine Antwort';
+    try{
+      const r=await item.run();
+      ok=r===true;
+    }catch(e){
+      reason=String(e||'Verbindungsfehler').toLowerCase();
+      reason=reason.replace(/.*zielcomputer.*\(/g,'').replace(/\).*/g,'').trim()||reason;
+      ok=false;
+    }
+    const durationMs=Date.now()-startedAt;
+    if(!ok){
+      failed.push({
+        name:item.name,
+        host:item.host,
+        port:item.port,
+        reason,
+        durationMs
+      });
+    }
+    completed+=1;
+  }));
+
+  clearInterval(progressInterval);
+  
+  const elapsedMs=Date.now()-startTime;
+  if(elapsedMs<maxDurationMs){
+    startupSetProgress(checks.length, checks.length, 'Abgeschlossen');
+  }
+
+  return failed;
+}
+
+function finalizeStartupScreen(failed){
+  const status=document.getElementById('startup-status');
+  const detail=document.getElementById('startup-detail');
+  if(!status || !detail) return;
+
+  if(!failed.length){
+    status.textContent='Start abgeschlossen';
+    status.style.color='var(--green)';
+    detail.textContent='Alle Verbindungen erfolgreich geprüft.';
+    setTimeout(closeStartupOverlay,500);
+    return;
+  }
+
+  status.textContent=`Start mit Fehlern (${failed.length})`;
+  status.style.color='var(--orange)';
+  detail.textContent='Details im Error Log';
+  setTimeout(closeStartupOverlay,450);
+}
 
 function setPixeraDirectorUi(online){
   setStatus(['sb-pixera','sys-pixera','mon-director'],online);
@@ -3846,6 +4102,23 @@ window.pixeraStop=async()=>{
     addError(`[Pixera API] Stop fehlgeschlagen: ${e}`);
   }
 };
+
+window.addEventListener('error',(ev)=>{
+  const msg = `JS Error: ${ev.message||'Unbekannter Fehler'} (${ev.filename||'unknown'}:${ev.lineno||0})`;
+  addError(msg);
+});
+
+window.addEventListener('unhandledrejection',(ev)=>{
+  try{
+    const reason = typeof ev.reason === 'string' ? ev.reason : (ev.reason?.message || JSON.stringify(ev.reason||{}));
+    if(!reason.includes('abort') && !reason.includes('Polling')){
+      console.error('[Unhandled Rejection]',reason);
+      addLog('error',`Unhandled Promise Rejection: ${reason}`,{persist:true});
+    }
+  }catch(e){
+    console.error('[Error in unhandledrejection handler]',e);
+  }
+});
 
 init();
 </script>
