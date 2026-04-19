@@ -560,6 +560,15 @@ body.emergency-locked .btn-o{background:#9a3412}
             <div class="demo-state" id="app-version-display">v1.0.0</div>
           </div>
           <div class="setting-block">
+            <div class="setting-label" data-l10n-key="update_title">Update</div>
+            <div class="setting-hint" data-l10n-key="update_hint" style="margin-bottom:10px">Prueft, ob eine neuere Version verfuegbar ist.</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-g" data-view-allow onclick="checkForUpdates()" data-l10n-key="check_updates">Auf Updates pruefen</button>
+              <button class="btn btn-o" id="update-download-btn" data-view-allow onclick="downloadAndUpdate()" style="display:none" data-l10n-key="download_update">Download & Update</button>
+            </div>
+            <div class="demo-state" id="update-status" style="margin-top:10px" data-l10n-key="update_idle">Noch nicht geprueft.</div>
+          </div>
+          <div class="setting-block">
             <div class="toggle-row">
               <div>
                 <div class="setting-label" data-l10n-key="demo_mode_title">Demo-Modus</div>
@@ -1117,8 +1126,10 @@ let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
-const APP_VERSION_FALLBACK = '1.0.2-beta';
+const APP_VERSION_FALLBACK = '1.0.3-beta';
 let appVersion = APP_VERSION_FALLBACK;
+const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
+let latestReleaseInfo = null;
 const VIEW_MODE_PIN = '8048';
 const CAMERA_MJPEG_BASE_URL = 'http://127.0.0.1:41777';
 const CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS = 1200;
@@ -1145,6 +1156,18 @@ const locales = {
     settings_title: 'Einstellungen',
     language_selection_label: 'Sprache',
     software_version_title: 'Software-Version',
+    update_title: 'Update',
+    update_hint: 'Prueft, ob eine neuere Version verfuegbar ist.',
+    check_updates: 'Auf Updates pruefen',
+    download_update: 'Download & Update',
+    update_idle: 'Noch nicht geprueft.',
+    update_checking: 'Pruefe auf neue Version...',
+    update_up_to_date: 'Du hast bereits die neueste Version ({version}).',
+    update_available: 'Neue Version verfuegbar: {version}.',
+    update_none: 'Keine gueltige Release-Version gefunden.',
+    update_failed: 'Update-Pruefung fehlgeschlagen.',
+    update_download_started: 'Download wurde im Browser gestartet: {version}',
+    update_demo_blocked: 'Im Demo-Modus ist die Update-Pruefung deaktiviert.',
     lang_deutsch: 'Deutsch',
     lang_english: 'English',
     demo_mode_title: 'Demo-Modus',
@@ -1364,6 +1387,18 @@ const locales = {
     settings_title: 'Settings',
     language_selection_label: 'Language',
     software_version_title: 'Software version',
+    update_title: 'Update',
+    update_hint: 'Checks whether a newer version is available.',
+    check_updates: 'Check for updates',
+    download_update: 'Download & Update',
+    update_idle: 'Not checked yet.',
+    update_checking: 'Checking for updates...',
+    update_up_to_date: 'You already have the latest version ({version}).',
+    update_available: 'New version available: {version}.',
+    update_none: 'No valid release version found.',
+    update_failed: 'Update check failed.',
+    update_download_started: 'Download started in browser: {version}',
+    update_demo_blocked: 'Update checks are disabled in demo mode.',
     lang_deutsch: 'Deutsch',
     lang_english: 'English',
     demo_mode_title: 'Demo mode',
@@ -1603,6 +1638,9 @@ function translatePage(){
   if(typeof updateAppVersionUI === 'function'){
     updateAppVersionUI();
   }
+  if(typeof updateUpdateUI === 'function'){
+    updateUpdateUI();
+  }
   if(typeof updateStartupModeSettingsUI === 'function'){
     updateStartupModeSettingsUI();
   }
@@ -1652,6 +1690,102 @@ function updateAppVersionUI(){
   if(!el) return;
   el.textContent = `v${appVersion || APP_VERSION_FALLBACK}`;
 }
+
+function updateUpdateUI(){
+  const status=document.getElementById('update-status');
+  const dlBtn=document.getElementById('update-download-btn');
+  if(status && !status.dataset.manual){
+    status.textContent = locales[currentLang]?.update_idle || 'Not checked yet.';
+  }
+  if(dlBtn){
+    dlBtn.style.display = latestReleaseInfo?.hasUpdate ? 'inline-flex' : 'none';
+  }
+}
+
+function parseSemver(version){
+  const clean=String(version||'').trim().replace(/^v/i,'');
+  const m=clean.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if(!m) return null;
+  return { major:Number(m[1]), minor:Number(m[2]), patch:Number(m[3]), suffix:m[4]||'' };
+}
+
+function compareSemver(a,b){
+  const pa=parseSemver(a), pb=parseSemver(b);
+  if(!pa || !pb) return 0;
+  if(pa.major!==pb.major) return pa.major-pb.major;
+  if(pa.minor!==pb.minor) return pa.minor-pb.minor;
+  if(pa.patch!==pb.patch) return pa.patch-pb.patch;
+  if(pa.suffix===pb.suffix) return 0;
+  if(pa.suffix==='' && pb.suffix!=='') return 1;
+  if(pa.suffix!=='' && pb.suffix==='') return -1;
+  return pa.suffix.localeCompare(pb.suffix);
+}
+
+function setUpdateStatus(message){
+  const status=document.getElementById('update-status');
+  if(!status) return;
+  status.dataset.manual='1';
+  status.textContent=message;
+}
+
+async function openUrlForUpdate(url){
+  if(!url) return;
+  if(isTauri){
+    await invoke('open_external_url',{url}).catch(()=>window.open(url,'_blank','noopener,noreferrer'));
+    return;
+  }
+  window.open(url,'_blank','noopener,noreferrer');
+}
+
+window.checkForUpdates=async()=>{
+  if(demoMode){
+    setUpdateStatus(locales[currentLang]?.update_demo_blocked || 'Update checks are disabled in demo mode.');
+    return;
+  }
+  const dlBtn=document.getElementById('update-download-btn');
+  if(dlBtn) dlBtn.style.display='none';
+  setUpdateStatus(locales[currentLang]?.update_checking || 'Checking for updates...');
+
+  try{
+    const res=await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases`,{cache:'no-store'});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const releases=await res.json();
+    const latest=Array.isArray(releases) ? releases.find(r=>r && !r.draft && r.tag_name) : null;
+    if(!latest){
+      latestReleaseInfo=null;
+      setUpdateStatus(locales[currentLang]?.update_none || 'No valid release version found.');
+      return;
+    }
+
+    const latestTag=String(latest.tag_name||'').replace(/^v/i,'');
+    const hasUpdate=compareSemver(latestTag, appVersion)>0;
+    const exeAsset=Array.isArray(latest.assets)
+      ? latest.assets.find(a=>/\.exe$/i.test(String(a?.name||'')))
+      : null;
+    const downloadUrl=exeAsset?.browser_download_url || latest.html_url;
+    latestReleaseInfo={ tag:latestTag, hasUpdate, downloadUrl };
+
+    if(hasUpdate){
+      setUpdateStatus(t('update_available',{version:`v${latestTag}`}));
+      if(dlBtn) dlBtn.style.display='inline-flex';
+    }else{
+      setUpdateStatus(t('update_up_to_date',{version:`v${appVersion}`}));
+    }
+  }catch(e){
+    latestReleaseInfo=null;
+    console.error('[update-check]',e);
+    setUpdateStatus(`${locales[currentLang]?.update_failed || 'Update check failed.'} (${e})`);
+  }
+};
+
+window.downloadAndUpdate=async()=>{
+  if(!latestReleaseInfo?.downloadUrl){
+    setUpdateStatus(locales[currentLang]?.update_none || 'No valid release version found.');
+    return;
+  }
+  await openUrlForUpdate(latestReleaseInfo.downloadUrl);
+  setUpdateStatus(t('update_download_started',{version:`v${latestReleaseInfo.tag}`}));
+};
 
 async function resolveAppVersion(){
   let resolvedVersion = APP_VERSION_FALLBACK;

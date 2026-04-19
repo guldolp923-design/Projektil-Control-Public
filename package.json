@@ -1,11 +1,17 @@
 {
   "name": "projektil-control",
-  "version": "1.0.2-beta",
+  "version": "1.0.3-beta",
   "description": "PROJEKTIL Show Control — Tauri App",
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
-    "build:debug": "tauri build --debug"
+    "build:debug": "tauri build --debug",
+    "version:bump": "node scripts/bump-version.js",
+    "version:bump:beta": "node scripts/bump-version.js --channel=beta",
+    "version:bump:stable": "node scripts/bump-version.js --channel=stable",
+    "release:auto": "npm run version:bump && tauri build",
+    "release:auto:beta": "npm run version:bump:beta && tauri build",
+    "release:auto:stable": "npm run version:bump:stable && tauri build"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
