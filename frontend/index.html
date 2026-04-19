@@ -519,9 +519,45 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="card-title" data-l10n-key="settings_title">Einstellungen</div>
         <div class="settings-stack" style="margin-top:12px">
           <div class="setting-block">
+            <div class="setting-label" data-l10n-key="projector_count_label">Anzahl Projektoren (1-16)</div>
+            <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+              <input id="projector-count-input" type="number" min="1" max="16" step="1" onchange="commitProjectorCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitProjectorCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
+              <button class="btn btn-g" onclick="commitProjectorCountFromInput()">OK</button>
+            </div>
+          </div>
+          <div class="setting-block">
             <div style="font-size:12px;color:var(--muted);margin-bottom:10px" data-l10n-key="language_selection_label">Sprache</div>
             <button class="btn lang-option" id="lang-option-de" onclick="setLanguage('de')"><span class="lang-label">Deutsch</span><span class="lang-check">✓</span></button>
             <button class="btn lang-option" id="lang-option-en" onclick="setLanguage('en')"><span class="lang-label">English</span><span class="lang-check">✓</span></button>
+          </div>
+          <div class="setting-block">
+            <div class="toggle-row">
+              <div>
+                <div class="setting-label" data-l10n-key="view_mode_title">View-Modus</div>
+                <div class="setting-hint" data-l10n-key="view_mode_hint">Nur Live-Daten und Navigation in der Navbar. Alle Steuerbefehle und Tasten sind gesperrt.</div>
+              </div>
+              <button class="btn btn-g view-mode-btn" id="view-mode-toggle" data-view-allow onclick="toggleViewMode()">Lock</button>
+            </div>
+            <div class="demo-state" id="view-mode-status" data-view-allow></div>
+          </div>
+          <div class="setting-block">
+            <div>
+              <div class="setting-label" data-l10n-key="startup_mode_title">Startmodus</div>
+              <div class="setting-hint" data-l10n-key="startup_mode_hint" style="margin-bottom:10px">Legt fest, ob die App standardmaessig im Admin- oder Viewer-Modus startet.</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn lang-option" id="startup-mode-admin" onclick="setStartupMode('admin')" style="margin-bottom:0;flex:1">
+                <span class="lang-label" data-l10n-key="startup_mode_admin_label">Admin</span><span class="lang-check">✓</span>
+              </button>
+              <button class="btn lang-option" id="startup-mode-viewer" onclick="setStartupMode('viewer')" style="margin-bottom:0;flex:1">
+                <span class="lang-label" data-l10n-key="startup_mode_viewer_label">Viewer</span><span class="lang-check">✓</span>
+              </button>
+            </div>
+          </div>
+          <div class="setting-block">
+            <div class="setting-label" data-l10n-key="software_version_title">Software-Version</div>
+            <div class="demo-state" id="app-version-display">v1.0.0</div>
           </div>
           <div class="setting-block">
             <div class="toggle-row">
@@ -535,24 +571,6 @@ body.emergency-locked .btn-o{background:#9a3412}
               </label>
             </div>
             <div class="demo-state" id="demo-mode-status" data-l10n-key="demo_mode_inactive">Demo-Modus ist aus. Es werden Live-Daten verwendet.</div>
-          </div>
-          <div class="setting-block">
-            <div class="setting-label" data-l10n-key="projector_count_label">Anzahl Projektoren (1-16)</div>
-            <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
-            <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-              <input id="projector-count-input" type="number" min="1" max="16" step="1" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
-              <button class="btn btn-g" onclick="setProjectorCount(document.getElementById('projector-count-input')?.value)">OK</button>
-            </div>
-          </div>
-          <div class="setting-block">
-            <div class="toggle-row">
-              <div>
-                <div class="setting-label" data-l10n-key="view_mode_title">View-Modus</div>
-                <div class="setting-hint" data-l10n-key="view_mode_hint">Nur Live-Daten und Navigation in der Navbar. Alle Steuerbefehle und Tasten sind gesperrt.</div>
-              </div>
-              <button class="btn btn-g view-mode-btn" id="view-mode-toggle" data-view-allow onclick="toggleViewMode()">Lock</button>
-            </div>
-            <div class="demo-state" id="view-mode-status" data-view-allow></div>
           </div>
         </div>
       </div>
@@ -1007,7 +1025,60 @@ body.emergency-locked .btn-o{background:#9a3412}
 // ============================================================
 const isTauri = typeof window.__TAURI_INTERNALS__ !== 'undefined';
 
+function isDemoModeEnabled(){
+  return localStorage.getItem('demoMode') === '1';
+}
+
+function getDemoInvokeResponse(cmd){
+  const byCmd = {
+    http_ping: false,
+    d40_ping: false,
+    d40_command: 'DEMO: blocked',
+    d40_set_gain: null,
+    d40_status: null,
+    janitza_get_data: null,
+    ups_get_status: null,
+    poe_switch_get_status: null,
+    rutx50_get_status: null,
+    nas_get_status: null,
+    camera_snapshot: null,
+    camera_ptz_command: 'DEMO: blocked',
+    camera_restart_stream: null,
+    pjlink_set_power: true,
+    pjlink_set_shutter: true,
+    pjlink_poll_many: [],
+    open_external_url: null
+  };
+  if(Object.prototype.hasOwnProperty.call(byCmd, cmd)) return byCmd[cmd];
+  return null;
+}
+
+function shouldBlockNetworkCommandInDemo(cmd){
+  return [
+    'http_ping',
+    'd40_ping',
+    'd40_command',
+    'd40_set_gain',
+    'd40_status',
+    'janitza_get_data',
+    'ups_get_status',
+    'poe_switch_get_status',
+    'rutx50_get_status',
+    'nas_get_status',
+    'camera_snapshot',
+    'camera_ptz_command',
+    'camera_restart_stream',
+    'pjlink_set_power',
+    'pjlink_set_shutter',
+    'pjlink_poll_many',
+    'open_external_url'
+  ].includes(cmd);
+}
+
 async function invoke(cmd, args) {
+  if (isDemoModeEnabled() && shouldBlockNetworkCommandInDemo(cmd)) {
+    return getDemoInvokeResponse(cmd);
+  }
   if (isTauri) {
     try { return await window.__TAURI_INTERNALS__.invoke(cmd, args ?? {}); }
     catch(e) { console.error('[invoke]', cmd, e); return null; }
@@ -1044,7 +1115,10 @@ let currentTab = localStorage.getItem('activeTab') || 'show';
 let demoMode = localStorage.getItem('demoMode') === '1';
 let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
+let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
+const APP_VERSION_FALLBACK = '1.0.0';
+let appVersion = APP_VERSION_FALLBACK;
 const VIEW_MODE_PIN = '8048';
 const CAMERA_MJPEG_BASE_URL = 'http://127.0.0.1:41777';
 const CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS = 1200;
@@ -1070,6 +1144,7 @@ const locales = {
     nav_hint: '1–9 Tabs · E Emergency',
     settings_title: 'Einstellungen',
     language_selection_label: 'Sprache',
+    software_version_title: 'Software-Version',
     lang_deutsch: 'Deutsch',
     lang_english: 'English',
     demo_mode_title: 'Demo-Modus',
@@ -1078,6 +1153,14 @@ const locales = {
     demo_mode_inactive: 'Demo-Modus ist aus. Es werden Live-Daten verwendet.',
     demo_mode_enabled_log: 'Demo-Modus aktiviert',
     demo_mode_disabled_log: 'Demo-Modus deaktiviert',
+    startup_mode_title: 'Startmodus',
+    startup_mode_hint: 'Legt fest, ob die App standardmaessig im Admin- oder Viewer-Modus startet.',
+    startup_mode_admin_label: 'Admin',
+    startup_mode_viewer_label: 'Viewer',
+    startup_mode_admin: 'Startmodus: Admin',
+    startup_mode_viewer: 'Startmodus: Viewer',
+    startup_mode_saved_admin: 'Startmodus auf Admin gesetzt',
+    startup_mode_saved_viewer: 'Startmodus auf Viewer gesetzt',
     view_mode_title: 'View-Modus',
     view_mode_hint: 'Nur Live-Daten und Navigation in der Navbar. Alle Steuerbefehle und Tasten sind gesperrt.',
     view_mode_locked_button: 'Schloss aktiv',
@@ -1280,6 +1363,7 @@ const locales = {
     nav_hint: '1–9 Tabs · E Emergency',
     settings_title: 'Settings',
     language_selection_label: 'Language',
+    software_version_title: 'Software version',
     lang_deutsch: 'Deutsch',
     lang_english: 'English',
     demo_mode_title: 'Demo mode',
@@ -1288,6 +1372,14 @@ const locales = {
     demo_mode_inactive: 'Demo mode is off. Live data is used.',
     demo_mode_enabled_log: 'Demo mode enabled',
     demo_mode_disabled_log: 'Demo mode disabled',
+    startup_mode_title: 'Startup mode',
+    startup_mode_hint: 'Defines whether the app starts in Admin or Viewer mode by default.',
+    startup_mode_admin_label: 'Admin',
+    startup_mode_viewer_label: 'Viewer',
+    startup_mode_admin: 'Startup mode: Admin',
+    startup_mode_viewer: 'Startup mode: Viewer',
+    startup_mode_saved_admin: 'Startup mode set to Admin',
+    startup_mode_saved_viewer: 'Startup mode set to Viewer',
     view_mode_title: 'View mode',
     view_mode_hint: 'Live data and sidebar navigation only. All control commands and buttons are locked.',
     view_mode_locked_button: 'Unlock required',
@@ -1508,6 +1600,12 @@ function translatePage(){
   if(typeof updateDemoSettingsUI === 'function'){
     updateDemoSettingsUI();
   }
+  if(typeof updateAppVersionUI === 'function'){
+    updateAppVersionUI();
+  }
+  if(typeof updateStartupModeSettingsUI === 'function'){
+    updateStartupModeSettingsUI();
+  }
   if(typeof updateProjectorRangeSettingsUI === 'function'){
     updateProjectorRangeSettingsUI();
   }
@@ -1548,6 +1646,47 @@ function updateDemoSettingsUI(){
     status.textContent = demoMode ? locales[currentLang].demo_mode_active : locales[currentLang].demo_mode_inactive;
   }
 }
+
+function updateAppVersionUI(){
+  const el = document.getElementById('app-version-display');
+  if(!el) return;
+  el.textContent = `v${appVersion || APP_VERSION_FALLBACK}`;
+}
+
+async function resolveAppVersion(){
+  let resolvedVersion = APP_VERSION_FALLBACK;
+  try{
+    if(isTauri){
+      if(typeof window.__TAURI__?.app?.getVersion === 'function'){
+        const v = await window.__TAURI__.app.getVersion();
+        if(v) resolvedVersion = String(v);
+      }else if(typeof window.__TAURI_INTERNALS__?.invoke === 'function'){
+        const v = await window.__TAURI_INTERNALS__.invoke('plugin:app|version').catch(()=>null);
+        if(v) resolvedVersion = String(v);
+      }
+    }
+  }catch{}
+  appVersion = resolvedVersion;
+  updateAppVersionUI();
+}
+
+function updateStartupModeSettingsUI(){
+  const adminBtn = document.getElementById('startup-mode-admin');
+  const viewerBtn = document.getElementById('startup-mode-viewer');
+  const viewerStartup = startupMode === 'viewer';
+  if(adminBtn) adminBtn.classList.toggle('active', !viewerStartup);
+  if(viewerBtn) viewerBtn.classList.toggle('active', viewerStartup);
+}
+
+function setStartupMode(mode){
+  if(mode !== 'admin' && mode !== 'viewer') return;
+  startupMode = mode;
+  localStorage.setItem('startupMode', startupMode);
+  updateStartupModeSettingsUI();
+  addLog('info', startupMode === 'viewer' ? locales[currentLang].startup_mode_saved_viewer : locales[currentLang].startup_mode_saved_admin);
+}
+
+window.setStartupMode = setStartupMode;
 
 function isViewModeAllowedTarget(target){
   if(!target || typeof target.closest !== 'function') return false;
@@ -1659,12 +1798,16 @@ function enableViewMode(){
 }
 
 function activateEmergencyLock(){
+  const wasEmergencyActive = emergencyLockActive;
   emergencyLockActive = true;
   localStorage.setItem('emergencyLockActive', '1');
   if(!viewModeLocked){
     viewModeLocked = true;
     localStorage.setItem('viewModeLocked', '1');
     addLog('info', locales[currentLang].view_mode_enabled_log);
+  }
+  if(!wasEmergencyActive){
+    void muteAllD40ForEmergency();
   }
   updateViewModeUI();
   updateEmergencyLockUI();
@@ -1756,10 +1899,6 @@ function applyDemoMode(){
   const demoRutxIp = document.getElementById('net-rutx-ip'); if(demoRutxIp) demoRutxIp.textContent = '10.144.22.18';
   const demoRutxUp = document.getElementById('net-rutx-mobile-uptime'); if(demoRutxUp) demoRutxUp.textContent = '3d 09h 41m';
 
-  ampMutes[1] = [false,false,false,false];
-  ampMutes[2] = [false,false,false,false];
-  ampGains[1] = ['+1.0 dB','+0.5 dB','0.0 dB','-1.5 dB'];
-  ampGains[2] = ['+1.5 dB','+1.0 dB','-0.5 dB','-2.0 dB'];
   buildAmpChannels(1);
   buildAmpChannels(2);
 
@@ -1800,12 +1939,21 @@ function applyDemoMode(){
   const navPower = document.getElementById('nav-power-b'); if(navPower) navPower.style.background = 'var(--green)';
 }
 
+function seedDemoAudioState(){
+  ampMutes[1] = [false,false,false,false];
+  ampMutes[2] = [false,false,false,false];
+  ampGains[1] = ['+1.0 dB','+0.5 dB','0.0 dB','-1.5 dB'];
+  ampGains[2] = ['+1.5 dB','+1.0 dB','-0.5 dB','-2.0 dB'];
+}
+
 function setDemoMode(enabled){
+  const wasDemoMode = demoMode;
   demoMode = enabled;
   localStorage.setItem('demoMode', demoMode ? '1' : '0');
   updateDemoSettingsUI();
   addLog('info', demoMode ? locales[currentLang].demo_mode_enabled_log : locales[currentLang].demo_mode_disabled_log);
   if(demoMode){
+    if(!wasDemoMode) seedDemoAudioState();
     stopCameraPreviewStream();
     applyDemoMode();
   } else {
@@ -1885,6 +2033,11 @@ function updateProjectorRangeSettingsUI(){
   input.value=String(Math.max(1,Math.min(16,Number(cfg.projector_count||16))));
 }
 
+window.commitProjectorCountFromInput=()=>{
+  const input=document.getElementById('projector-count-input');
+  setProjectorCount(input?.value);
+};
+
 window.setProjectorCount=(value)=>{
   const num=Math.max(1,Math.min(16,Number(value||16)));
   cfg.projector_count=num;
@@ -1908,14 +2061,20 @@ async function init(){
   cfg.rutx50_ip = cfg.rutx50_ip || DEFAULT_RUTX50_IP;
   cfg.nas_snmp_port = Number(cfg.nas_snmp_port || 161);
   cfg.nas_snmp_community = cfg.nas_snmp_community || 'projektil';
+  await resolveAppVersion();
   const storedProjectorCount=Number(localStorage.getItem('projector_count_override')||'');
   if(Number.isFinite(storedProjectorCount) && storedProjectorCount>=1 && storedProjectorCount<=16){
     cfg.projector_count=storedProjectorCount;
   }else{
     cfg.projector_count=Math.max(1,Math.min(16,Number(cfg.projector_count||16)));
   }
+  viewModeLocked = startupMode === 'viewer';
+  emergencyLockActive = false;
+  localStorage.setItem('viewModeLocked', viewModeLocked ? '1' : '0');
+  localStorage.setItem('emergencyLockActive', '0');
   applyProjectorIpConfig();
   translatePage();
+  updateStartupModeSettingsUI();
   updateViewModeUI();
   updateEmergencyLockUI();
   document.getElementById('hotline-nr').textContent=cfg.hotline;
@@ -1959,7 +2118,7 @@ async function init(){
   document.getElementById('btn-minimize')?.addEventListener('click',async()=>{if(isTauri)await invoke('minimize_window');});
   document.getElementById('btn-fullscreen')?.addEventListener('click',async()=>{if(isTauri)await invoke('toggle_fullscreen');});
   if(isTauri&&window.__TAURI__?.event?.listen){
-    window.__TAURI__.event.listen('tray-emergency',()=>switchTab('emergency',null));
+    window.__TAURI__.event.listen('tray-emergency',()=>confirmEmergency());
     window.__TAURI__.event.listen('tray-power-all',()=>{ if(!viewModeLocked) triggerPowerAll(); });
     window.__TAURI__.event.listen('tray-mute-all',()=>{ if(!viewModeLocked){ d40MuteAll(1);d40MuteAll(2); } });
   }
@@ -2350,6 +2509,7 @@ async function pollUpsData(){
 }
 
 async function pollPoeSwitchData(){
+  if(demoMode) return;
   try{
     const data=await invoke('poe_switch_get_status',{
       ip:cfg.poe_switch_ip||DEFAULT_POE_IP,
@@ -2385,6 +2545,7 @@ async function pollPoeSwitchData(){
 }
 
 async function pollRutx50Data(){
+  if(demoMode) return;
   try{
     const data=await invoke('rutx50_get_status',{
       ip:cfg.rutx50_ip||DEFAULT_RUTX50_IP,
@@ -2416,6 +2577,7 @@ async function pollRutx50Data(){
 }
 
 async function pollNasData(){
+  if(demoMode) return;
   try{
     const data=await invoke('nas_get_status',{
       ip:cfg.nas_ip,
@@ -2774,6 +2936,34 @@ window.d40UnmuteAll=async n=>{
   addLog('info',`AMP 0${n}: unmute_all`);
   buildAmpChannels(n);
 };
+
+async function muteAllD40ForEmergency(){
+  const amps = [
+    { n: 1, ip: cfg?.d40_01_ip },
+    { n: 2, ip: cfg?.d40_02_ip }
+  ];
+
+  amps.forEach(({ n }) => {
+    ampMutes[n] = [true, true, true, true];
+    setAmpCommandPending(n);
+    buildAmpChannels(n);
+  });
+
+  const results = await Promise.allSettled(
+    amps.map(async ({ n, ip }) => {
+      if(!ip) throw new Error(`AMP 0${n}: missing IP`);
+      await invoke('d40_command', { ip, command: 'mute_all' });
+      addLog('error', `EMERGENCY: AMP 0${n} mute_all`);
+    })
+  );
+
+  results.forEach((result, idx) => {
+    if(result.status === 'rejected'){
+      const ampNo = amps[idx]?.n ?? '?';
+      addError(`EMERGENCY: AMP 0${ampNo} mute_all fehlgeschlagen: ${result.reason}`);
+    }
+  });
+}
 
 // ============================================================
 // POWER ACTIONS
@@ -3280,6 +3470,7 @@ function pixeraApiRequest(address, params=[], timeoutMs=3500, host=cfg.pixera_ip
 }
 
 async function pixeraApiCall(paths, params=[], host=cfg.pixera_ip, port=cfg.pixera_port){
+  if(demoMode) return null;
   const candidates=Array.isArray(paths)?paths:[paths];
   const shouldTrackDirectorApi = host===cfg.pixera_ip && Number(port||1338)===Number(cfg.pixera_port||1338);
   let lastError=null;
