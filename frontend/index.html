@@ -326,18 +326,6 @@ body.emergency-locked .btn-o{background:#9a3412}
 .startup-status{font-size:13px;color:#ece9ff;font-weight:600}
 .startup-progress-count{font-size:11px;color:#c9c4f7;font-family:var(--mono);padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
 .startup-detail{margin-top:8px;font-size:11px;color:var(--muted);font-family:var(--mono)}
-/* VERSION & UPDATE COMBINED CARD */
-.version-update-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
-.version-update-card .vu-section{display:flex;flex-direction:column;gap:8px}
-.version-update-card .vu-label{font-size:11px;font-weight:600;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.version-update-card .vu-version{font-size:20px;font-weight:700;color:#c4b5fd;font-family:var(--mono);letter-spacing:1px}
-.version-update-card .vu-status{font-size:11px;color:rgba(255,255,255,.3);margin-top:2px}
-.version-update-card .vu-actions{display:flex;gap:8px;flex-direction:column}
-.version-update-card .vu-actions .btn{width:100%}
-.version-update-card .vu-actions-status{font-size:11px;color:rgba(255,255,255,.35);text-align:center;margin-top:4px;padding:6px 0}
-body.emergency-locked .version-update-card{background:#b91c1c;border-color:#fecaca}
-body.emergency-locked .version-update-card .vu-version{color:#fecaca}
-body.emergency-locked .version-update-card .vu-status{color:rgba(252,165,165,.3)}
 </style>
 </head>
 <body>
@@ -611,16 +599,21 @@ body.emergency-locked .version-update-card .vu-status{color:rgba(252,165,165,.3)
               </button>
             </div>
           </div>
-          <!-- VERSION & UPDATE COMBINED CARD -->
-          <div class="version-update-card">
-            <div class="vu-section">
-              <div class="vu-label" data-l10n-key="software_version_title">Software-Version</div>
-              <div class="vu-version" id="app-version-display">v1.0.0</div>
-            </div>
-            <div class="vu-section vu-actions">
-              <button class="btn btn-g" data-view-allow onclick="checkForUpdates()" data-l10n-key="check_updates">Auf Updates prüfen</button>
-              <button class="btn btn-o" id="update-download-btn" data-view-allow onclick="downloadAndUpdate()" style="display:none" data-l10n-key="download_update">Download & Update</button>
-              <div class="vu-actions-status" id="update-status" data-l10n-key="update_idle">Noch nicht geprüft.</div>
+          <!-- VERSION & UPDATE COMBINED -->
+          <div class="setting-block">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div>
+                <div class="setting-label" data-l10n-key="software_version_title">Software-Version</div>
+                <div class="demo-state" id="app-version-display">v1.0.0</div>
+              </div>
+              <div>
+                <div class="setting-label" data-l10n-key="update_title">Update</div>
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                  <button class="btn btn-g" data-view-allow onclick="checkForUpdates()" data-l10n-key="check_updates" style="flex:1;min-width:140px">Prüfen</button>
+                  <button class="btn btn-o" id="update-download-btn" data-view-allow onclick="downloadAndUpdate()" style="display:none;flex:1;min-width:140px" data-l10n-key="download_update">Update</button>
+                </div>
+                <div class="demo-state" id="update-status" style="margin-top:8px" data-l10n-key="update_idle">Noch nicht geprüft.</div>
+              </div>
             </div>
           </div>
           <!-- OLD BLOCKS HIDDEN FOR JS COMPAT -->
