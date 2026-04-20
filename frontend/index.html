@@ -1176,8 +1176,9 @@ const projectorOnlineStates=Array.from({length:16},()=>false);
 const projectorControlStates=Array.from({length:16},()=> 'unknown');
 const projectorTransitionTimers=Array.from({length:16},()=>null);
 const projectorTransitionTargets=Array.from({length:16},()=>null);
-const PROJECTOR_TRANSITION_TIMEOUT_MS=20000;
+const PROJECTOR_TRANSITION_TIMEOUT_MS=90000;
 let pjlinkSyncInFlight=false;
+let projectorPowerCommandActive=false;
 let prevV={l1:null,l2:null,l3:null};
 let currentLang = localStorage.getItem('lang') || 'de';
 let currentTab = localStorage.getItem('activeTab') || 'show';
@@ -2301,10 +2302,11 @@ async function init(){
     startupFailedConnections.forEach(item=>{
       addError(`[Startup] ${item.name} (${item.host}:${item.port}) OFFLINE | Grund: ${item.reason} | Dauer: ${item.durationMs}ms`,{showBanner:false});
     });
+    await syncProjectorsFromPjLink();
     await detectProjectorModelsOnStartup();
     finalizeStartupScreen(startupFailedConnections);
-    pollAll().catch(e=>console.error('pollAll failed',e));
-    pollD40Status().catch(e=>console.error('pollD40Status failed',e));
+    await pollAll();
+    await pollD40Status();
   }
   setInterval(pollAll,10000);
   setInterval(pollD40Status,5000);
@@ -2478,7 +2480,7 @@ function updateProjectorMonitoringGrid(){
     const el = document.getElementById(`mon-pj-${n}`);
     if(el){
       el.className = `pill ${online ? 'pill-g' : 'pill-r'}`;
-      el.innerHTML = `<span class="dot" style="width:6px;height:6px"></span>${online ? locales[currentLang].online : locales[currentLang].offline}`;
+      el.innerHTML = `<span class="dot" style="width:6px;height:6px;background:${online ? 'var(--green)' : 'var(--red)'}"></span>${online ? locales[currentLang].online : locales[currentLang].offline}`;
     }
     // Update projector tab offline overlay
     const overlay = document.getElementById(`overlay-pj-${n}`);
@@ -2734,7 +2736,10 @@ async function pollPoeSwitchData(){
       const freeEl=document.getElementById('net-poe-free'); if(freeEl) freeEl.textContent='—';
       return;
     }
-    const model=data.detected_model||'Unknown';
+    const detectedModel=String(data.detected_model||'').trim();
+    const model=(detectedModel && detectedModel.toLowerCase()!=='unknown')
+      ? detectedModel
+      : (data.sys_name||data.sys_descr||'Unknown');
     const upTxt=data.sys_uptime_ticks ? formatTimeticks(data.sys_uptime_ticks) : '—';
     const poeBudget=(data.poe_power_limit_w??null);
     const poeUsed=(data.poe_power_used_w??null);
@@ -2762,8 +2767,21 @@ async function pollRutx50Data(){
       community:cfg.rutx50_snmp_community||'public',
       port:Number(cfg.rutx50_snmp_port||161)
     });
-    if(!data) return;
-    const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent=data.detected_model||data.product_code||'Unknown';
+    if(!data){
+      const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
+      const fwEl=document.getElementById('net-rutx-fw'); if(fwEl) fwEl.textContent='—';
+      const opEl=document.getElementById('net-rutx-operator'); if(opEl) opEl.textContent='—';
+      const signalEl=document.getElementById('net-rutx-signal'); if(signalEl) signalEl.textContent='—';
+      const nwEl=document.getElementById('net-rutx-network'); if(nwEl) nwEl.textContent='—';
+      const ipEl=document.getElementById('net-rutx-ip'); if(ipEl) ipEl.textContent='—';
+      const upEl=document.getElementById('net-rutx-mobile-uptime'); if(upEl) upEl.textContent='—';
+      return;
+    }
+    const detectedModel=String(data.detected_model||'').trim();
+    const model=(detectedModel && detectedModel.toLowerCase()!=='unknown')
+      ? detectedModel
+      : (data.product_code||data.device_name||data.modem_model||data.sys_name||'Unknown');
+    const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent=model;
     const fwEl=document.getElementById('net-rutx-fw'); if(fwEl) fwEl.textContent=data.fw_version||'—';
     const opEl=document.getElementById('net-rutx-operator'); if(opEl) opEl.textContent=data.operator||'—';
     const signalEl=document.getElementById('net-rutx-signal'); if(signalEl) signalEl.textContent=data.signal||'—';
@@ -2783,6 +2801,13 @@ async function pollRutx50Data(){
     }
   }catch(e){
     console.error('[RUTX50 SNMP]',e);
+    const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
+    const fwEl=document.getElementById('net-rutx-fw'); if(fwEl) fwEl.textContent='—';
+    const opEl=document.getElementById('net-rutx-operator'); if(opEl) opEl.textContent='—';
+    const signalEl=document.getElementById('net-rutx-signal'); if(signalEl) signalEl.textContent='—';
+    const nwEl=document.getElementById('net-rutx-network'); if(nwEl) nwEl.textContent='—';
+    const ipEl=document.getElementById('net-rutx-ip'); if(ipEl) ipEl.textContent='—';
+    const upEl=document.getElementById('net-rutx-mobile-uptime'); if(upEl) upEl.textContent='—';
   }
 }
 
@@ -2870,7 +2895,8 @@ function buildProjGrid(){
     const displayIp=String(p.ip);
     const statusState = getProjectorStatusState(i);
     const statusLabel = getProjectorStatusLabel(i);
-    const dotBg=p.mute?'var(--orange)':p.on?'var(--green)':'var(--red)';
+    // Unified dot coloring: Green=ON, Orange=Standby, Red=Offline
+    const dotBg=moduleOnline?(p.on?'var(--green)':'var(--orange)'):'var(--red)';
     const lampHoursTxt=(p.lampHours===null||p.lampHours===undefined||Number.isNaN(Number(p.lampHours)))?'—':String(p.lampHours);
     const section=document.createElement('div');
     section.className='device-section';
@@ -2890,9 +2916,14 @@ function buildProjGrid(){
 async function pjLinkSetProjectorPower(index, turnOn){
   const ip=String(projStates[index]?.ip||'').trim();
   if(!ip || ip==='0.0.0.0') throw new Error('Keine IP konfiguriert');
-  const ok=await invoke('pjlink_set_power',{ip,on:!!turnOn,password:getPjlinkPassword()});
-  if(!ok) throw new Error('PJLink set power failed');
-  return true;
+  try{
+    projectorPowerCommandActive=true;
+    const ok=await invoke('pjlink_set_power',{ip,on:!!turnOn,password:getPjlinkPassword()});
+    if(!ok) throw new Error('PJLink set power failed');
+    return true;
+  }finally{
+    projectorPowerCommandActive=false;
+  }
 }
 
 async function pjLinkSetProjectorShutter(index, muted){
@@ -2995,7 +3026,7 @@ function buildMonProjGrid(forceRebuild=false){
     const online = projectorOnlineStates[i];
     const row=document.createElement('div');
     row.className='mon-row';
-    row.innerHTML=`<span>PJ-${n} <small style="color:var(--muted);font-family:var(--mono);font-size:9px">(${projector.ip})</small></span><span id="mon-pj-${n}" class="pill ${online?'pill-g':'pill-r'}"><span class="dot" style="width:6px;height:6px"></span>${online?locales[currentLang].online:locales[currentLang].offline}</span>`;
+    row.innerHTML=`<span>PJ-${n} <small style="color:var(--muted);font-family:var(--mono);font-size:9px">(${projector.ip})</small></span><span id="mon-pj-${n}" class="pill ${online?'pill-g':'pill-r'}"><span class="dot" style="width:6px;height:6px;background:${online?'var(--green)':'var(--red)'}"></span>${online?locales[currentLang].online:locales[currentLang].offline}</span>`;
     g.appendChild(row);
   });
 }
@@ -3622,14 +3653,14 @@ async function pollAll(){
   const poe=await tcpPing(poeIp,poePingPort);
   setDeviceOnline('poe',poe,`PoE Switch (${poeIp})`,'overlay-poe');
   setStatus(['sb-poe','mon-poe','sys-poe','net-poe-dot','net-poe-status'],poe);
-  if(poe) pollPoeSwitchData();
+  pollPoeSwitchData();
 
   const rutxPingPort=Number(cfg.rutx50_ping_port||443);
   const rutxIp=cfg.rutx50_ip||DEFAULT_RUTX50_IP;
   const rutx=await tcpPing(rutxIp,rutxPingPort);
   setDeviceOnline('rutx',rutx,`Teltonika RUTX50 (${rutxIp})`,'overlay-rutx');
   setStatus(['sb-rutx','mon-rutx','net-rutx-dot','net-rutx-status'],rutx);
-  if(rutx) pollRutx50Data();
+  pollRutx50Data();
   updateNetworkNavBadge(poe,rutx);
 
   const ups=await tcpPing(cfg.ups_ip,443);
@@ -3712,6 +3743,21 @@ async function runStartupConnectivityChecks(){
     {name:'Pixera Octo 01', host:cfg.pixera_octo1_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo1_ip,octoPort)},
     {name:'Pixera Octo 02', host:cfg.pixera_octo2_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo2_ip,octoPort)}
   ];
+
+  // Include all configured projectors in startup checks via PJLink port.
+  // Offline projectors are collected in `failed` and written to the error log later.
+  const pjlinkPort=4352;
+  projStates.forEach((p,i)=>{
+    const ip=String(p?.ip||'').trim();
+    if(!ip || ip==='0.0.0.0') return;
+    const n=String(i+1).padStart(2,'0');
+    checks.push({
+      name:`Projector PJ-${n}`,
+      host:ip,
+      port:pjlinkPort,
+      run:()=>tcpPing(ip,pjlinkPort)
+    });
+  });
 
   const failed=[];
   let completed=0;
@@ -3897,6 +3943,7 @@ function normalizePjLinkIp(value){
 async function syncProjectorsFromPjLink(){
   if(demoMode) return;
   if(pjlinkSyncInFlight) return;
+  if(projectorPowerCommandActive) return;  // Pause polling during power commands
   pjlinkSyncInFlight=true;
   applyProjectorIpConfig();
   let anyOk=false;
@@ -3915,24 +3962,41 @@ async function syncProjectorsFromPjLink(){
         const lampNum=(lampRaw===null||lampRaw===undefined)?null:Number(lampRaw);
 
         if(isConnected) anyOk=true;
-        projectorOnlineStates[idx]=hasIp && isConnected;
+        // During an active transition (startup/cooldown), don't flip to offline just because
+        // one poll couldn't connect (e.g. Epson drops TCP during WarmUp/ERR3 phase).
+        // Only update projectorOnlineStates when connected, or when no transition is pending.
+        if(isConnected){
+          projectorOnlineStates[idx]=hasIp;
+        } else if(!projectorTransitionTargets[idx]){
+          projectorOnlineStates[idx]=false;
+        }
         projStates[idx].mute=shutterMuted;
+        if(powerIsOn===true || powerIsOn==='WarmUp') projStates[idx].on=true;
+        else if(powerIsOn===false || powerIsOn==='Cooling') projStates[idx].on=false;
+        // 'Transitioning' = ERR3 from projector; direction depends on active target
         projStates[idx].lampHours=Number.isNaN(lampNum)?null:lampNum;
         projStates[idx].errorState=errorState;
 
         const target=projectorTransitionTargets[idx];
-        if(target==='online' && powerIsOn===true){
+        // Only clear transitions on confirmed responses (isConnected must be true).
+        // For startup/online: as soon as projector responds (isConnected), show online status.
+        // For standby: only when power is confirmed off.
+        if(target==='online' && isConnected){
           clearProjectorTransition(idx);
           projectorControlStates[idx]='online';
-        }else if(target==='standby' && powerIsOn===false){
+          projectorOnlineStates[idx]=true;
+        }else if(target==='standby' && isConnected && powerIsOn===false){
           clearProjectorTransition(idx);
           projectorControlStates[idx]='standby';
+          projectorOnlineStates[idx]=false;
         }else if(target){
+          // ERR3/Transitioning during an active transition: keep the correct direction
           projectorControlStates[idx]=(target==='online')?'startup':'cooldown';
+          projStates[idx].errorState='';  // Clear error state during transitions
         }else{
           if(powerIsOn===true) projectorControlStates[idx]='online';
           else if(powerIsOn===false) projectorControlStates[idx]='standby';
-          else if(powerIsOn==='WarmUp') projectorControlStates[idx]='startup';
+          else if(powerIsOn==='WarmUp' || powerIsOn==='Transitioning') projectorControlStates[idx]='startup';
           else if(powerIsOn==='Cooling') projectorControlStates[idx]='cooldown';
           else if(hasIp && !isConnected) projectorControlStates[idx]='error';
         }
