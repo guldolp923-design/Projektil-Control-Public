@@ -883,25 +883,49 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::Value::Object(result))
 }
 
+fn decode_asn1_length(data: &[u8], offset: usize) -> Option<(usize, usize)> {
+    if offset >= data.len() {
+        return None;
+    }
+    let first = data[offset] as usize;
+    if (first & 0x80) == 0 {
+        return Some((first, 1));
+    }
+
+    let count = first & 0x7f;
+    if count == 0 || count > 4 || offset + 1 + count > data.len() {
+        return None;
+    }
+
+    let mut len = 0usize;
+    for i in 0..count {
+        len = (len << 8) | data[offset + 1 + i] as usize;
+    }
+    Some((len, 1 + count))
+}
+
 fn extract_snmp_value(data: &[u8]) -> Option<i64> {
     let mut last_oid_end = 0usize;
     let mut i = 0;
     while i + 2 < data.len() {
         if data[i] == 0x06 {
-            let oid_len = data[i+1] as usize;
-            if i + 2 + oid_len <= data.len() {
-                last_oid_end = i + 2 + oid_len;
-                i += 2 + oid_len;
-                continue;
+            if let Some((oid_len, oid_len_bytes)) = decode_asn1_length(data, i + 1) {
+                let oid_start = i + 1 + oid_len_bytes;
+                if oid_start + oid_len <= data.len() {
+                    last_oid_end = oid_start + oid_len;
+                    i = last_oid_end;
+                    continue;
+                }
             }
         }
         i += 1;
     }
     if last_oid_end + 2 > data.len() { return None; }
     let vtype = data[last_oid_end];
-    let vlen  = data[last_oid_end + 1] as usize;
-    if vlen == 0 || last_oid_end + 2 + vlen > data.len() { return None; }
-    let vbytes = &data[last_oid_end + 2 .. last_oid_end + 2 + vlen];
+    let (vlen, vlen_bytes) = decode_asn1_length(data, last_oid_end + 1)?;
+    let vstart = last_oid_end + 1 + vlen_bytes;
+    if vlen == 0 || vstart + vlen > data.len() { return None; }
+    let vbytes = &data[vstart .. vstart + vlen];
     match vtype {
         0x02 | 0x41 | 0x42 | 0x43 => {
             let mut val: i64 = 0;
@@ -920,11 +944,13 @@ fn extract_snmp_octet_string(data: &[u8]) -> Option<String> {
     let mut i = 0;
     while i + 2 < data.len() {
         if data[i] == 0x06 {
-            let oid_len = data[i + 1] as usize;
-            if i + 2 + oid_len <= data.len() {
-                last_oid_end = i + 2 + oid_len;
-                i += 2 + oid_len;
-                continue;
+            if let Some((oid_len, oid_len_bytes)) = decode_asn1_length(data, i + 1) {
+                let oid_start = i + 1 + oid_len_bytes;
+                if oid_start + oid_len <= data.len() {
+                    last_oid_end = oid_start + oid_len;
+                    i = last_oid_end;
+                    continue;
+                }
             }
         }
         i += 1;
@@ -933,11 +959,12 @@ fn extract_snmp_octet_string(data: &[u8]) -> Option<String> {
         return None;
     }
     let vtype = data[last_oid_end];
-    let vlen = data[last_oid_end + 1] as usize;
-    if vlen == 0 || last_oid_end + 2 + vlen > data.len() {
+    let (vlen, vlen_bytes) = decode_asn1_length(data, last_oid_end + 1)?;
+    let vstart = last_oid_end + 1 + vlen_bytes;
+    if vlen == 0 || vstart + vlen > data.len() {
         return None;
     }
-    let vbytes = &data[last_oid_end + 2..last_oid_end + 2 + vlen];
+    let vbytes = &data[vstart..vstart + vlen];
     if vtype != 0x04 {
         return None;
     }
@@ -954,6 +981,16 @@ fn snmp_query_raw(socket: &UdpSocket, community: &str, oid: &[u32]) -> Option<Ve
         return Some(buf[..n].to_vec());
     }
     None
+}
+
+fn snmp_query_text(socket: &UdpSocket, community: &str, oid: &[u32]) -> Option<String> {
+    let raw = snmp_query_raw(socket, community, oid)?;
+    if let Some(v) = extract_snmp_octet_string(&raw) {
+        if !v.trim().is_empty() {
+            return Some(v);
+        }
+    }
+    extract_snmp_value(&raw).map(|v| v.to_string())
 }
 
 fn query_host_storage_volume_usage(
@@ -1128,102 +1165,109 @@ async fn poe_switch_get_status(ip: String, community: Option<String>, port: Opti
         .connect(format!("{}:{}", ip, port))
         .map_err(|e| e.to_string())?;
 
-    let mut result = serde_json::Map::new();
+    let mut communities = vec![community.clone()];
+    for fallback in ["public", "private", "projektil"] {
+        let fb = fallback.to_string();
+        if !communities.contains(&fb) {
+            communities.push(fb);
+        }
+    }
 
     let sys_descr_oid = [1, 3, 6, 1, 2, 1, 1, 1, 0];
     let sys_name_oid = [1, 3, 6, 1, 2, 1, 1, 5, 0];
     let sys_uptime_oid = [1, 3, 6, 1, 2, 1, 1, 3, 0];
-
-    if let Some(raw) = snmp_query_raw(&socket, &community, &sys_descr_oid) {
-        if let Some(v) = extract_snmp_octet_string(&raw) {
-            result.insert("sys_descr".to_string(), serde_json::json!(v));
-        }
-    }
-    if let Some(raw) = snmp_query_raw(&socket, &community, &sys_name_oid) {
-        if let Some(v) = extract_snmp_octet_string(&raw) {
-            result.insert("sys_name".to_string(), serde_json::json!(v));
-        }
-    }
-    if let Some(raw) = snmp_query_raw(&socket, &community, &sys_uptime_oid) {
-        if let Some(v) = extract_snmp_value(&raw) {
-            result.insert("sys_uptime_ticks".to_string(), serde_json::json!(v));
-        }
-    }
 
     // POWER-ETHERNET-MIB (RFC 3621) base metrics for PoE summary.
     // Group index is commonly 1 on compact switches; try 1 and fallback to 2.
     let poe_oper_status_g1_oid = [1, 3, 6, 1, 2, 1, 105, 1, 3, 1, 1, 3, 1];
     let poe_power_limit_g1_oid = [1, 3, 6, 1, 2, 1, 105, 1, 3, 1, 1, 2, 1];
     let poe_consumption_g1_oid = [1, 3, 6, 1, 2, 1, 105, 1, 3, 1, 1, 4, 1];
-
     let poe_oper_status_g2_oid = [1, 3, 6, 1, 2, 1, 105, 1, 3, 1, 1, 3, 2];
     let poe_power_limit_g2_oid = [1, 3, 6, 1, 2, 1, 105, 1, 3, 1, 1, 2, 2];
     let poe_consumption_g2_oid = [1, 3, 6, 1, 2, 1, 105, 1, 3, 1, 1, 4, 2];
 
-    let mut poe_oper_status = None;
-    let mut poe_limit = None;
-    let mut poe_used = None;
+    for community_try in communities {
+        let mut result = serde_json::Map::new();
 
-    if let Some(raw) = snmp_query_raw(&socket, &community, &poe_oper_status_g1_oid) {
-        poe_oper_status = extract_snmp_value(&raw);
-    }
-    if let Some(raw) = snmp_query_raw(&socket, &community, &poe_power_limit_g1_oid) {
-        poe_limit = extract_snmp_value(&raw);
-    }
-    if let Some(raw) = snmp_query_raw(&socket, &community, &poe_consumption_g1_oid) {
-        poe_used = extract_snmp_value(&raw);
-    }
+        if let Some(v) = snmp_query_text(&socket, &community_try, &sys_descr_oid) {
+            result.insert("sys_descr".to_string(), serde_json::json!(v));
+        }
+        if let Some(v) = snmp_query_text(&socket, &community_try, &sys_name_oid) {
+            result.insert("sys_name".to_string(), serde_json::json!(v));
+        }
+        if let Some(raw) = snmp_query_raw(&socket, &community_try, &sys_uptime_oid) {
+            if let Some(v) = extract_snmp_value(&raw) {
+                result.insert("sys_uptime_ticks".to_string(), serde_json::json!(v));
+            }
+        }
 
-    if poe_oper_status.is_none() {
-        if let Some(raw) = snmp_query_raw(&socket, &community, &poe_oper_status_g2_oid) {
+        let mut poe_oper_status = None;
+        let mut poe_limit = None;
+        let mut poe_used = None;
+
+        if let Some(raw) = snmp_query_raw(&socket, &community_try, &poe_oper_status_g1_oid) {
             poe_oper_status = extract_snmp_value(&raw);
         }
-    }
-    if poe_limit.is_none() {
-        if let Some(raw) = snmp_query_raw(&socket, &community, &poe_power_limit_g2_oid) {
+        if let Some(raw) = snmp_query_raw(&socket, &community_try, &poe_power_limit_g1_oid) {
             poe_limit = extract_snmp_value(&raw);
         }
-    }
-    if poe_used.is_none() {
-        if let Some(raw) = snmp_query_raw(&socket, &community, &poe_consumption_g2_oid) {
+        if let Some(raw) = snmp_query_raw(&socket, &community_try, &poe_consumption_g1_oid) {
             poe_used = extract_snmp_value(&raw);
         }
-    }
 
-    if let Some(v) = poe_oper_status {
-        result.insert("poe_oper_status".to_string(), serde_json::json!(v));
-    }
-    if let Some(v) = poe_limit {
-        result.insert("poe_power_limit_w".to_string(), serde_json::json!(v));
-    }
-    if let Some(v) = poe_used {
-        result.insert("poe_power_used_w".to_string(), serde_json::json!(v));
-        if let Some(limit) = result.get("poe_power_limit_w").and_then(|x| x.as_i64()) {
-            result.insert("poe_power_free_w".to_string(), serde_json::json!((limit - v).max(0)));
+        if poe_oper_status.is_none() {
+            if let Some(raw) = snmp_query_raw(&socket, &community_try, &poe_oper_status_g2_oid) {
+                poe_oper_status = extract_snmp_value(&raw);
+            }
+        }
+        if poe_limit.is_none() {
+            if let Some(raw) = snmp_query_raw(&socket, &community_try, &poe_power_limit_g2_oid) {
+                poe_limit = extract_snmp_value(&raw);
+            }
+        }
+        if poe_used.is_none() {
+            if let Some(raw) = snmp_query_raw(&socket, &community_try, &poe_consumption_g2_oid) {
+                poe_used = extract_snmp_value(&raw);
+            }
+        }
+
+        if let Some(v) = poe_oper_status {
+            result.insert("poe_oper_status".to_string(), serde_json::json!(v));
+        }
+        if let Some(v) = poe_limit {
+            result.insert("poe_power_limit_w".to_string(), serde_json::json!(v));
+        }
+        if let Some(v) = poe_used {
+            result.insert("poe_power_used_w".to_string(), serde_json::json!(v));
+            if let Some(limit) = result.get("poe_power_limit_w").and_then(|x| x.as_i64()) {
+                result.insert("poe_power_free_w".to_string(), serde_json::json!((limit - v).max(0)));
+            }
+        }
+
+        let probe = format!(
+            "{} {}",
+            result.get("sys_descr").and_then(|v| v.as_str()).unwrap_or(""),
+            result.get("sys_name").and_then(|v| v.as_str()).unwrap_or("")
+        )
+        .to_lowercase();
+        let model = if probe.contains("m4250-8g2xf-poe+") {
+            "Netgear M4250-8G2XF-PoE+"
+        } else if probe.contains("m4250-40g8f-poe+") {
+            "Netgear M4250-40G8F-PoE+"
+        } else if probe.contains("m4250-26g4xf-poe+") {
+            "Netgear M4250-26G4XF-PoE+"
+        } else {
+            "Unknown"
+        };
+        result.insert("detected_model".to_string(), serde_json::json!(model));
+
+        if !result.is_empty() {
+            result.insert("snmp_community_used".to_string(), serde_json::json!(community_try));
+            return Ok(serde_json::Value::Object(result));
         }
     }
 
-    let descr = result
-        .get("sys_descr")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_lowercase();
-    let model = if descr.contains("m4250-8g2xf-poe+") {
-        "Netgear M4250-8G2XF-PoE+"
-    } else if descr.contains("m4250-40g8f-poe+") {
-        "Netgear M4250-40G8F-PoE+"
-    } else if descr.contains("m4250-26g4xf-poe+") {
-        "Netgear M4250-26G4XF-PoE+"
-    } else {
-        "Unknown"
-    };
-    result.insert("detected_model".to_string(), serde_json::json!(model));
-
-    if result.is_empty() {
-        return Err("SNMP keine Antwort vom PoE-Switch".to_string());
-    }
-
-    Ok(serde_json::Value::Object(result))
+    Err("SNMP keine Antwort vom PoE-Switch".to_string())
 }
 
 #[tauri::command]
@@ -1289,10 +1333,8 @@ async fn rutx50_get_status(ip: String, community: Option<String>, port: Option<u
     ];
 
     for (key, oid) in string_queries {
-        if let Some(raw) = snmp_query_raw(&socket, &community, oid) {
-            if let Some(v) = extract_snmp_octet_string(&raw) {
-                result.insert(key.to_string(), serde_json::json!(v));
-            }
+        if let Some(v) = snmp_query_text(&socket, &community, oid) {
+            result.insert(key.to_string(), serde_json::json!(v));
         }
     }
 
@@ -1702,6 +1744,10 @@ fn pjlink_poll_one(ip: &str, password: &str) -> serde_json::Value {
                 "1" => serde_json::Value::Bool(true),
                 "2" => serde_json::Value::String("Cooling".to_string()),
                 "3" => serde_json::Value::String("WarmUp".to_string()),
+                // ERR3 = "Unavailable time" (PJLink spec): projector is transitioning
+                // (either warming up or cooling down). Return a neutral "Transitioning" state
+                // so the frontend can decide based on context (startup vs cooldown target).
+                "ERR3" => serde_json::Value::String("Transitioning".to_string()),
                 _ => {
                     if !v.is_empty() {
                         error_state = format!("POWR {}", v);
@@ -1718,7 +1764,9 @@ fn pjlink_poll_one(ip: &str, password: &str) -> serde_json::Value {
 
     if let Ok(ref r) = erst {
         if let Some(v) = pjlink_parse_value(r, "ERST") {
-            if !v.trim().is_empty() && v != "000000" {
+            // ERR3 = "Unavailable time": projector is transitioning, not a real error.
+            // Only report actual hardware error codes (non-zero ERST, excluding ERR codes).
+            if !v.trim().is_empty() && v != "000000" && !v.starts_with("ERR") {
                 error_state = format!("ERST {}", v);
             }
         }
