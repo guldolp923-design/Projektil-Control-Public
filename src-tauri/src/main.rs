@@ -1629,6 +1629,21 @@ fn pjlink_parse_value(resp: &str, key: &str) -> Option<String> {
     None
 }
 
+fn pjlink_parse_model(resp: &str) -> Option<String> {
+    // INF format: %1INF=manufacturer,model,...
+    if let Some(v) = pjlink_parse_value(resp, "INF") {
+        let parts: Vec<&str> = v.split(',').collect();
+        if parts.len() >= 2 {
+            let mfr = parts[0].trim();
+            let mdl = parts[1].trim();
+            if !mdl.is_empty() {
+                return Some(format!("{} {}", mfr, mdl));
+            }
+        }
+    }
+    None
+}
+
 fn pjlink_poll_one(ip: &str, password: &str) -> serde_json::Value {
     if ip.trim().is_empty() || ip.trim() == "0.0.0.0" {
         return serde_json::json!({
@@ -1740,6 +1755,83 @@ fn pjlink_poll_one(ip: &str, password: &str) -> serde_json::Value {
     })
 }
 
+fn pjlink_detect_model_one(ip: &str, password: &str) -> serde_json::Value {
+    if ip.trim().is_empty() || ip.trim() == "0.0.0.0" {
+        return serde_json::json!({
+            "ip": ip,
+            "hasIp": false,
+            "isConnected": false,
+            "model": "Unknown",
+            "errorState": ""
+        });
+    }
+
+    let mut stream = match pjlink_connect(ip) {
+        Ok(s) => s,
+        Err(e) => {
+            return serde_json::json!({
+                "ip": ip,
+                "hasIp": true,
+                "isConnected": false,
+                "model": "Unknown",
+                "errorState": e
+            });
+        }
+    };
+
+    let prefix = match pjlink_auth_prefix(&mut stream, password) {
+        Ok(p) => p,
+        Err(e) => {
+            return serde_json::json!({
+                "ip": ip,
+                "hasIp": true,
+                "isConnected": false,
+                "model": "Unknown",
+                "errorState": e
+            });
+        }
+    };
+
+    let inf = pjlink_send_cmd(&mut stream, &prefix, "%1INF ?");
+    let inf1 = pjlink_send_cmd(&mut stream, &prefix, "%1INF1 ?");
+    let inf2 = pjlink_send_cmd(&mut stream, &prefix, "%1INF2 ?");
+
+    let manufacturer = inf1
+        .as_ref()
+        .ok()
+        .and_then(|r| pjlink_parse_value(r, "INF1"))
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty() && !v.starts_with("ERR"));
+
+    let model_name = inf2
+        .as_ref()
+        .ok()
+        .and_then(|r| pjlink_parse_value(r, "INF2"))
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty() && !v.starts_with("ERR"));
+
+    let model = if let Some(name) = model_name {
+        if let Some(mfr) = manufacturer {
+            format!("{} {}", mfr, name)
+        } else {
+            name
+        }
+    } else {
+        inf.as_ref()
+            .ok()
+            .and_then(|r| pjlink_parse_model(r))
+            .unwrap_or_else(|| "Unknown".to_string())
+    };
+
+    serde_json::json!({
+        "ip": ip,
+        "hasIp": true,
+        "isConnected": true,
+        "model": model,
+        "errorState": ""
+    })
+}
+
 #[tauri::command]
 fn pjlink_poll_many(ips: Vec<String>, password: Option<String>) -> Result<serde_json::Value, String> {
     let pwd = password.unwrap_or_default();
@@ -1751,6 +1843,32 @@ fn pjlink_poll_many(ips: Vec<String>, password: Option<String>) -> Result<serde_
         let pwd_clone = pwd.clone();
         handles.push(thread::spawn(move || {
             let row = pjlink_poll_one(&ip, &pwd_clone);
+            (idx, row)
+        }));
+    }
+
+    for h in handles {
+        if let Ok((idx, row)) = h.join() {
+            if idx < items.len() {
+                items[idx] = row;
+            }
+        }
+    }
+
+    Ok(serde_json::json!(items))
+}
+
+#[tauri::command]
+fn pjlink_detect_models(ips: Vec<String>, password: Option<String>) -> Result<serde_json::Value, String> {
+    let pwd = password.unwrap_or_default();
+    let total = ips.len();
+    let mut items: Vec<serde_json::Value> = vec![serde_json::Value::Null; total];
+
+    let mut handles = Vec::with_capacity(total);
+    for (idx, ip) in ips.into_iter().enumerate() {
+        let pwd_clone = pwd.clone();
+        handles.push(thread::spawn(move || {
+            let row = pjlink_detect_model_one(&ip, &pwd_clone);
             (idx, row)
         }));
     }
@@ -1881,7 +1999,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             d40_command, d40_ping, d40_status, d40_set_gain, http_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_restart_stream,
             ups_get_status, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
-            pjlink_poll_many, pjlink_set_power, pjlink_set_shutter,
+            pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, append_app_log, load_app_logs, get_config
         ])
