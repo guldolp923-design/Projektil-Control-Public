@@ -1109,6 +1109,7 @@ function getDemoInvokeResponse(cmd){
     pjlink_set_power: true,
     pjlink_set_shutter: true,
     pjlink_poll_many: [],
+    pjlink_detect_models: [],
     open_external_url: null
   };
   if(Object.prototype.hasOwnProperty.call(byCmd, cmd)) return byCmd[cmd];
@@ -1133,6 +1134,7 @@ function shouldBlockNetworkCommandInDemo(cmd){
     'pjlink_set_power',
     'pjlink_set_shutter',
     'pjlink_poll_many',
+    'pjlink_detect_models',
     'open_external_url'
   ].includes(cmd);
 }
@@ -1169,7 +1171,7 @@ async function tcpPing(ip,port){
 let cfg={};
 const DEFAULT_POE_IP='192.168.1.11';
 const DEFAULT_RUTX50_IP='192.168.1.1';
-const projStates=Array.from({length:16},()=>({on:false,mute:false,ip:'',lampHours:null}));
+const projStates=Array.from({length:16},()=>({on:false,mute:false,ip:'',lampHours:null,model:'Unknown'}));
 const projectorOnlineStates=Array.from({length:16},()=>false);
 const projectorControlStates=Array.from({length:16},()=> 'unknown');
 const projectorTransitionTimers=Array.from({length:16},()=>null);
@@ -2299,6 +2301,7 @@ async function init(){
     startupFailedConnections.forEach(item=>{
       addError(`[Startup] ${item.name} (${item.host}:${item.port}) OFFLINE | Grund: ${item.reason} | Dauer: ${item.durationMs}ms`,{showBanner:false});
     });
+    await detectProjectorModelsOnStartup();
     finalizeStartupScreen(startupFailedConnections);
     pollAll().catch(e=>console.error('pollAll failed',e));
     pollD40Status().catch(e=>console.error('pollD40Status failed',e));
@@ -2873,7 +2876,7 @@ function buildProjGrid(){
     section.className='device-section';
     const card=document.createElement('div');
     card.className='proj-card';
-    card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIp}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button onclick="projMute(${i})" style="border-color:${p.mute?'var(--orange)':'var(--border)'};background:${p.mute?'#431407':'var(--card2)'}">${locales[currentLang].mute}</button></div>`;
+    card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIp}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button onclick="projMute(${i})" style="border-color:${p.mute?'var(--orange)':'var(--border)'};background:${p.mute?'#431407':'var(--card2)'}">${locales[currentLang].mute}</button></div>`;
     const overlay=document.createElement('div');
     overlay.className='offline-overlay'+(moduleOnline?'':' show');
     overlay.id=`overlay-pj-${n}`;
@@ -3956,6 +3959,26 @@ async function syncProjectorsFromPjLink(){
   buildMonProjGrid(true);
   updateProjectorMonitoringGrid();
   updateProjectorsNavBadge();
+}
+
+async function detectProjectorModelsOnStartup(){
+  if(demoMode) return;
+  applyProjectorIpConfig();
+  try{
+    const ips=projStates.map(p=>String(p.ip||''));
+    const rows=await invoke('pjlink_detect_models',{ips,password:getPjlinkPassword()});
+    if(Array.isArray(rows)){
+      rows.forEach((row,idx)=>{
+        if(!row||typeof row!=='object') return;
+        const model=String(row.model||'Unknown').trim();
+        projStates[idx].model=model||'Unknown';
+      });
+      buildProjGrid();
+      buildMonProjGrid(true);
+    }
+  }catch(e){
+    addError(`[PJLink] Modell-Erkennung beim Start fehlgeschlagen: ${e}`,{showBanner:false});
+  }
 }
 
 function modulePaths(moduleName, methodName){
