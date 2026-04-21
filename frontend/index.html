@@ -346,7 +346,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         </div>
         <div class="startup-sub">System wird gestartet. Netzwerkgeräte und Dienste werden geprüft.</div>
       </div>
-      <div class="startup-version" id="startup-version">v1.0.5-beta</div>
+      <div class="startup-version" id="startup-version">v1\.0\.8-beta</div>
     </div>
     <div class="startup-bar-wrap"><div class="startup-bar" id="startup-bar"></div></div>
     <div class="startup-meta">
@@ -1187,7 +1187,7 @@ let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
-const APP_VERSION_FALLBACK = '1.0.5-beta';
+const APP_VERSION_FALLBACK = '1.0.9-beta';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -1195,10 +1195,25 @@ const VIEW_MODE_PIN = '8048';
 const CAMERA_MJPEG_BASE_URL = 'http://127.0.0.1:41777';
 const CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS = 1200;
 const CAMERA_PREVIEW_INTERVAL_STREAM_MS = 1000;
+const CAMERA_STREAM_BOOT_TIMEOUT_MS = 20000;
+const CAMERA_STREAM_BLACKOUT_GRACE_MS = 15000;
+const CAMERA_STREAM_RETRY_DELAY_MS = 2500;
 let cameraPreviewIntervalMs = cameraViewMode==='stream' ? CAMERA_PREVIEW_INTERVAL_STREAM_MS : CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS;
 let cameraPreviewTimerId = null;
 const cameraPreviewInFlight = {1:false,2:false};
 const cameraStreamNonce={1:0,2:0};
+const cameraStreamLoadWatchdog={1:null,2:null};
+const cameraStreamDiagInFlight={1:false,2:false};
+
+async function invokeStrict(cmd, args){
+  if (isDemoModeEnabled() && shouldBlockNetworkCommandInDemo(cmd)) {
+    return getDemoInvokeResponse(cmd);
+  }
+  if (isTauri) {
+    return await window.__TAURI_INTERNALS__.invoke(cmd, args ?? {});
+  }
+  return invoke(cmd, args);
+}
 const locales = {
   de: {
     nav_show: 'Show',
@@ -2173,14 +2188,53 @@ function getCameraMjpegUrl(cam,ip){
   return `${CAMERA_MJPEG_BASE_URL}/camera/mjpeg?ip=${encodeURIComponent(ip)}&stream=${getCameraPreviewStreamId()}&n=${cameraStreamNonce[cam]||0}`;
 }
 
+function clearCameraStreamWatchdog(cam){
+  if(cameraStreamLoadWatchdog[cam]){
+    clearTimeout(cameraStreamLoadWatchdog[cam]);
+    cameraStreamLoadWatchdog[cam]=null;
+  }
+}
+
 function clearCameraStreamImage(cam){
+  clearCameraStreamWatchdog(cam);
   const img=document.getElementById(`cam${cam}-preview-img`);
   if(!img) return;
   if(img.dataset.mode==='stream'){
     img.removeAttribute('src');
     delete img.dataset.streamUrl;
     delete img.dataset.mode;
+    delete img.dataset.streamLastOk;
   }
+}
+
+async function diagnoseCameraStream(cam,ip,contextLabel){
+  if(cameraStreamDiagInFlight[cam]) return;
+  cameraStreamDiagInFlight[cam]=true;
+  try{
+    const frame=await invokeStrict('camera_stream_frame',{ip,stream:getCameraPreviewStreamId()});
+    if(!(typeof frame==='string' && frame.startsWith('data:image/'))){
+      throw new Error('kein gueltiger Frame vom Backend erhalten');
+    }
+  }catch(e){
+    if(!window.__camPreviewWarned) window.__camPreviewWarned={1:false,2:false};
+    if(!window.__camPreviewWarned[cam]){
+      const detail=(e && e.message) ? e.message : String(e||'unbekannter Fehler');
+      addError(`CAM 0${cam} ${contextLabel}: ${detail}`);
+      window.__camPreviewWarned[cam]=true;
+    }
+  }finally{
+    cameraStreamDiagInFlight[cam]=false;
+  }
+}
+
+async function prewarmCameraStreams(){
+  if(!isTauri || demoMode || cameraViewMode!=='stream') return;
+  const jobs=[1,2].map(cam=>{
+    const ip=cameraIp(cam);
+    if(!ip) return Promise.resolve();
+    return invokeStrict('camera_prepare_stream',{ip,stream:getCameraPreviewStreamId()}).catch(()=>null);
+  });
+  await Promise.allSettled(jobs);
 }
 
 function clearAllCameraStreamImages(){
@@ -2211,6 +2265,7 @@ window.setCameraViewMode=(mode)=>{
   stopCameraPreviewStream();
   if(cameraViewMode!=='stream') clearAllCameraStreamImages();
   updateCameraPreviewStreamState();
+  if(cameraViewMode==='stream') prewarmCameraStreams();
   if(isCameraPreviewStreamActive()) cameraPreviewTick();
   addLog('info', cameraViewMode==='stream' ? locales[currentLang].cam_mode_stream_log : locales[currentLang].cam_mode_snapshot_log);
 };
@@ -2290,6 +2345,7 @@ async function init(){
   addLog('info',locales[currentLang].app_started);
   addLog('info',locales[currentLang].network_polling);
   updateCameraModeUI();
+  if(cameraViewMode==='stream') setTimeout(()=>{ prewarmCameraStreams(); }, 250);
   startClock();
   switchTab(currentTab, document.querySelector(`[data-tab="${currentTab}"]`));
   let startupFailedConnections=[];
@@ -2401,6 +2457,7 @@ window.switchTab=(id,el)=>{
   if(id==='projectors') buildProjGrid();
   if(id==='monitoring') buildMonProjGrid();
   if(id==='network'){pollPoeSwitchData();pollRutx50Data();}
+  if(id==='cameras' && cameraViewMode==='stream') prewarmCameraStreams();
   updateCameraPreviewStreamState();
 };
 
@@ -3358,35 +3415,83 @@ async function updateCameraPreview(cam){
 
   if(cameraViewMode==='stream'){
     const streamUrl=getCameraMjpegUrl(cam,ip);
+    if(img.dataset.streamUrl===streamUrl){
+      const lastOk=Number(img.dataset.streamLastOk||0);
+      const stale=lastOk>0 && (Date.now()-lastOk)>CAMERA_STREAM_BLACKOUT_GRACE_MS;
+      const noSignal=img.style.display==='none' || fallback.style.display==='flex';
+      if(stale || noSignal){
+        cameraStreamNonce[cam]=(cameraStreamNonce[cam]||0)+1;
+        clearCameraStreamImage(cam);
+        await diagnoseCameraStream(cam,ip,'Stream nicht verfuegbar');
+      }
+      return;
+    }
+
     if(img.dataset.streamUrl!==streamUrl){
+      await invokeStrict('camera_prepare_stream',{ip,stream:getCameraPreviewStreamId()}).catch(()=>null);
+      clearCameraStreamWatchdog(cam);
       img.removeAttribute('src');
       img.dataset.streamUrl=streamUrl;
       img.dataset.mode='stream';
+      img.dataset.streamLastOk='0';
       img.onload=()=>{
+        clearCameraStreamWatchdog(cam);
+        img.dataset.streamLastOk=String(Date.now());
         img.style.display='block';
         fallback.style.display='none';
         window.__camPreviewWarned[cam]=false;
       };
       img.onerror=()=>{
-        img.style.display='none';
-        fallback.style.display='flex';
-        fallback.textContent='Kein Signal — versuche erneut...';
+        clearCameraStreamWatchdog(cam);
+        const lastOk=Number(img.dataset.streamLastOk||0);
+        const recentFrame=lastOk>0 && (Date.now()-lastOk)<CAMERA_STREAM_BLACKOUT_GRACE_MS;
+        if(recentFrame){
+          img.style.display='block';
+          fallback.style.display='none';
+        }else{
+          img.style.display='none';
+          fallback.style.display='flex';
+          fallback.textContent='Kein Signal — versuche erneut...';
+        }
+        diagnoseCameraStream(cam,ip,'Stream nicht verfuegbar');
         delete img.dataset.streamUrl;
         delete img.dataset.mode;
-        // Auto-retry after 3 s so the next tick picks it up automatically
+        delete img.dataset.streamLastOk;
+        // Auto-retry keeps the last good frame visible during short interruptions.
         setTimeout(()=>{
-          if(cameraViewMode==='stream') updateCameraPreview(cam);
-        }, 3000);
+          if(cameraViewMode==='stream'){
+            cameraStreamNonce[cam]=(cameraStreamNonce[cam]||0)+1;
+            updateCameraPreview(cam);
+          }
+        }, CAMERA_STREAM_RETRY_DELAY_MS);
       };
+      cameraStreamLoadWatchdog[cam]=setTimeout(async()=>{
+        const isSameStream = img.dataset.streamUrl===streamUrl && img.dataset.mode==='stream';
+        if(cameraViewMode!=='stream' || !isSameStream) return;
+        const lastOk=Number(img.dataset.streamLastOk||0);
+        const recentFrame=lastOk>0 && (Date.now()-lastOk)<CAMERA_STREAM_BLACKOUT_GRACE_MS;
+        if(recentFrame){
+          cameraStreamLoadWatchdog[cam]=setTimeout(async()=>{
+            if(cameraViewMode==='stream') await updateCameraPreview(cam);
+          }, CAMERA_STREAM_RETRY_DELAY_MS);
+          return;
+        }
+        img.style.display='none';
+        fallback.style.display='flex';
+        fallback.textContent='Kein Stream-Signal';
+        await diagnoseCameraStream(cam,ip,'Stream Timeout');
+        delete img.dataset.streamUrl;
+        delete img.dataset.mode;
+        delete img.dataset.streamLastOk;
+      }, CAMERA_STREAM_BOOT_TIMEOUT_MS);
       img.src=streamUrl;
     }
-    window.__camPreviewWarned[cam]=false;
     return;
   }
 
   try{
     clearCameraStreamImage(cam);
-    const dataUrl=await invoke('camera_snapshot',{ip,stream:getCameraPreviewStreamId()});
+    const dataUrl=await invokeStrict('camera_snapshot',{ip,stream:getCameraPreviewStreamId()});
     if(typeof dataUrl==='string' && dataUrl.startsWith('data:image/')){
       img.onload=()=>{
         if(!frame||!img.naturalWidth||!img.naturalHeight) return;
