@@ -474,8 +474,6 @@ fn spawn_camera_stream(rtsp_url: &str) -> Result<CameraStreamHandle, String> {
             "error",
             "-rtsp_transport",
             "tcp",
-            "-thread_queue_size",
-            "512",
             "-i",
             rtsp_url,
             "-vf",
