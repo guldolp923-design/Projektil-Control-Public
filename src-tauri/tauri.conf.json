@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PROJEKTIL Control",
-  "version": "1.0.10-beta",
+  "version": "1.0.11-beta",
   "identifier": "com.projektil.control",
   "build": {
     "frontendDist": "../frontend"
