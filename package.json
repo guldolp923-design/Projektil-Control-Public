@@ -1,6 +1,6 @@
 {
   "name": "projektil-control",
-  "version": "1.0.5-beta",
+  "version": "1.0.9-beta",
   "description": "PROJEKTIL Show Control — Tauri App",
   "scripts": {
     "dev": "tauri dev",
@@ -20,3 +20,4 @@
     "@tauri-apps/api": "^2"
   }
 }
+

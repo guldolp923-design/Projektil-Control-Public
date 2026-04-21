@@ -12,12 +12,14 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::net::{TcpListener, TcpStream, UdpSocket};
 use std::io::{Write, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 struct CameraStreamHandle {
     child: std::process::Child,
@@ -27,7 +29,14 @@ struct CameraStreamHandle {
 }
 
 static CAMERA_STREAMS: OnceLock<Mutex<HashMap<String, CameraStreamHandle>>> = OnceLock::new();
+static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+static FFMPEG_SETUP_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 const CAMERA_MJPEG_PORT: u16 = 41777;
+const CAMERA_STREAM_IDLE_TIMEOUT_SECS: u64 = 90;
+const CAMERA_STREAM_STALE_TIMEOUT_SECS: u64 = 60;
+const CAMERA_STREAM_FIRST_FRAME_TIMEOUT_SECS: u64 = 20;
+const CAMERA_STREAM_WRITE_TIMEOUT_MS: u64 = 25000;
+const FFMPEG_RUNTIME_DOWNLOAD_URL: &str = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
 const LOG_RETENTION_DAYS: u64 = 90;
 const LOG_RETENTION_MS: u64 = LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const LOG_PRUNE_INTERVAL_MS: u64 = 12 * 60 * 60 * 1000;
@@ -221,11 +230,226 @@ fn find_jpeg_marker(data: &[u8], a: u8, b: u8) -> Option<usize> {
     data.windows(2).position(|w| w[0] == a && w[1] == b)
 }
 
+fn ffmpeg_setup_lock() -> &'static Mutex<()> {
+    FFMPEG_SETUP_LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn ffmpeg_runtime_root(app: &AppHandle) -> Option<PathBuf> {
+    app.path().app_data_dir().ok().map(|dir| dir.join("runtime").join("ffmpeg"))
+}
+
+fn find_ffmpeg_recursive(root: &Path) -> Option<String> {
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        if let Some(path) = find_ffmpeg_in_dir(&dir) {
+            return Some(path);
+        }
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            }
+        }
+    }
+    None
+}
+
+fn set_ffmpeg_process_env(ffmpeg_path: &str) {
+    std::env::set_var("PROJEKTIL_FFMPEG", ffmpeg_path);
+    if let Some(bin_dir) = Path::new(ffmpeg_path).parent() {
+        let current_path = std::env::var("PATH").unwrap_or_default();
+        let bin_dir_str = bin_dir.to_string_lossy().to_string();
+        let already_in_path = current_path
+            .split(';')
+            .any(|segment| segment.eq_ignore_ascii_case(&bin_dir_str));
+        if !already_in_path {
+            let new_path = if current_path.is_empty() {
+                bin_dir_str
+            } else {
+                format!("{};{}", bin_dir_str, current_path)
+            };
+            std::env::set_var("PATH", new_path);
+        }
+    }
+}
+
+fn ffmpeg_on_path() -> Option<String> {
+    let mut cmd = Command::new("ffmpeg");
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = cmd
+        .arg("-version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    if output.status.success() {
+        Some("ffmpeg".to_string())
+    } else {
+        None
+    }
+}
+
+fn resolve_ffmpeg_binary_candidate() -> Option<String> {
+    if let Ok(path) = std::env::var("PROJEKTIL_FFMPEG") {
+        let trimmed = path.trim();
+        if !trimmed.is_empty() && Path::new(trimmed).exists() {
+            return Some(trimmed.to_string());
+        }
+    }
+
+    if let Some(app) = APP_HANDLE.get() {
+        if let Some(runtime_root) = ffmpeg_runtime_root(app) {
+            if let Some(path) = find_ffmpeg_recursive(&runtime_root) {
+                return Some(path);
+            }
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(dir) = exe_path.parent() {
+            let mut search_dirs: Vec<PathBuf> = vec![dir.to_path_buf()];
+
+            if let Some(parent) = dir.parent() {
+                search_dirs.push(parent.to_path_buf());
+                search_dirs.push(parent.join("resources"));
+                search_dirs.push(parent.join("Resources"));
+            }
+
+            search_dirs.push(dir.join("resources"));
+            search_dirs.push(dir.join("Resources"));
+
+            if let Ok(cwd) = std::env::current_dir() {
+                search_dirs.push(cwd);
+            }
+
+            for candidate_dir in search_dirs {
+                if let Some(path) = find_ffmpeg_in_dir(&candidate_dir) {
+                    return Some(path);
+                }
+            }
+        }
+    }
+
+    ffmpeg_on_path()
+}
+
+fn install_ffmpeg_runtime(app: &AppHandle) -> Result<String, String> {
+    let runtime_root = ffmpeg_runtime_root(app)
+        .ok_or_else(|| "FFmpeg runtime directory konnte nicht ermittelt werden".to_string())?;
+    fs::create_dir_all(&runtime_root)
+        .map_err(|e| format!("FFmpeg runtime directory konnte nicht erstellt werden: {}", e))?;
+
+    if let Some(path) = find_ffmpeg_recursive(&runtime_root) {
+        set_ffmpeg_process_env(&path);
+        return Ok(path);
+    }
+
+    let zip_path = runtime_root.join("ffmpeg-runtime.zip");
+    let extract_root = runtime_root.join("extracted");
+    let zip_path_str = zip_path.to_string_lossy().to_string();
+    let extract_root_str = extract_root.to_string_lossy().to_string();
+
+    let download_script = format!(
+        "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri '{}' -OutFile '{}'",
+        FFMPEG_RUNTIME_DOWNLOAD_URL,
+        zip_path_str.replace('\\', "\\\\")
+    );
+    let download = Command::new("powershell")
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &download_script])
+        .output()
+        .map_err(|e| format!("FFmpeg Download konnte nicht gestartet werden: {}", e))?;
+    if !download.status.success() {
+        let stderr = String::from_utf8_lossy(&download.stderr).trim().to_string();
+        return Err(if stderr.is_empty() {
+            "FFmpeg Download fehlgeschlagen".to_string()
+        } else {
+            format!("FFmpeg Download fehlgeschlagen: {}", stderr)
+        });
+    }
+
+    let _ = fs::remove_dir_all(&extract_root);
+    fs::create_dir_all(&extract_root)
+        .map_err(|e| format!("FFmpeg Extract-Verzeichnis konnte nicht erstellt werden: {}", e))?;
+
+    let extract_script = format!(
+        "$ProgressPreference='SilentlyContinue'; Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+        zip_path_str.replace('\\', "\\\\"),
+        extract_root_str.replace('\\', "\\\\")
+    );
+    let extract = Command::new("powershell")
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &extract_script])
+        .output()
+        .map_err(|e| format!("FFmpeg Extract konnte nicht gestartet werden: {}", e))?;
+    if !extract.status.success() {
+        let stderr = String::from_utf8_lossy(&extract.stderr).trim().to_string();
+        return Err(if stderr.is_empty() {
+            "FFmpeg Extract fehlgeschlagen".to_string()
+        } else {
+            format!("FFmpeg Extract fehlgeschlagen: {}", stderr)
+        });
+    }
+
+    let ffmpeg_path = find_ffmpeg_recursive(&extract_root)
+        .ok_or_else(|| "FFmpeg wurde nach dem Extract nicht gefunden".to_string())?;
+    set_ffmpeg_process_env(&ffmpeg_path);
+    Ok(ffmpeg_path)
+}
+
+fn ensure_ffmpeg_available(app: Option<&AppHandle>) -> Result<String, String> {
+    if let Some(path) = resolve_ffmpeg_binary_candidate() {
+        set_ffmpeg_process_env(&path);
+        return Ok(path);
+    }
+
+    let app = app
+        .or_else(|| APP_HANDLE.get())
+        .ok_or_else(|| "FFmpeg ist nicht verfuegbar und kein App-Kontext fuer Auto-Setup vorhanden".to_string())?;
+
+    let _guard = ffmpeg_setup_lock()
+        .lock()
+        .map_err(|_| "FFmpeg setup lock Fehler".to_string())?;
+
+    if let Some(path) = resolve_ffmpeg_binary_candidate() {
+        set_ffmpeg_process_env(&path);
+        return Ok(path);
+    }
+
+    install_ffmpeg_runtime(app)
+}
+
+fn find_ffmpeg_in_dir(dir: &Path) -> Option<String> {
+    for name in [
+        "ffmpeg.exe",
+        "ffmpeg",
+        "ffmpeg-x86_64-pc-windows-msvc.exe",
+        "ffmpeg-x86_64-pc-windows-gnu.exe",
+        "bin/ffmpeg.exe",
+        "ffmpeg/bin/ffmpeg.exe",
+    ] {
+        let candidate = dir.join(name);
+        if candidate.is_file() {
+            return Some(candidate.to_string_lossy().to_string());
+        }
+    }
+    None
+}
+
+fn resolve_ffmpeg_binary() -> String {
+    resolve_ffmpeg_binary_candidate().unwrap_or_else(|| "ffmpeg".to_string())
+}
+
 fn cleanup_idle_camera_streams(map: &mut HashMap<String, CameraStreamHandle>) {
     let now = Instant::now();
     let stale_keys: Vec<String> = map
         .iter()
-        .filter(|(_, handle)| now.duration_since(handle.last_used) > Duration::from_secs(15))
+        .filter(|(_, handle)| now.duration_since(handle.last_used) > Duration::from_secs(CAMERA_STREAM_IDLE_TIMEOUT_SECS))
         .map(|(k, _)| k.clone())
         .collect();
 
@@ -238,20 +462,26 @@ fn cleanup_idle_camera_streams(map: &mut HashMap<String, CameraStreamHandle>) {
 }
 
 fn spawn_camera_stream(rtsp_url: &str) -> Result<CameraStreamHandle, String> {
-    let mut child = Command::new("ffmpeg")
+    let ffmpeg_bin = ensure_ffmpeg_available(APP_HANDLE.get()).unwrap_or_else(|_| resolve_ffmpeg_binary());
+    let mut cmd = Command::new(&ffmpeg_bin);
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let mut child = cmd
         .args([
             "-loglevel",
             "error",
             "-rtsp_transport",
             "tcp",
-            "-fflags",
-            "nobuffer",
-            "-flags",
-            "low_delay",
+            "-thread_queue_size",
+            "512",
+            "-rw_timeout",
+            "15000000",
             "-i",
             rtsp_url,
             "-vf",
-            "scale=trunc(iw*sar):ih,setsar=1,fps=30",
+            "scale=trunc(iw*sar):ih,setsar=1,fps=20",
             "-f",
             "image2pipe",
             "-vcodec",
@@ -263,7 +493,7 @@ fn spawn_camera_stream(rtsp_url: &str) -> Result<CameraStreamHandle, String> {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("ffmpeg stream konnte nicht gestartet werden: {}", e))?;
+        .map_err(|e| format!("ffmpeg stream konnte nicht gestartet werden ({}): {}", ffmpeg_bin, e))?;
 
     let stdout = child
         .stdout
@@ -352,12 +582,28 @@ fn acquire_camera_stream(ip: &str, stream_id: u8) -> Result<Arc<Mutex<Option<Vec
                 Ok(None) => false,
                 Err(_) => true,
             };
+            let no_frame_yet_timed_out = {
+                let has_frame = handle
+                    .latest_frame
+                    .lock()
+                    .map(|slot| slot.is_some())
+                    .unwrap_or(false);
+                !has_frame
+                    && handle
+                        .last_frame_at
+                        .lock()
+                        .map(|ts| {
+                            ts.elapsed()
+                                > Duration::from_secs(CAMERA_STREAM_FIRST_FRAME_TIMEOUT_SECS + 5)
+                        })
+                        .unwrap_or(true)
+            };
             let frame_stale = handle
                 .last_frame_at
                 .lock()
-                .map(|ts| ts.elapsed() > Duration::from_secs(15))
+                .map(|ts| ts.elapsed() > Duration::from_secs(CAMERA_STREAM_STALE_TIMEOUT_SECS))
                 .unwrap_or(true);
-            process_dead || frame_stale
+            process_dead || frame_stale || no_frame_yet_timed_out
         }
         None => true,
     };
@@ -378,6 +624,14 @@ fn acquire_camera_stream(ip: &str, stream_id: u8) -> Result<Arc<Mutex<Option<Vec
 }
 
 #[tauri::command]
+fn camera_prepare_stream(app: AppHandle, ip: String, stream: Option<u8>) -> Result<bool, String> {
+    let _ = ensure_ffmpeg_available(Some(&app))?;
+    let stream_id = stream.unwrap_or(1).clamp(1, 4);
+    let _ = acquire_camera_stream(&ip, stream_id)?;
+    Ok(true)
+}
+
+#[tauri::command]
 fn camera_restart_stream(ip: String, stream: Option<u8>) -> Result<bool, String> {
     let stream_id = stream.unwrap_or(1).clamp(1, 4);
     let key = format!("{}|{}", ip, stream_id);
@@ -394,7 +648,7 @@ fn camera_restart_stream(ip: String, stream: Option<u8>) -> Result<bool, String>
 
 fn handle_mjpeg_client(mut conn: TcpStream) {
     let _ = conn.set_read_timeout(Some(Duration::from_millis(1500)));
-    let _ = conn.set_write_timeout(Some(Duration::from_millis(3000)));
+    let _ = conn.set_write_timeout(Some(Duration::from_millis(CAMERA_STREAM_WRITE_TIMEOUT_MS)));
 
     let mut req = [0u8; 4096];
     let n = match conn.read(&mut req) {
@@ -422,6 +676,39 @@ fn handle_mjpeg_client(mut conn: TcpStream) {
         .unwrap_or(1)
         .clamp(1, 4);
 
+    let latest = match acquire_camera_stream(ip, stream_id) {
+        Ok(v) => v,
+        Err(e) => {
+            let body = format!("Stream start failed: {}", e);
+            let response = format!(
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = conn.write_all(response.as_bytes());
+            return;
+        }
+    };
+
+    let wait_deadline = Instant::now();
+    let first_frame = loop {
+        let frame = latest.lock().ok().and_then(|guard| guard.clone());
+        if let Some(bytes) = frame {
+            break bytes;
+        }
+        if wait_deadline.elapsed() > Duration::from_secs(CAMERA_STREAM_FIRST_FRAME_TIMEOUT_SECS) {
+            let body = "Stream timeout: no frames";
+            let response = format!(
+                "HTTP/1.1 504 Gateway Timeout\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = conn.write_all(response.as_bytes());
+            return;
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+
     let headers = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\nCache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache\r\nConnection: close\r\n\r\n"
     );
@@ -429,16 +716,24 @@ fn handle_mjpeg_client(mut conn: TcpStream) {
         return;
     }
 
-    let connect_deadline = Instant::now();
-    let mut first_frame_sent = false;
+    let first_part_head = format!(
+        "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n",
+        first_frame.len()
+    );
+    if conn.write_all(first_part_head.as_bytes()).is_err() {
+        return;
+    }
+    if conn.write_all(&first_frame).is_err() {
+        return;
+    }
+    if conn.write_all(b"\r\n").is_err() {
+        return;
+    }
+    if conn.flush().is_err() {
+        return;
+    }
 
     loop {
-        // If no frame has been sent within 6 seconds of connecting, close the
-        // connection so the browser fires img.onerror (e.g. camera RTSP offline).
-        if !first_frame_sent && connect_deadline.elapsed() > Duration::from_secs(6) {
-            break;
-        }
-
         let latest = match acquire_camera_stream(ip, stream_id) {
             Ok(v) => v,
             Err(_) => break,
@@ -446,7 +741,6 @@ fn handle_mjpeg_client(mut conn: TcpStream) {
 
         let frame = latest.lock().ok().and_then(|guard| guard.clone());
         if let Some(bytes) = frame {
-            first_frame_sent = true;
             let part_head = format!(
                 "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n",
                 bytes.len()
@@ -465,7 +759,7 @@ fn handle_mjpeg_client(mut conn: TcpStream) {
             }
         }
 
-        thread::sleep(Duration::from_millis(33));
+        thread::sleep(Duration::from_millis(10));
     }
 }
 
@@ -690,7 +984,7 @@ async fn camera_ptz_command(ip: String, command: String) -> Result<String, Strin
 }
 
 #[tauri::command]
-async fn camera_snapshot(ip: String, stream: Option<u8>) -> Result<String, String> {
+async fn camera_snapshot(app: AppHandle, ip: String, stream: Option<u8>) -> Result<String, String> {
     let stream_id = stream.unwrap_or(1).clamp(1, 4);
     let rtsp_url = format!("rtsp://{}/MediaInput/h264/stream_{}", ip, stream_id);
 
@@ -705,13 +999,21 @@ async fn camera_snapshot(ip: String, stream: Option<u8>) -> Result<String, Strin
         .ok_or_else(|| "Invalid temp file path".to_string())?
         .to_string();
 
-    let ffmpeg = Command::new("ffmpeg")
+    let ffmpeg_bin = ensure_ffmpeg_available(Some(&app)).unwrap_or_else(|_| resolve_ffmpeg_binary());
+    let mut cmd = Command::new(&ffmpeg_bin);
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let ffmpeg = cmd
         .args([
             "-y",
             "-loglevel",
             "error",
             "-rtsp_transport",
             "tcp",
+            "-rw_timeout",
+            "15000000",
             "-i",
             &rtsp_url,
             "-vf",
@@ -728,7 +1030,8 @@ async fn camera_snapshot(ip: String, stream: Option<u8>) -> Result<String, Strin
         Ok(o) => o,
         Err(e) => {
             return Err(format!(
-                "ffmpeg not available or failed to start: {}",
+                "ffmpeg not available or failed to start ({}): {}",
+                ffmpeg_bin,
                 e
             ))
         }
@@ -2005,9 +2308,18 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
+            let _ = APP_HANDLE.set(app_handle.clone());
             let _ = resolve_log_dir(Some(&app_handle));
             install_panic_logging_hook();
             let _ = write_app_log("info", "Application startup", now_timestamp_ms(), Some(&app_handle));
+            match ensure_ffmpeg_available(Some(&app_handle)) {
+                Ok(path) => {
+                    let _ = write_app_log("info", &format!("FFmpeg ready: {}", path), now_timestamp_ms(), Some(&app_handle));
+                }
+                Err(err) => {
+                    let _ = write_app_log("error", &format!("FFmpeg setup failed: {}", err), now_timestamp_ms(), Some(&app_handle));
+                }
+            }
             start_camera_mjpeg_server();
             let sep       = tauri::menu::PredefinedMenuItem::separator(app)?;
             let show      = MenuItem::with_id(app, "show",      "PROJEKTIL öffnen", true, None::<&str>)?;
@@ -2045,7 +2357,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            d40_command, d40_ping, d40_status, d40_set_gain, http_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_restart_stream,
+            d40_command, d40_ping, d40_status, d40_set_gain, http_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
             ups_get_status, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             minimize_window, toggle_fullscreen,
