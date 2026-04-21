@@ -304,14 +304,6 @@ fn resolve_ffmpeg_binary_candidate() -> Option<String> {
         }
     }
 
-    if let Some(app) = APP_HANDLE.get() {
-        if let Some(runtime_root) = ffmpeg_runtime_root(app) {
-            if let Some(path) = find_ffmpeg_recursive(&runtime_root) {
-                return Some(path);
-            }
-        }
-    }
-
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(dir) = exe_path.parent() {
             let mut search_dirs: Vec<PathBuf> = vec![dir.to_path_buf()];
@@ -333,6 +325,14 @@ fn resolve_ffmpeg_binary_candidate() -> Option<String> {
                 if let Some(path) = find_ffmpeg_in_dir(&candidate_dir) {
                     return Some(path);
                 }
+            }
+        }
+    }
+
+    if let Some(app) = APP_HANDLE.get() {
+        if let Some(runtime_root) = ffmpeg_runtime_root(app) {
+            if let Some(path) = find_ffmpeg_recursive(&runtime_root) {
+                return Some(path);
             }
         }
     }
