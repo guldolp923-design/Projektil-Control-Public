@@ -1,0 +1,27 @@
+{
+ "canHaveExternalConnections": false,
+ "cjv": {
+  "h": 200.0,
+  "page": "Page 1",
+  "w": 200.0,
+  "x": 1044.7619047619046,
+  "y": 257.1428571428571
+ },
+ "definedExternally": false,
+ "hasExternalConnection": 0,
+ "hostInfo": {
+  "systemType": ""
+ },
+ "libraryExportPath": "C:/Program Files/AV Stumpfl/Pixera/[current]/data/control_library_standard/NewModule.json",
+ "license": "1GNTlyr7sewU1l3S6nhV4r4AmfJjPRU0FPO1fY5pzhM67FUBaWU/FJRoLa9ZFWWnvO0res52L+3oXsVJAyhreV3b3xWtFPlqPMnQn+XGOf6JMSaL6Yrd0fhythZ0xhet7+Sq4fGicq37TJAMs4X4Kg==",
+ "name": "ProjektilControl",
+ "properties": [
+  {
+   "cont": "false",
+   "name": "Auto Init",
+   "typeHint": "bool"
+  }
+ ],
+ "separateCode": true,
+ "uiUrl": ""
+}
