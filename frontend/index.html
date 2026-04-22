@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -225,8 +225,6 @@ body.emergency-locked .sidebar-lock-indicator:hover{background:rgba(239,68,68,.1
 .stag-w{background:#431407;color:#fdba74}
 .stag-s{background:#14532d;color:#86efac}
 .fired{opacity:.3;text-decoration:line-through}
-.meter-bg{height:14px;background:#0a1a0a;border-radius:3px;overflow:hidden;display:flex}
-.m-g{background:var(--green)}.m-a{background:#d97706}.m-r{background:var(--red)}
 .em-card{background:#b91c1c;border-radius:10px;padding:32px;text-align:center}
 .em-title{font-size:20px;font-weight:700;margin-bottom:20px}
 .em-line{font-size:14px;font-weight:600;margin-bottom:8px}
@@ -670,19 +668,6 @@ body.emergency-locked .btn-o{background:#9a3412}
             <div class="offline-overlay-text" data-l10n-key="amp02_offline">AMP 02 — OFFLINE</div>
             <div class="offline-overlay-ip">192.168.1.52</div>
           </div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title" data-l10n-key="pixera_audio_metering">Pixera Audio Metering</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="font-size:11px;color:var(--muted);width:28px;font-family:var(--mono)">Ch1</span>
-          <div class="meter-bg" style="flex:1"><div class="m-g" style="width:0%" id="meter-ch1-g"></div><div class="m-a" style="width:0%" id="meter-ch1-a"></div><div class="m-r" style="width:0%" id="meter-ch1-r"></div></div>
-          <span style="font-size:10px;font-family:var(--mono);color:var(--muted);width:36px;text-align:right" id="meter-ch1-db">— dB</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:11px;color:var(--muted);width:28px;font-family:var(--mono)">Ch2</span>
-          <div class="meter-bg" style="flex:1"><div class="m-g" style="width:0%" id="meter-ch2-g"></div><div class="m-a" style="width:0%" id="meter-ch2-a"></div><div class="m-r" style="width:0%" id="meter-ch2-r"></div></div>
-          <span style="font-size:10px;font-family:var(--mono);color:var(--muted);width:36px;text-align:right" id="meter-ch2-db">— dB</span>
         </div>
       </div>
     </div>
@@ -1187,7 +1172,7 @@ let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
-const APP_VERSION_FALLBACK = '1.0.12-beta';
+const APP_VERSION_FALLBACK = '1.0.13-beta';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -1323,7 +1308,6 @@ const locales = {
     all_on: 'Alle EIN',
     amp01_offline: 'AMP 01 — OFFLINE',
     amp02_offline: 'AMP 02 — OFFLINE',
-    pixera_audio_metering: 'Pixera Audio Metering',
     janitza_anomaly_title: '⚠ Strom-Anomalien erkannt (Janitza)',
     ups_anomaly_title: '⚠ UPS-Anomalien erkannt',
     frequency: 'Frequenz',
@@ -1554,7 +1538,6 @@ const locales = {
     all_on: 'All ON',
     amp01_offline: 'AMP 01 — OFFLINE',
     amp02_offline: 'AMP 02 — OFFLINE',
-    pixera_audio_metering: 'Pixera Audio Metering',
     janitza_anomaly_title: '⚠ Power anomalies detected (Janitza)',
     ups_anomaly_title: '⚠ UPS anomalies detected',
     frequency: 'Frequency',
@@ -2092,7 +2075,7 @@ function applyDemoMode(){
   demoOnlineIds.forEach(ids=>setStatus(ids,true));
   updateShowNavBadge(true);
   updateProjectorsNavBadge();
-  updateAudioNavBadge(true,true,true);
+  updateAudioNavBadge(true,true);
   updateCamerasNavBadge(true,true);
   updateNasNavBadge(true);
   updateNetworkNavBadge(true,true);
@@ -2486,10 +2469,10 @@ function setStatus(ids,online,labelOn=locales[currentLang].online||'Online',labe
   }
 }
 
-function updateAudioNavBadge(pixeraOnline, amp1Online, amp2Online){
+function updateAudioNavBadge(amp1Online, amp2Online){
   const el=document.getElementById('nav-audio-b');
   if(!el) return;
-  el.style.background = (pixeraOnline && amp1Online && amp2Online) ? 'var(--green)' : 'var(--red)';
+  el.style.background = (amp1Online && amp2Online) ? 'var(--green)' : 'var(--red)';
 }
 
 function setNavBadge(id, online){
@@ -3939,7 +3922,7 @@ function setPixeraDirectorUi(online){
   const sbTl=document.getElementById('sb-tl-status');
   if(sbTl) sbTl.textContent=online?locales[currentLang].pixera_connected:locales[currentLang].pixera_disconnected;
   updateShowNavBadge(online);
-  updateAudioNavBadge(online, Boolean(deviceState.amp1), Boolean(deviceState.amp2));
+  updateAudioNavBadge(Boolean(deviceState.amp1), Boolean(deviceState.amp2));
 }
 
 function getPixeraDirectorOnline(){
