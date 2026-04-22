@@ -1,138 +1,161 @@
-# PROJEKTIL Control — Tauri App
+# PROJEKTIL Control
 
-## Projektstruktur
+<p align="center">
+	<a href="#schnellstart"><img alt="Quick Start" src="https://img.shields.io/badge/Start-3%20Schritte-0a7ea4"></a>
+	<img alt="Platform" src="https://img.shields.io/badge/Platform-Windows-1f6feb">
+	<img alt="Runtime" src="https://img.shields.io/badge/Tauri-Desktop-green">
+	<img alt="Status" src="https://img.shields.io/badge/Status-Beta-orange">
+</p>
 
-```
-projektil-control/
-├── frontend/
-│   ├── index.html          ← Komplettes UI (HTML/CSS/JS)
-│   └── js/
-│       └── tauri-bridge.js ← Tauri API Bridge (optional, fuer Module)
-├── src-tauri/
-│   ├── src/
-│   │   ├── main.rs         ← App-Einstieg, Tray, Window-Management
-│   │   └── oca.rs          ← D40 AES70/OCA TCP Steuerung
-│   ├── Cargo.toml          ← Rust Dependencies
-│   └── tauri.conf.json     ← App-Konfiguration (Fenstergrösse etc.)
-├── package.json
-├── setup-and-build.bat     ← Windows Setup Script
-└── README.md
-```
+Desktop-Steuerungsapp für Showbetrieb auf Basis von Tauri.
 
----
+PROJEKTIL Control bündelt zentrale Aktionen für Projektoren, D40 und Pixera in einer schnellen, robusten Windows-App mit Tray-Integration, Startup-Checks und Logging.
 
-## Voraussetzungen
+## Warum dieses Projekt?
 
-### 1. Node.js installieren
-https://nodejs.org (LTS Version)
+- Zuverlässiger Start mit klaren Verbindungsprüfungen und verständlichen Fehlermeldungen
+- Direkte Steuerung von D40-Befehlen (Mute/Unmute, Presets)
+- Schnelle Live-Aktionen über das Tray-Menü
+- Persistente Logs über Neustarts hinweg
+- Konfiguration per `config.json` ohne Neubuild
 
-### 2. Rust installieren
-https://rustup.rs — einfach das Installer-Script ausführen
+## Inhaltsverzeichnis
 
-### 3. WebView2 (Windows 11 bereits vorinstalliert)
-Falls Windows 10: https://developer.microsoft.com/microsoft-edge/webview2/
+- [Schnellstart](#schnellstart)
+- [Screenshots und Demo](#screenshots-und-demo)
+- [Projektstruktur](#projektstruktur)
+- [Konfiguration](#konfiguration)
+- [D40-Befehle](#d40-befehle)
+- [Tray-Funktionen](#tray-funktionen)
+- [Autostart unter Windows](#autostart-unter-windows)
+- [Troubleshooting](#troubleshooting)
 
----
+## Schnellstart
 
-## Setup in 3 Schritten
+### Voraussetzungen
+
+1. Node.js (LTS): https://nodejs.org
+2. Rust (Toolchain): https://rustup.rs
+3. WebView2 (unter Windows 10): https://developer.microsoft.com/microsoft-edge/webview2/
+
+### Entwicklung starten
 
 ```bash
-# 1. Im Projektordner oeffnen
 cd projektil-control
-
-# 2. Dependencies installieren
 npm install
-
-# 3. Entwicklungsmodus starten (Hot-Reload)
 npm run dev
 ```
 
-Beim ersten Start dauert es 2-5 Minuten weil Rust alle Dependencies kompiliert.
-Danach startet die App als natives Fenster.
+Hinweis: Der erste Start kann 2 bis 5 Minuten dauern, da Rust alle Abhängigkeiten kompiliert.
 
----
-
-## Fuer die Tour — Release Build
+### Release-Build erstellen
 
 ```bash
 npm run build
 ```
 
-Die fertige .exe liegt in:
-```
+Die ausführbare Datei liegt anschließend unter:
+
+```text
 src-tauri/target/release/projektil-control.exe
 ```
 
-Die .exe ist standalone — keine zusätzliche Installation auf dem Laptop nötig.
+## Screenshots und Demo
 
----
+Hier kannst du die GitHub-Seite visuell aufwerten, sobald Material vorliegt:
 
-## Autostart einrichten (Windows)
-
-### Methode A: Setup-Script (empfohlen)
-```
-setup-and-build.bat als Administrator ausführen
+```text
+docs/images/app-overview.png
+docs/images/startup-screen.png
 ```
 
-### Methode B: Manuell
-1. Win+R → `shell:startup`
-2. Verknüpfung zur projektil-control.exe in den Startup-Ordner
-3. Eigenschaften der Verknüpfung → "Minimiert starten" (startet im Tray)
+Beispiel-Einbindung:
 
----
+```markdown
+![App Overview](docs/images/app-overview.png)
+![Startup Screen](docs/images/startup-screen.png)
+```
 
-## IP-Adressen konfigurieren
+## Projektstruktur
 
-Die IP-Adressen können nun direkt in der Datei `config.json` im Hauptverzeichnis angepasst werden. 
-Die App muss danach nicht neu gebaut werden, ein einfacher Neustart reicht aus. Falls die Datei fehlt, wird sie beim ersten Start automatisch mit Standardwerten erstellt.
+```text
+projektil-control/
+├── frontend/
+│   ├── index.html          ← Komplettes UI (HTML/CSS/JS)
+│   └── js/
+│       └── tauri-bridge.js ← Tauri-API-Bridge (optional für Module)
+├── src-tauri/
+│   ├── src/
+│   │   ├── main.rs         ← App-Einstieg, Tray, Fenster-Management
+│   │   └── oca.rs          ← D40 AES70/OCA-TCP-Steuerung
+│   ├── Cargo.toml          ← Rust-Abhängigkeiten
+│   └── tauri.conf.json     ← App-Konfiguration (Fenstergröße etc.)
+├── config.json             ← Laufzeitkonfiguration (IP/Ports)
+├── package.json
+├── setup-and-build.bat     ← Windows-Setup-Skript
+└── README.md
+```
 
----
+## Konfiguration
 
-## D40 OCA Commands
+Die IP-Adressen können direkt in `config.json` im Hauptverzeichnis angepasst werden.
 
-Verfügbare Commands für `d40_command`:
-- `mute_A` / `unmute_A` — Kanal A
-- `mute_B` / `unmute_B` — Kanal B
-- `mute_C` / `unmute_C` — Kanal C
-- `mute_D` / `unmute_D` — Kanal D
-- `mute_all` / `unmute_all` — Alle 4 Kanäle
-- `preset_1` / `preset_2` / `preset_3` — AmpPresets laden
+- Kein Neubuild nötig
+- Ein Neustart der App reicht aus
+- Falls die Datei fehlt, wird sie beim ersten Start automatisch mit Standardwerten erzeugt
 
----
+## D40-Befehle
 
-## Tray-Icon Funktionen
+Verfügbare Werte für `d40_command`:
 
-Rechtsklick auf das PROJEKTIL Icon in der Taskleiste:
+- `mute_A` / `unmute_A` für Kanal A
+- `mute_B` / `unmute_B` für Kanal B
+- `mute_C` / `unmute_C` für Kanal C
+- `mute_D` / `unmute_D` für Kanal D
+- `mute_all` / `unmute_all` für alle vier Kanäle
+- `preset_1` / `preset_2` / `preset_3` zum Laden von Amp-Presets
+
+## Tray-Funktionen
+
+Per Rechtsklick auf das PROJEKTIL-Icon in der Taskleiste:
+
 - PROJEKTIL öffnen
 - Alle Projektoren Mute
 - PowerAll (Warmup)
-- ⚠ Emergency Stop
+- Emergency Stop
 - Beenden
 
-Doppelklick auf Tray-Icon: Fenster öffnen
+Per Doppelklick auf das Tray-Icon:
 
----
+- Fenster öffnen
 
-## Entwicklung — Frontend ändern
+## Autostart unter Windows
 
-Das HTML/CSS/JS in `frontend/index.html` kann direkt bearbeitet werden.
-Im Dev-Modus (`npm run dev`) lädt die App bei Änderungen automatisch neu.
+### Methode A (empfohlen)
 
-Für den Release-Build nach jeder Änderung: `npm run build`
+`setup-and-build.bat` als Administrator ausführen.
 
----
+### Methode B (manuell)
+
+1. `Win + R` und `shell:startup` öffnen
+2. Verknüpfung zur `projektil-control.exe` in den Startup-Ordner legen
+3. In den Eigenschaften der Verknüpfung `Minimiert starten` aktivieren
 
 ## Troubleshooting
 
-**App startet nicht:**
-- Windows Defender kann .exe blockieren → "Trotzdem ausführen"
-- Als Administrator starten beim ersten Start
+### App startet nicht
 
-**D40 nicht erreichbar:**
-- IP-Adresse in get_config() prüfen
-- Port 30013 TCP muss offen sein
+- Windows Defender kann eine EXE blockieren: `Trotzdem ausführen`
+- Beim ersten Start einmal als Administrator ausführen
+
+### D40 nicht erreichbar
+
+- IP-Adresse in der Konfiguration prüfen
+- TCP-Port `30013` muss erreichbar sein
 - D40 muss im selben Netz sein
 
-**Pixera-Verbindung schlägt fehl:**
-- IP und Port 1338 prüfen
-- Pixera muss laufen und Control-Modul aktiv sein
+### Pixera-Verbindung schlägt fehl
+
+- IP und Port `1338` prüfen
+- Pixera muss laufen
+- Control-Modul muss aktiv sein
