@@ -1,6 +1,6 @@
 [package]
 name = "projektil-control"
-version = "1.0.13-beta"
+version = "1.0.14-beta"
 description = "PROJEKTIL Show Control"
 authors = ["WE ARE PROJEKTIL AG"]
 edition = "2021"
@@ -23,6 +23,8 @@ tokio-tungstenite = "0.24"
 futures-util = "0.3"
 base64 = "0.22"
 md5 = "0.7"
+chrono = { version = "0.4", features = ["clock"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 
 [profile.release]
 panic = "unwind"

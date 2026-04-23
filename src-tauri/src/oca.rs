@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::Duration;
@@ -16,8 +16,7 @@ pub async fn ping(ip: &str) -> Result<bool, Box<dyn std::error::Error + Send + S
 
 pub async fn send_command(ip: &str, command: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let addr = format!("{}:{}", ip, OCA_PORT);
-    
-    // GetMute commands — lese aktuellen Status
+
     if command.starts_with("get_mute_") {
         let ch = command.chars().last().unwrap_or('A');
         let get_bytes = match ch {
@@ -34,7 +33,6 @@ pub async fn send_command(ip: &str, command: &str) -> Result<String, Box<dyn std
                 let mut buf = [0u8; 64];
                 if let Ok(n) = stream.read(&mut buf) {
                     if n > 0 {
-                        // OCA Response: letztes Byte ist Mute-Status (0=unmuted, 1=muted)
                         let muted = buf[n-1] == 1;
                         return Ok(format!("muted:{}", muted));
                     }
@@ -85,24 +83,32 @@ pub async fn send_command(ip: &str, command: &str) -> Result<String, Box<dyn std
 
 pub async fn get_status(ip: &str) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
     let targets = [
-        (360, 80, "A", 440, 80),
-        (360, 120, "B", 440, 120),
-        (360, 200, "C", 440, 200),
-        (360, 240, "D", 440, 240),
+        (360u32,  80u32, "A", 440u32,  80u32),
+        (360,     120,   "B", 440,     120),
+        (360,     200,   "C", 440,     200),
+        (360,     240,   "D", 440,     240),
     ];
 
     let mut channels = Vec::new();
     for (gain_x, gain_y, channel, state_x, state_y) in targets {
-        let gain_info = eleinfo(ip, gain_x, gain_y)?;
-        let state_info = eleinfo(ip, state_x, state_y)?;
-
-        let gain_value = gain_info
-            .get("value")
-            .cloned()
+        let gain_value = eleinfo(ip, gain_x, gain_y)
+            .ok()
+            .and_then(|info| {
+                let obj = info.get("obj").map(|s| s.as_str()).unwrap_or("");
+                if obj == "NOOBJ" { None } else { info.get("value").cloned() }
+            })
             .unwrap_or_else(|| "-- dB".to_string());
-        let muted = state_info
-            .get("value")
-            .and_then(|v| v.parse::<u8>().ok())
+
+        let muted = eleinfo(ip, state_x, state_y)
+            .ok()
+            .and_then(|info| {
+                let obj = info.get("obj").map(|s| s.as_str()).unwrap_or("");
+                if obj == "NOOBJ" {
+                    None
+                } else {
+                    info.get("value").and_then(|v| v.parse::<u8>().ok())
+                }
+            })
             .map(|v| v != 0)
             .unwrap_or(false);
 
@@ -110,7 +116,7 @@ pub async fn get_status(ip: &str) -> Result<serde_json::Value, Box<dyn std::erro
             "channel": channel,
             "gain": gain_value,
             "muted": muted,
-            "status": state_info.get("value").cloned().unwrap_or_else(|| "0".to_string()),
+            "status": if muted { "1" } else { "0" },
         }));
     }
 
@@ -119,10 +125,10 @@ pub async fn get_status(ip: &str) -> Result<serde_json::Value, Box<dyn std::erro
 
 pub async fn set_gain(ip: &str, channel: usize, current: f32, target: f32) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let coords = match channel {
-        0 => (360, 80),
-        1 => (360, 120),
-        2 => (360, 200),
-        3 => (360, 240),
+        0 => (360u32,  80u32),
+        1 => (360,     120),
+        2 => (360,     200),
+        3 => (360,     240),
         _ => return Err(format!("Unsupported channel: {}", channel).into()),
     };
 
