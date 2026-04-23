@@ -32,8 +32,8 @@
   "hotline": "+41 XX XXX XX XX",
   "telegram": {
     "enabled": true,
-    "bot_token": "REVOKED_TELEGRAM_BOT_TOKEN",
-    "chat_id": "-5190643085",
+    "bot_token": "",
+    "chat_id": "",
     "critical_error_keywords": [
       "sofortalarm",
       "batteriebetrieb",

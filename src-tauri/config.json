@@ -17,8 +17,8 @@
   "projector_count": 16,
   "projector_start": 101,
   "telegram": {
-    "bot_token": "REVOKED_TELEGRAM_BOT_TOKEN",
-    "chat_id": "-5190643085",
+    "bot_token": "",
+    "chat_id": "",
     "enabled": true
   },
   "ups_ip": "192.168.1.6"

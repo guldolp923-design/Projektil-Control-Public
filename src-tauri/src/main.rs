@@ -338,6 +338,8 @@ fn contains_critical_keyword(message: &str, cfg: &serde_json::Value) -> bool {
 
     let built_in_keywords = [
         "sofortalarm",
+        "akku warnung",
+        "akkustand unter 20",
         "ups hat auf batteriebetrieb gewechselt",
         "batterie mode aktiviert",
         "panic:",
@@ -496,7 +498,11 @@ fn maybe_send_critical_telegram(level: &str, message: &str, timestamp_ms: u64) {
     }
 
     if is_resolution_message(message) && level.eq_ignore_ascii_case("info") {
-        let fingerprint = format!("resolved:{}", strip_resolution_prefix(message));
+        let resolved = strip_resolution_prefix(message);
+        if classify_error_category(&resolved) != "ups" {
+            return;
+        }
+        let fingerprint = format!("resolved:{}", resolved);
         if telegram_rate_limited(&fingerprint, timestamp_ms) {
             return;
         }
@@ -1247,6 +1253,68 @@ async fn http_ping(ip: String, port: u16) -> Result<String, String> {
                 Ok("REFUSED".to_string())
             }
         }
+    }
+}
+
+#[tauri::command]
+fn system_get_battery_status() -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Battery | Select-Object EstimatedChargeRemaining,BatteryStatus | ConvertTo-Json -Compress",
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !output.status.success() {
+            return Err("Battery query failed".to_string());
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if stdout.is_empty() || stdout == "null" {
+            return Ok(serde_json::json!({
+                "available": false
+            }));
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(&stdout).map_err(|e| e.to_string())?;
+        let obj = if let Some(arr) = parsed.as_array() {
+            arr.first().cloned().unwrap_or(serde_json::Value::Null)
+        } else {
+            parsed
+        };
+
+        if obj.is_null() {
+            return Ok(serde_json::json!({
+                "available": false
+            }));
+        }
+
+        let pct = obj
+            .get("EstimatedChargeRemaining")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(-1);
+        let status = obj
+            .get("BatteryStatus")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(-1);
+
+        return Ok(serde_json::json!({
+            "available": true,
+            "percent": pct,
+            "status": status
+        }));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(serde_json::json!({
+            "available": false,
+            "reason": "unsupported-platform"
+        }))
     }
 }
 
@@ -2850,6 +2918,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             d40_command, d40_ping, d40_status, d40_set_gain, http_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
+            system_get_battery_status,
             ups_get_status, ups_get_power_mode, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             minimize_window, toggle_fullscreen,
