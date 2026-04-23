@@ -141,6 +141,8 @@ body.emergency-locked .sidebar-lock-indicator:hover{background:rgba(239,68,68,.1
 .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
 .pill-g{background:#14532d;color:#86efac;border:1px solid #16a34a}
 .pill-r{background:#450a0a;color:#fca5a5;border:1px solid #dc2626}
+.pill-battery{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;animation:upsBatteryBlink .9s steps(2,start) infinite}
+@keyframes upsBatteryBlink{0%,100%{opacity:1}50%{opacity:.35}}
 .pill-o{background:#431407;color:#fdba74;border:1px solid #ea580c}
 .btn{padding:6px 14px;border-radius:5px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:#fff;font-family:inherit;transition:background .1s}
 .btn:hover{background:#323080}
@@ -221,6 +223,9 @@ body.emergency-locked .sidebar-lock-indicator:hover{background:rgba(239,68,68,.1
 .srow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px}
 .srow:last-child{border-bottom:none}
 .stime{font-family:var(--mono);color:var(--muted);width:48px;flex-shrink:0}
+.schedule-detail{flex:1;color:#fff;line-height:1.25;white-space:normal}
+.schedule-list{max-height:178px;overflow:auto;padding-right:2px}
+.schedule-empty{font-size:11px;color:var(--muted);padding:8px 0}
 .stag{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600}
 .stag-w{background:#431407;color:#fdba74}
 .stag-s{background:#14532d;color:#86efac}
@@ -492,35 +497,26 @@ body.emergency-locked .btn-o{background:#9a3412}
 
     <!-- SHOW -->
     <div class="tab-panel active" id="tab-show">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:18px;font-weight:700">
-          <span id="tl-name">—</span>
-          <span style="background:#2e1065;color:#c4b5fd;border:1px solid #7c3aed;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:600;margin-left:8px" id="dr-badge">DR —</span>
+
+      <!-- Standort-Banner -->
+      <div id="venue-banner" style="display:none;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:12px">
+        <span id="venue-flag-emoji" style="font-size:16px">📍</span>
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Standort</div>
+          <div id="venue-name-display" style="font-size:15px;font-weight:600;color:#fff">—</div>
         </div>
-        <span class="pill pill-r" id="tl-status"><span class="dot"></span> <span data-l10n-key="stopped">Stopped</span></span>
       </div>
-      <div style="height:6px;background:rgba(255,255,255,.1);border-radius:3px;margin-bottom:3px">
-        <div style="height:100%;width:0%;background:linear-gradient(90deg,#7a6cf8,#a78bfa);border-radius:3px;transition:width .5s" id="tl-progress"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:12px;font-family:var(--mono)">
-        <span id="tl-pct">0%</span>
-        <span id="tl-warn-lbl" style="color:var(--orange);display:none;font-weight:700"><span data-l10n-key="timeline_warn_under_5">⚠ &lt; 5 Min verbleibend!</span></span>
-        <span>100%</span>
-      </div>
-      <div class="g2" style="margin-bottom:10px">
-        <div><div class="tc-label" data-l10n-key="timeline_current_time">Timeline current Time</div><div class="tc" id="tl-current">--:--:--:--</div></div>
-        <div><div class="tc-label" data-l10n-key="timeline_remaining_time">Timeline remaining Time</div><div class="tc" id="tl-remaining">--:--:--:--</div></div>
-      </div>
-      <div style="display:flex;justify-content:center;gap:12px;margin-bottom:14px">
-        <button class="btn btn-g" style="padding:8px 24px;font-size:16px" onclick="pixeraPlay()">&#9654;</button>
-        <button class="btn" style="padding:8px 20px;font-size:16px" onclick="pixeraPause()">&#10074;&#10074;</button>
-        <button class="btn btn-r" style="padding:8px 20px;font-size:16px" onclick="pixeraStop()">&#9632;</button>
-      </div>
+
       <div class="g3">
         <div class="card" style="margin-bottom:0">
-          <div class="card-title" style="font-size:11px;margin-bottom:8px" data-l10n-key="schedule_title">Tagesplan</div>
-          <div class="srow fired"><div class="stime" id="warmup-time">--:--</div><div style="flex:1;color:#fff" id="warmup-name" data-l10n-key="warmup_name">Warmup —</div><div class="stag stag-w" data-l10n-key="warmup_label">Warmup</div></div>
-          <div class="srow"><div class="stime" id="show-time">--:--</div><div style="flex:1;color:var(--green);font-weight:600" id="show-name" data-l10n-key="show_name">Show —</div><div class="stag stag-s" id="show-tag" data-l10n-key="pending">Pending</div></div>
+          <div class="card-title" style="font-size:11px;margin-bottom:8px" data-l10n-key="schedule_title">Spielplan</div>
+          <div class="srow fired" id="schedule-last-row">
+            <div class="stime" id="schedule-last-time">--:--</div>
+            <div class="schedule-detail" id="schedule-last-name" data-l10n-key="schedule_last_none">Noch kein Event ausgelöst</div>
+            <div class="stag" id="schedule-last-tag" data-l10n-key="schedule_last_tag">Letztes</div>
+          </div>
+          <div class="schedule-list" id="schedule-list"></div>
+          <div class="schedule-empty" id="schedule-empty" data-l10n-key="schedule_empty">Keine kommenden Events</div>
         </div>
         <div class="card" style="margin-bottom:0;text-align:center">
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px" data-l10n-key="realtime_label">Realtime</div>
@@ -532,6 +528,8 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="card" style="margin-bottom:0">
           <div class="card-title" style="font-size:11px;margin-bottom:8px" data-l10n-key="system_title">System</div>
           <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="pixera_director">Pixera Director</span><span class="pill pill-r" id="sys-pixera"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="octo_01_32">Octo 01 (IP: 192.168.1.32)</span><span class="pill pill-r" id="sys-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="octo_02_33">Octo 02 (IP: 192.168.1.33)</span><span class="pill pill-r" id="sys-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="d40_amp_01">D40 AMP 01</span><span class="pill pill-r" id="sys-d40-01"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="d40_amp_02">D40 AMP 02</span><span class="pill pill-r" id="sys-d40-02"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)">NAS</span><span class="pill pill-r" id="sys-nas"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
@@ -560,6 +558,16 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="card">
         <div class="card-title" data-l10n-key="settings_title">Einstellungen</div>
         <div class="settings-stack" style="margin-top:12px">
+          <div class="setting-block">
+            <div class="setting-label">Standort / Venue</div>
+            <div class="setting-hint">Wird im Show-Tab oben angezeigt. Z.B. "KKL Luzern – Saal 1".</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+              <input id="venue-name-input" type="text" maxlength="80" placeholder="Standortname eingeben…"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();saveVenueName()}"
+                style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:13px" />
+              <button class="btn btn-g" onclick="saveVenueName()">OK</button>
+            </div>
+          </div>
           <div class="setting-block">
             <div class="setting-label" data-l10n-key="projector_count_label">Anzahl Projektoren (1-16)</div>
             <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
@@ -614,11 +622,92 @@ body.emergency-locked .btn-o{background:#9a3412}
               </div>
             </div>
           </div>
+          <!-- ANYDESK SETTINGS -->
+          <div class="setting-block">
+            <div class="toggle-row" style="margin-bottom:0">
+              <div>
+                <div class="setting-label">AnyDesk Adresse</div>
+                <div class="setting-hint">Wird in Telegram-Alarmen angehaengt.</div>
+              </div>
+            </div>
+            <div id="ad-pin-gate" style="margin-top:12px">
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="password" inputmode="numeric" maxlength="4" id="ad-pin-input"
+                  style="width:110px;padding:8px 12px;font-size:18px;letter-spacing:10px;text-align:center;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;outline:none"
+                  autocomplete="off" placeholder="••••"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();openAnyDeskSettings()}" />
+                <button class="btn btn-g" onclick="openAnyDeskSettings()">Entsperren</button>
+              </div>
+              <div id="ad-pin-error" style="min-height:16px;font-size:11px;color:#fca5a5;margin-top:4px"></div>
+            </div>
+            <div id="ad-settings-panel" style="display:none;margin-top:14px">
+              <div style="display:grid;gap:8px;margin-bottom:12px">
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">AnyDesk-Adresse</div>
+                  <input id="ad-address-input" type="text" autocomplete="off" placeholder="123456789"
+                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveAnyDeskSettings()">Speichern</button>
+                <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockAnyDeskSettings()">Sperren</button>
+              </div>
+              <div id="ad-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
+            </div>
+          </div>
           <!-- OLD BLOCKS HIDDEN FOR JS COMPAT -->
           <div class="setting-block" style="display:none">
             <div class="setting-label" data-l10n-key="software_version_title">Software-Version</div>
             <div class="demo-state" id="app-version-display-hidden">v1.0.0</div>
           </div>
+          <div class="setting-block">
+            <div class="toggle-row" style="margin-bottom:0">
+              <div>
+                <div class="setting-label">Telegram Benachrichtigungen</div>
+                <div class="setting-hint">Bot-Token und Chat-ID konfigurieren. Kritische Fehler werden automatisch gesendet.</div>
+              </div>
+            </div>
+            <!-- PIN gate -->
+            <div id="tg-pin-gate" style="margin-top:12px">
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="password" inputmode="numeric" maxlength="4" id="tg-pin-input"
+                  style="width:110px;padding:8px 12px;font-size:18px;letter-spacing:10px;text-align:center;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;outline:none"
+                  autocomplete="off" placeholder="••••"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();openTelegramSettings()}" />
+                <button class="btn btn-g" onclick="openTelegramSettings()">Entsperren</button>
+              </div>
+              <div id="tg-pin-error" style="min-height:16px;font-size:11px;color:#fca5a5;margin-top:4px"></div>
+            </div>
+            <!-- Telegram settings (hidden until PIN) -->
+            <div id="tg-settings-panel" style="display:none;margin-top:14px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                <label class="switch" for="tg-enabled-toggle">
+                  <input type="checkbox" id="tg-enabled-toggle">
+                  <span class="switch-slider"></span>
+                </label>
+                <span style="font-size:12px;color:var(--muted)">Benachrichtigungen aktiviert</span>
+              </div>
+              <div style="display:grid;gap:8px;margin-bottom:12px">
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Bot-Token</div>
+                  <input id="tg-bot-token-input" type="password" autocomplete="off" placeholder="1234567890:AAH..."
+                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Chat-ID</div>
+                  <input id="tg-chat-id-input" type="text" autocomplete="off" placeholder="-100xxxxxxxxxx"
+                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveTelegramSettings()">Speichern</button>
+                <button class="btn btn-o" style="flex:1;min-width:100px" onclick="sendTelegramTest()">Test senden</button>
+                <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockTelegramSettings()">Sperren</button>
+              </div>
+              <div id="tg-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
+            </div>
+          </div>
+          <!-- DEMO MODE -->
           <div class="setting-block">
             <div class="toggle-row">
               <div>
@@ -641,7 +730,7 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="g2" style="margin-bottom:12px">
         <div class="device-section">
           <div class="card">
-            <div class="card-title"><span class="dot" id="amp1-dot"></span> D&amp;B D40 — AMP 01 <small style="color:var(--muted);font-weight:400">192.168.1.51</small> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp1-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
+            <div class="card-title"><span class="dot" id="amp1-dot"></span> D&amp;B D40 — AMP 01 <small style="color:var(--muted);font-weight:400">IP: 192.168.1.51</small> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp1-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
             <div id="amp1-channels"></div>
             <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
               <button class="btn btn-o" style="flex:1;font-size:10px" onclick="d40MuteAll(1)" data-l10n-key="all_mute">Alle Mute</button>
@@ -651,12 +740,12 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="offline-overlay" id="overlay-amp1">
             <div class="offline-overlay-icon">📡</div>
             <div class="offline-overlay-text" data-l10n-key="amp01_offline">AMP 01 — OFFLINE</div>
-            <div class="offline-overlay-ip">192.168.1.51</div>
+            <div class="offline-overlay-ip">IP: 192.168.1.51</div>
           </div>
         </div>
         <div class="device-section">
           <div class="card">
-            <div class="card-title"><span class="dot" id="amp2-dot"></span> D&amp;B D40 — AMP 02 <small style="color:var(--muted);font-weight:400">192.168.1.52</small> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp2-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
+            <div class="card-title"><span class="dot" id="amp2-dot"></span> D&amp;B D40 — AMP 02 <small style="color:var(--muted);font-weight:400">IP: 192.168.1.52</small> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp2-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
             <div id="amp2-channels"></div>
             <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
               <button class="btn btn-o" style="flex:1;font-size:10px" onclick="d40MuteAll(2)" data-l10n-key="all_mute">Alle Mute</button>
@@ -666,7 +755,7 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="offline-overlay" id="overlay-amp2">
             <div class="offline-overlay-icon">📡</div>
             <div class="offline-overlay-text" data-l10n-key="amp02_offline">AMP 02 — OFFLINE</div>
-            <div class="offline-overlay-ip">192.168.1.52</div>
+            <div class="offline-overlay-ip">IP: 192.168.1.52</div>
           </div>
         </div>
       </div>
@@ -690,7 +779,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="device-section">
         <div class="card">
           <div class="card-title" style="justify-content:space-between">
-            <div style="display:flex;align-items:center;gap:7px"><span class="dot" id="janitza-dot"></span> Janitza UMG96RM-E</div>
+            <div style="display:flex;align-items:center;gap:7px"><span class="dot" id="janitza-dot"></span> Janitza UMG96RM-E <small style="color:var(--muted);font-weight:400">IP: 192.168.1.5</small></div>
             <div class="supply-switch">
               <button id="btn-32a" class="active" onclick="setSupply(32)">32A</button>
               <button id="btn-63a" onclick="setSupply(63)">63A</button>
@@ -733,14 +822,14 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="offline-overlay" id="overlay-janitza">
           <div class="offline-overlay-icon">⚡</div>
           <div class="offline-overlay-text" data-l10n-key="janitza_offline">JANITZA — OFFLINE</div>
-          <div class="offline-overlay-ip">192.168.1.5 · Port 502</div>
+          <div class="offline-overlay-ip">IP: 192.168.1.5 · Port 502</div>
         </div>
         </div>
 
         <!-- UPS -->
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="ups-dot"></span> APC UPS — Schneider <small style="color:var(--muted);font-weight:400">.6</small></div>
+          <div class="card-title"><span class="dot" id="ups-dot"></span> APC UPS — Schneider <small style="color:var(--muted);font-weight:400">IP: 192.168.1.6</small></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="ups-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="battery">Batterie</span><span style="font-family:var(--mono);font-size:12px" id="ups-bat">—</span></div>
           <div class="ups-bar"><div class="ups-fill" id="ups-bar-fill" style="width:0%"></div></div>
@@ -753,22 +842,10 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="offline-overlay" id="overlay-ups">
           <div class="offline-overlay-icon">🔋</div>
           <div class="offline-overlay-text" data-l10n-key="ups_offline">UPS — OFFLINE</div>
-          <div class="offline-overlay-ip">192.168.1.6 · Port 443</div>
+          <div class="offline-overlay-ip">IP: 192.168.1.6 · Port 443</div>
         </div>
         </div>
 
-        <!-- Power Steuerung -->
-        <div class="card" style="grid-column:1/-1">
-          <div class="card-title" data-l10n-key="power_control">Power Steuerung</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-g" style="padding:10px 20px;font-size:13px" onclick="triggerPowerAll()">&#9889; <span data-l10n-key="powerall_warmup">PowerAll (Warmup)</span></button>
-            <button class="btn btn-r" style="padding:10px 20px;font-size:13px" onclick="triggerPowerOff()">&#9209; <span data-l10n-key="poweroff_all">PowerOff All</span></button>
-            <div style="margin-left:auto;font-size:10px;color:var(--muted);text-align:right;font-family:var(--mono)">
-              <span data-l10n-key="last_powerall">Letzter PowerAll:</span> <span id="last-power-all" style="color:#c4bfff">—</span><br>
-              <span data-l10n-key="last_poweroff">Letzter PowerOff:</span> <span id="last-power-off" style="color:#c4bfff">—</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -781,24 +858,24 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="g3">
         <div class="card">
           <div class="card-title" data-l10n-key="pixera_system">Pixera System</div>
-          <div class="mon-row"><span data-l10n-key="director_31">Director (.31)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('director')">Restart</button><span class="pill pill-r" id="mon-director"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-          <div class="mon-row"><span data-l10n-key="octo_01_32">Octo 01 (.32)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo1')">Restart</button><span class="pill pill-r" id="mon-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-          <div class="mon-row"><span data-l10n-key="octo_02_33">Octo 02 (.33)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo2')">Restart</button><span class="pill pill-r" id="mon-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row"><span data-l10n-key="director_31">Director (IP: 192.168.1.31)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('director')">Restart</button><span class="pill pill-r" id="mon-director"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row"><span data-l10n-key="octo_01_32">Octo 01 (IP: 192.168.1.32)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo1')">Restart</button><span class="pill pill-r" id="mon-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row"><span data-l10n-key="octo_02_33">Octo 02 (IP: 192.168.1.33)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo2')">Restart</button><span class="pill pill-r" id="mon-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
         </div>
         <div class="card">
           <div class="card-title" data-l10n-key="audio_infra">Audio / Infra</div>
-          <div class="mon-row"><span data-l10n-key="d40_amp_01_51">D40 AMP 01 (.51)</span><span class="pill pill-r" id="mon-amp1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="d40_amp_02_52">D40 AMP 02 (.52)</span><span class="pill pill-r" id="mon-amp2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="synology_nas_21">Synology NAS (.21)</span><span class="pill pill-r" id="mon-nas"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="apc_ups_6">APC UPS (.6)</span><span class="pill pill-r" id="mon-ups"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="janitza_5">Janitza (.5)</span><span class="pill pill-r" id="mon-janitza"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="poe_switch_24">PoE Switch (.24)</span><span class="pill pill-r" id="mon-poe"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="rutx50_1">Teltonika RUTX50 (.1)</span><span class="pill pill-r" id="mon-rutx"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="d40_amp_01_51">D40 AMP 01 (IP: 192.168.1.51)</span><span class="pill pill-r" id="mon-amp1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="d40_amp_02_52">D40 AMP 02 (IP: 192.168.1.52)</span><span class="pill pill-r" id="mon-amp2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="synology_nas_21">Synology NAS (IP: 192.168.1.21)</span><span class="pill pill-r" id="mon-nas"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="apc_ups_6">APC UPS (IP: 192.168.1.6)</span><span class="pill pill-r" id="mon-ups"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="janitza_5">Janitza (IP: 192.168.1.5)</span><span class="pill pill-r" id="mon-janitza"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="poe_switch_24">PoE Switch (IP: 192.168.1.11)</span><span class="pill pill-r" id="mon-poe"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="rutx50_1">Teltonika RUTX50 (IP: 192.168.1.1)</span><span class="pill pill-r" id="mon-rutx"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         </div>
         <div class="card">
           <div class="card-title" data-l10n-key="cameras_title">Cameras</div>
-          <div class="mon-row"><span data-l10n-key="cam01_ptz_22">Cam 01 PTZ (.22)</span><span class="pill pill-r" id="mon-cam1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="cam02_ptz_23">Cam 02 PTZ (.23)</span><span class="pill pill-r" id="mon-cam2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="cam01_ptz_22">Cam 01 PTZ (IP: 192.168.1.22)</span><span class="pill pill-r" id="mon-cam1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row"><span data-l10n-key="cam02_ptz_23">Cam 02 PTZ (IP: 192.168.1.23)</span><span class="pill pill-r" id="mon-cam2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         </div>
       </div>
     </div>
@@ -808,7 +885,7 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="g2">
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="net-poe-dot"></span> <span data-l10n-key="poe_switch_24">PoE Switch (.24)</span></div>
+          <div class="card-title"><span class="dot" id="net-poe-dot"></span> <span data-l10n-key="poe_switch_24">PoE Switch (IP: 192.168.1.11)</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="net-poe-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_model_label">Model</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-poe-model">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_uptime_label">Uptime</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-poe-uptime">—</span></div>
@@ -819,13 +896,13 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="offline-overlay" id="overlay-poe">
           <div class="offline-overlay-icon">🛜</div>
           <div class="offline-overlay-text" data-l10n-key="poe_offline">POE-SW — OFFLINE</div>
-          <div class="offline-overlay-ip" id="overlay-poe-ip">192.168.1.11 · SNMP 161</div>
+          <div class="offline-overlay-ip" id="overlay-poe-ip">IP: 192.168.1.11 · SNMP 161</div>
         </div>
         </div>
 
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="net-rutx-dot"></span> <span data-l10n-key="rutx50_1">Teltonika RUTX50 (.1)</span></div>
+          <div class="card-title"><span class="dot" id="net-rutx-dot"></span> <span data-l10n-key="rutx50_1">Teltonika RUTX50 (IP: 192.168.1.1)</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="net-rutx-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_model_label">Model</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-rutx-model">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="rutx50_fw_label">Firmware</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-rutx-fw">—</span></div>
@@ -838,7 +915,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="offline-overlay" id="overlay-rutx">
           <div class="offline-overlay-icon">📡</div>
           <div class="offline-overlay-text" data-l10n-key="rutx50_offline">RUTX50 — OFFLINE</div>
-          <div class="offline-overlay-ip" id="overlay-rutx-ip">192.168.1.1 · SNMP 161</div>
+          <div class="offline-overlay-ip" id="overlay-rutx-ip">IP: 192.168.1.1 · SNMP 161</div>
         </div>
         </div>
       </div>
@@ -862,7 +939,7 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="camera-title-row">
             <div class="card-title" style="margin-bottom:0"><span class="dot" id="cam1-dot"></span> Cam 01 — Panasonic AW-UE40KEJ</div>
             <div class="camera-title-meta">
-              <span class="camera-ip-chip">192.168.1.22</span>
+              <span class="camera-ip-chip">IP: 192.168.1.22</span>
               <span class="pill pill-r" id="cam1-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span>
             </div>
           </div>
@@ -905,7 +982,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="offline-overlay" id="overlay-cam1">
           <div class="offline-overlay-icon">📷</div>
           <div class="offline-overlay-text" data-l10n-key="cam01_offline">CAM 01 — OFFLINE</div>
-          <div class="offline-overlay-ip">192.168.1.22</div>
+          <div class="offline-overlay-ip">IP: 192.168.1.22</div>
         </div>
         </div>
         <div class="device-section">
@@ -913,7 +990,7 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="camera-title-row">
             <div class="card-title" style="margin-bottom:0"><span class="dot" id="cam2-dot"></span> Cam 02 — Panasonic AW-UE40KEJ</div>
             <div class="camera-title-meta">
-              <span class="camera-ip-chip">192.168.1.23</span>
+              <span class="camera-ip-chip">IP: 192.168.1.23</span>
               <span class="pill pill-r" id="cam2-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span>
             </div>
           </div>
@@ -956,7 +1033,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="offline-overlay" id="overlay-cam2">
           <div class="offline-overlay-icon">📷</div>
           <div class="offline-overlay-text" data-l10n-key="cam02_offline">CAM 02 — OFFLINE</div>
-          <div class="offline-overlay-ip">192.168.1.23</div>
+          <div class="offline-overlay-ip">IP: 192.168.1.23</div>
         </div>
         </div>
       </div>
@@ -967,7 +1044,7 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="g2">
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="nas-dot"></span> Synology RS422+ (192.168.1.21)</div>
+          <div class="card-title"><span class="dot" id="nas-dot"></span> Synology RS422+ (IP: 192.168.1.21)</div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="nas-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="temperature">Temperatur</span><span style="font-family:var(--mono);font-size:12px" id="nas-temp">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="uptime">Uptime</span><span style="font-family:var(--mono);font-size:12px" id="nas-uptime">—</span></div>
@@ -988,7 +1065,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="offline-overlay" id="overlay-nas">
           <div class="offline-overlay-icon">💾</div>
           <div class="offline-overlay-text" data-l10n-key="nas_offline">NAS — OFFLINE</div>
-          <div class="offline-overlay-ip">192.168.1.21 · Port 5000</div>
+          <div class="offline-overlay-ip">IP: 192.168.1.21 · Port 5000</div>
         </div>
         </div>
         <div class="card">
@@ -1072,6 +1149,46 @@ body.emergency-locked .btn-o{background:#9a3412}
 // ============================================================
 const isTauri = typeof window.__TAURI_INTERNALS__ !== 'undefined';
 
+function buildDefaultConfig(){
+  return {
+    pixera_ip:'192.168.1.31',
+    pixera_port:1338,
+    pixera_octo_port:4000,
+    pixera_octo1_ip:'192.168.1.32',
+    pixera_octo2_ip:'192.168.1.33',
+    pixera_api_root:'erwer',
+    pixera_pjlink_module:'PJ_Link__16ch',
+    pixera_scheduler_module:'EventScheduler_Projektil_V17',
+    d40_01_ip:'192.168.1.51',
+    d40_02_ip:'192.168.1.52',
+    d40_oca_port:50014,
+    nas_ip:'192.168.1.21',
+    nas_port:5000,
+    nas_snmp_port:161,
+    nas_snmp_community:'projektil',
+    poe_switch_ip:'192.168.1.11',
+    poe_switch_name:'',
+    poe_switch_ping_port:443,
+    poe_switch_snmp_port:161,
+    poe_switch_snmp_community:'projektil',
+    rutx50_ip:'192.168.1.1',
+    rutx50_ping_port:443,
+    rutx50_snmp_port:161,
+    rutx50_snmp_community:'public',
+    ups_ip:'192.168.1.6',
+    power_disp_ip:'192.168.1.5',
+    cam_01_ip:'192.168.1.22',
+    cam_02_ip:'192.168.1.23',
+    projector_start:101,
+    projector_count:16,
+    hotline:'+41 XX XXX XX XX'
+  };
+}
+
+function delay(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
 function isDemoModeEnabled(){
   return localStorage.getItem('demoMode') === '1';
 }
@@ -1085,6 +1202,7 @@ function getDemoInvokeResponse(cmd){
     d40_status: null,
     janitza_get_data: null,
     ups_get_status: null,
+    ups_get_power_mode: { on_mains: true, bat_status: 2, output_online: 1 },
     poe_switch_get_status: null,
     rutx50_get_status: null,
     nas_get_status: null,
@@ -1110,6 +1228,7 @@ function shouldBlockNetworkCommandInDemo(cmd){
     'd40_status',
     'janitza_get_data',
     'ups_get_status',
+    'ups_get_power_mode',
     'poe_switch_get_status',
     'rutx50_get_status',
     'nas_get_status',
@@ -1132,7 +1251,7 @@ async function invoke(cmd, args) {
     try { return await window.__TAURI_INTERNALS__.invoke(cmd, args ?? {}); }
     catch(e) { console.error('[invoke]', cmd, e); return null; }
   }
-  const def = {pixera_ip:'192.168.1.31',pixera_port:1338,pixera_octo_port:4000,pixera_octo1_ip:'192.168.1.32',pixera_octo2_ip:'192.168.1.33',pixera_api_root:'erwer',pixera_pjlink_module:'PJ_Link__16ch',pixera_scheduler_module:'EventScheduler_Projektil_V16',d40_01_ip:'192.168.1.51',d40_02_ip:'192.168.1.52',d40_oca_port:50014,nas_ip:'192.168.1.21',nas_port:5000,nas_snmp_port:161,nas_snmp_community:'projektil',poe_switch_ip:'192.168.1.11',poe_switch_name:'',poe_switch_ping_port:443,poe_switch_snmp_port:161,poe_switch_snmp_community:'projektil',rutx50_ip:'192.168.1.1',rutx50_ping_port:443,rutx50_snmp_port:161,rutx50_snmp_community:'public',ups_ip:'192.168.1.6',power_disp_ip:'192.168.1.5',cam_01_ip:'192.168.1.22',cam_02_ip:'192.168.1.23',projector_start:101,projector_count:16,hotline:'+41 XX XXX XX XX'};
+  const def = buildDefaultConfig();
   if(cmd==='get_config') return def;
   if(cmd==='http_ping') return false;
   if(cmd==='d40_ping') return false;
@@ -1142,14 +1261,39 @@ async function invoke(cmd, args) {
   return null;
 }
 
-async function tcpPing(ip,port){
+async function loadConfigWithFallback(){
+  for(let i=0;i<8;i++){
+    const loaded = await invoke('get_config');
+    if(loaded && typeof loaded === 'object') return loaded;
+    if(!isTauri) break;
+    await delay(120);
+  }
+  console.warn('[init] Fallback auf Default-Config (get_config nicht verfuegbar)');
+  return buildDefaultConfig();
+}
+
+async function tcpPing(ip,port,options={}){
+  const throwOnFail = options && options.throwOnFail===true;
   const r=await invoke('http_ping',{ip,port:Number(port)});
   const result=String(r||'').toUpperCase();
   if(result==='OK') return true;
-  if(result==='TIMEOUT') throw 'Timeout';
-  if(result==='REFUSED') throw 'Verbindung abgelehnt';
-  if(result==='UNREACHABLE') throw 'Gerät nicht erreichbar';
-  if(result.startsWith('ERROR:')) throw result.substring(6).trim();
+  if(result==='TIMEOUT'){
+    if(throwOnFail) throw 'Timeout';
+    return false;
+  }
+  if(result==='REFUSED'){
+    if(throwOnFail) throw 'Verbindung abgelehnt';
+    return false;
+  }
+  if(result==='UNREACHABLE'){
+    if(throwOnFail) throw 'Gerät nicht erreichbar';
+    return false;
+  }
+  if(result.startsWith('ERROR:')){
+    const msg=result.substring(6).trim()||'Verbindungsfehler';
+    if(throwOnFail) throw msg;
+    return false;
+  }
   return false;
 }
 
@@ -1172,23 +1316,29 @@ let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
-const APP_VERSION_FALLBACK = '1.0.13-beta';
+const APP_VERSION_FALLBACK = '1.0.14-beta';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
 const VIEW_MODE_PIN = '8048';
+const TELEGRAM_SETTINGS_PIN = '1215';
 const CAMERA_MJPEG_BASE_URL = 'http://127.0.0.1:41777';
 const CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS = 1200;
 const CAMERA_PREVIEW_INTERVAL_STREAM_MS = 1000;
 const CAMERA_STREAM_BOOT_TIMEOUT_MS = 20000;
 const CAMERA_STREAM_BLACKOUT_GRACE_MS = 15000;
 const CAMERA_STREAM_RETRY_DELAY_MS = 2500;
+const UPS_WATCH_INTERVAL_MS = 1000;
+const UPS_POLL_INTERVAL_MS = 1000;
 let cameraPreviewIntervalMs = cameraViewMode==='stream' ? CAMERA_PREVIEW_INTERVAL_STREAM_MS : CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS;
 let cameraPreviewTimerId = null;
 const cameraPreviewInFlight = {1:false,2:false};
 const cameraStreamNonce={1:0,2:0};
 const cameraStreamLoadWatchdog={1:null,2:null};
 const cameraStreamDiagInFlight={1:false,2:false};
+let upsPrevOnMains = null;
+let upsPrevBatteryState = null;
+let upsWatchLastErrorAt = 0;
 
 async function invokeStrict(cmd, args){
   if (isDemoModeEnabled() && shouldBlockNetworkCommandInDemo(cmd)) {
@@ -1269,18 +1419,18 @@ const locales = {
     gain_range_help: 'Wertebereich: -57.5 bis +6.0 dB, Schritte: 0.5 dB. Gib z. B. „6“ für +6 dB oder „-3.5“ für -3.5 dB ein.',
     powerall_warmup: 'PowerAll (Warmup)',
     poweroff_all: 'PowerOff All',
-    director_31: 'Director (.31)',
-    octo_01_32: 'Octo 01 (.32)',
-    octo_02_33: 'Octo 02 (.33)',
-    d40_amp_01_51: 'D40 AMP 01 (.51)',
-    d40_amp_02_52: 'D40 AMP 02 (.52)',
-    synology_nas_21: 'Synology NAS (.21)',
-    poe_switch_24: 'PoE Switch (.11)',
-    rutx50_1: 'Teltonika RUTX50 (.1)',
-    apc_ups_6: 'APC UPS (.6)',
-    janitza_5: 'Janitza (.5)',
-    cam01_ptz_22: 'Cam 01 PTZ (.22)',
-    cam02_ptz_23: 'Cam 02 PTZ (.23)',
+    director_31: 'Director (IP: 192.168.1.31)',
+    octo_01_32: 'Octo 01 (IP: 192.168.1.32)',
+    octo_02_33: 'Octo 02 (IP: 192.168.1.33)',
+    d40_amp_01_51: 'D40 AMP 01 (IP: 192.168.1.51)',
+    d40_amp_02_52: 'D40 AMP 02 (IP: 192.168.1.52)',
+    synology_nas_21: 'Synology NAS (IP: 192.168.1.21)',
+    poe_switch_24: 'PoE Switch (IP: 192.168.1.11)',
+    rutx50_1: 'Teltonika RUTX50 (IP: 192.168.1.1)',
+    apc_ups_6: 'APC UPS (IP: 192.168.1.6)',
+    janitza_5: 'Janitza (IP: 192.168.1.5)',
+    cam01_ptz_22: 'Cam 01 PTZ (IP: 192.168.1.22)',
+    cam02_ptz_23: 'Cam 02 PTZ (IP: 192.168.1.23)',
     volume_1: 'Volume 1',
     volume_2: 'Volume 2',
     raid_1_mirror: 'RAID 1 (Mirror)',
@@ -1297,6 +1447,8 @@ const locales = {
     warmup_name: 'Warmup —',
     warmup_label: 'Warmup',
     show_name: 'Show —',
+    show_label: 'Show',
+    schedule_empty: 'Keine kommenden Events',
     pending: 'Ausstehend',
     system_title: 'System',
     pixera_director: 'Pixera Director',
@@ -1371,7 +1523,9 @@ const locales = {
     emergency_line_projectors_white: 'Projektoren schalten auf Weißbild!',
     emergency_hotline_note: '⚠ Die Hotline muss kontaktiert werden ⚠',
     emergency_hotline_lock_title: 'Bitte Hotline kontaktieren',
-    schedule_title: 'Tagesplan',
+    schedule_title: 'Spielplan',
+    schedule_last_tag: 'Letztes',
+    schedule_last_none: 'Noch kein Event ausgelöst',
     realtime_label: 'Realtime',
     next_event_countdown_label: 'Countdown nächstes Event',
     technical_hotline_label: 'Technical Hotline',
@@ -1397,7 +1551,7 @@ const locales = {
     projector_state_standby: 'Standby',
     janitza_offline_unreachable: 'Messgerät OFFLINE oder nicht erreichbar',
     ups_online_mains: 'Online / Netz',
-    ups_battery_mode: 'Batterie!',
+    ups_battery_mode: 'Online / Batterie',
     pixera_connected: 'Pixera: verbunden',
     pixera_disconnected: 'Pixera: —',
     timeline_status: 'Timeline: {status}',
@@ -1499,18 +1653,18 @@ const locales = {
     gain_range_help: 'Range: -57.5 to +6.0 dB, steps: 0.5 dB. Enter e.g. “6” for +6 dB or “-3.5” for -3.5 dB.',
     powerall_warmup: 'PowerAll (Warmup)',
     poweroff_all: 'PowerOff All',
-    director_31: 'Director (.31)',
-    octo_01_32: 'Octo 01 (.32)',
-    octo_02_33: 'Octo 02 (.33)',
-    d40_amp_01_51: 'D40 AMP 01 (.51)',
-    d40_amp_02_52: 'D40 AMP 02 (.52)',
-    synology_nas_21: 'Synology NAS (.21)',
-    poe_switch_24: 'PoE Switch (.11)',
-    rutx50_1: 'Teltonika RUTX50 (.1)',
-    apc_ups_6: 'APC UPS (.6)',
-    janitza_5: 'Janitza (.5)',
-    cam01_ptz_22: 'Cam 01 PTZ (.22)',
-    cam02_ptz_23: 'Cam 02 PTZ (.23)',
+    director_31: 'Director (IP: 192.168.1.31)',
+    octo_01_32: 'Octo 01 (IP: 192.168.1.32)',
+    octo_02_33: 'Octo 02 (IP: 192.168.1.33)',
+    d40_amp_01_51: 'D40 AMP 01 (IP: 192.168.1.51)',
+    d40_amp_02_52: 'D40 AMP 02 (IP: 192.168.1.52)',
+    synology_nas_21: 'Synology NAS (IP: 192.168.1.21)',
+    poe_switch_24: 'PoE Switch (IP: 192.168.1.11)',
+    rutx50_1: 'Teltonika RUTX50 (IP: 192.168.1.1)',
+    apc_ups_6: 'APC UPS (IP: 192.168.1.6)',
+    janitza_5: 'Janitza (IP: 192.168.1.5)',
+    cam01_ptz_22: 'Cam 01 PTZ (IP: 192.168.1.22)',
+    cam02_ptz_23: 'Cam 02 PTZ (IP: 192.168.1.23)',
     volume_1: 'Volume 1',
     volume_2: 'Volume 2',
     raid_1_mirror: 'RAID 1 (Mirror)',
@@ -1527,6 +1681,8 @@ const locales = {
     warmup_name: 'Warmup —',
     warmup_label: 'Warmup',
     show_name: 'Show —',
+    show_label: 'Show',
+    schedule_empty: 'No upcoming events',
     pending: 'Pending',
     system_title: 'System',
     pixera_director: 'Pixera Director',
@@ -1601,7 +1757,9 @@ const locales = {
     emergency_line_projectors_white: 'Projectors will switch to white output!',
     emergency_hotline_note: '⚠ The hotline must be contacted ⚠',
     emergency_hotline_lock_title: 'Please contact hotline',
-    schedule_title: 'Schedule',
+    schedule_title: 'Run Sheet',
+    schedule_last_tag: 'Last',
+    schedule_last_none: 'No triggered event yet',
     realtime_label: 'Realtime',
     next_event_countdown_label: 'Next event countdown',
     technical_hotline_label: 'Technical Hotline',
@@ -1627,7 +1785,7 @@ const locales = {
     projector_state_standby: 'Standby',
     janitza_offline_unreachable: 'Meter offline or unreachable',
     ups_online_mains: 'Online / mains',
-    ups_battery_mode: 'Battery!',
+    ups_battery_mode: 'Online / battery',
     pixera_connected: 'Pixera: connected',
     pixera_disconnected: 'Pixera: —',
     timeline_status: 'Timeline: {status}',
@@ -2046,6 +2204,114 @@ window.confirmViewModeUnlock=()=>{
   disableViewMode();
 };
 
+// ── Telegram Settings PIN-protection ────────────────────────────────────────
+function openTelegramSettings(){
+  const pin = String(document.getElementById('tg-pin-input')?.value || '').trim();
+  const err = document.getElementById('tg-pin-error');
+  if(pin !== TELEGRAM_SETTINGS_PIN){
+    if(err) err.textContent = 'Falscher Code.';
+    document.getElementById('tg-pin-input')?.focus();
+    return;
+  }
+  if(err) err.textContent = '';
+  document.getElementById('tg-pin-gate').style.display = 'none';
+  document.getElementById('tg-settings-panel').style.display = 'block';
+  // Populate fields from current config
+  if(cfg && cfg.telegram){
+    document.getElementById('tg-enabled-toggle').checked = !!cfg.telegram.enabled;
+    document.getElementById('tg-bot-token-input').value = cfg.telegram.bot_token || '';
+    document.getElementById('tg-chat-id-input').value   = cfg.telegram.chat_id   || '';
+  }
+}
+window.openTelegramSettings = openTelegramSettings;
+
+function lockTelegramSettings(){
+  document.getElementById('tg-settings-panel').style.display = 'none';
+  document.getElementById('tg-pin-gate').style.display = 'block';
+  const inp = document.getElementById('tg-pin-input');
+  if(inp) inp.value = '';
+}
+window.lockTelegramSettings = lockTelegramSettings;
+
+async function saveTelegramSettings(){
+  const statusEl = document.getElementById('tg-save-status');
+  const enabled  = document.getElementById('tg-enabled-toggle').checked;
+  const token    = document.getElementById('tg-bot-token-input').value.trim();
+  const chatId   = document.getElementById('tg-chat-id-input').value.trim();
+  if(statusEl) statusEl.textContent = '…';
+  try {
+    await invoke('save_telegram_config', {enabled, botToken: token, chatId});
+    // Update local cfg cache
+    if(!cfg) cfg = {};
+    if(!cfg.telegram) cfg.telegram = {};
+    cfg.telegram.enabled   = enabled;
+    cfg.telegram.bot_token = token;
+    cfg.telegram.chat_id   = chatId;
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Gespeichert.'; }
+  } catch(e){
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+  }
+}
+window.saveTelegramSettings = saveTelegramSettings;
+
+async function sendTelegramTest(){
+  const statusEl = document.getElementById('tg-save-status');
+  const token    = document.getElementById('tg-bot-token-input').value.trim();
+  const chatId   = document.getElementById('tg-chat-id-input').value.trim();
+  if(!token || !chatId){
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Bot-Token und Chat-ID eingeben.'; }
+    return;
+  }
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Sende Test…'; }
+  try {
+    const result = await invoke('telegram_send_test', {botToken: token, chatId});
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ '+result; }
+  } catch(e){
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+  }
+}
+window.sendTelegramTest = sendTelegramTest;
+
+// ── AnyDesk Settings PIN-protection (PIN 8048) ─────────────────────────────
+function openAnyDeskSettings(){
+  const pin = String(document.getElementById('ad-pin-input')?.value || '').trim();
+  const err = document.getElementById('ad-pin-error');
+  if(pin !== VIEW_MODE_PIN){
+    if(err) err.textContent = 'Falscher Code.';
+    document.getElementById('ad-pin-input')?.focus();
+    return;
+  }
+  if(err) err.textContent = '';
+  document.getElementById('ad-pin-gate').style.display = 'none';
+  document.getElementById('ad-settings-panel').style.display = 'block';
+  document.getElementById('ad-address-input').value = String(cfg?.anydesk_address || '');
+}
+window.openAnyDeskSettings = openAnyDeskSettings;
+
+function lockAnyDeskSettings(){
+  document.getElementById('ad-settings-panel').style.display = 'none';
+  document.getElementById('ad-pin-gate').style.display = 'block';
+  const inp = document.getElementById('ad-pin-input');
+  if(inp) inp.value = '';
+}
+window.lockAnyDeskSettings = lockAnyDeskSettings;
+
+async function saveAnyDeskSettings(){
+  const statusEl = document.getElementById('ad-save-status');
+  const anydeskAddress = (document.getElementById('ad-address-input')?.value || '').trim();
+  const locationName = String(localStorage.getItem('venue_name') || cfg?.location_name || '').trim();
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Speichere…'; }
+  const ok = await persistSiteMetadata(locationName, anydeskAddress);
+  if(!cfg) cfg = {};
+  cfg.anydesk_address = anydeskAddress;
+  if(statusEl){
+    statusEl.style.color = ok ? '#4ade80' : '#fca5a5';
+    statusEl.textContent = ok ? '✓ Gespeichert.' : 'Fehler beim Speichern.';
+  }
+}
+window.saveAnyDeskSettings = saveAnyDeskSettings;
+// ────────────────────────────────────────────────────────────────────────────
+
 function t(key, vars={}){
   const template = locales[currentLang]?.[key] ?? key;
   return template.replace(/\{(\w+)\}/g, (_, token) => vars[token] ?? `{${token}}`);
@@ -2063,8 +2329,8 @@ function applyDemoMode(){
     ['mon-janitza','janitza-dot','sb-janitza'],
     ['mon-cam1','cam1-dot','cam1-status','sb-cam1'],
     ['mon-cam2','cam2-dot','cam2-status','sb-cam2'],
-    ['mon-octo1'],
-    ['mon-octo2']
+    ['mon-octo1','sys-octo1'],
+    ['mon-octo2','sys-octo2']
   ];
   ['amp1','amp2','pixera','nas','poe','rutx','ups','janitza','cam1','cam2','octo1','octo2'].forEach(key=>{deviceState[key]=true;});
   projectorOnlineStates.fill(true);
@@ -2108,6 +2374,9 @@ function applyDemoMode(){
   const tlPct = document.getElementById('tl-pct'); if(tlPct) tlPct.textContent = '58%';
   const nextCountdown = document.getElementById('next-countdown'); if(nextCountdown) nextCountdown.textContent = '00:02:15';
   const nextEventName = document.getElementById('next-event-name'); if(nextEventName) nextEventName.textContent = locales[currentLang].demo_next_event;
+  _lastTriggeredEventName = `${locales[currentLang].warmup_label} DR1`;
+  _lastTriggeredEventTsMs = Date.now() - 8*60*1000;
+  _renderLastTriggeredEvent();
   const realtime = document.getElementById('realtime'); if(realtime) realtime.textContent = '19:47:12';
   const tlStatus = document.getElementById('tl-status');
   if(tlStatus) tlStatus.innerHTML = `<span class="dot" style="width:6px;height:6px;background:var(--green)"></span> ${locales[currentLang].playing}`;
@@ -2271,6 +2540,260 @@ function updateProjectorRangeSettingsUI(){
   input.value=String(Math.max(1,Math.min(16,Number(cfg.projector_count||16))));
 }
 
+async function persistSiteMetadata(locationName, anydeskAddress){
+  try{
+    await invoke('save_site_metadata', {
+      locationName: String(locationName || '').trim(),
+      anydeskAddress: String(anydeskAddress || '').trim()
+    });
+    return true;
+  }catch(e){
+    console.error('[save_site_metadata]', e);
+    return false;
+  }
+}
+
+window.saveVenueName=async function(){
+  const val = (document.getElementById('venue-name-input')?.value || '').trim();
+  localStorage.setItem('venue_name', val);
+  if(!cfg) cfg = {};
+  cfg.location_name = val;
+  await persistSiteMetadata(val, cfg.anydesk_address || '');
+  applyVenueName();
+  addLog('info', 'Standort gespeichert: ' + (val || '(leer)'));
+};
+
+function applyVenueName(){
+  const cfgLocation = String(cfg?.location_name || '').trim();
+  const storedLocation = localStorage.getItem('venue_name') || '';
+  const val = storedLocation || cfgLocation;
+  if(!storedLocation && cfgLocation) localStorage.setItem('venue_name', cfgLocation);
+  const banner = document.getElementById('venue-banner');
+  const display = document.getElementById('venue-name-display');
+  const emoji = document.getElementById('venue-flag-emoji');
+  const input = document.getElementById('venue-name-input');
+  const venueMeta = resolveVenueMeta(val, currentLang);
+  if(display) display.textContent = venueMeta.displayName || '—';
+  if(emoji) emoji.textContent = venueMeta.flagEmoji;
+  if(input && input.value !== val) input.value = val;
+  if(banner) banner.style.display = val ? 'flex' : 'none';
+}
+
+function countryCodeToFlagEmoji(code){
+  const cc = String(code || '').trim().toUpperCase();
+  if(!/^[A-Z]{2}$/.test(cc)) return '';
+  return String.fromCodePoint(...[...cc].map(c => 127397 + c.charCodeAt(0)));
+}
+
+function normalizeVenueText(text){
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function getCountryDisplayName(cc, lang){
+  const names = {
+    CH: { de:'Schweiz', en:'Switzerland' },
+    DE: { de:'Deutschland', en:'Germany' },
+    AT: { de:'Oesterreich', en:'Austria' },
+    FR: { de:'Frankreich', en:'France' },
+    IT: { de:'Italien', en:'Italy' },
+    LI: { de:'Liechtenstein', en:'Liechtenstein' },
+    US: { de:'USA', en:'USA' },
+    GB: { de:'Grossbritannien', en:'United Kingdom' },
+    ES: { de:'Spanien', en:'Spain' },
+    NL: { de:'Niederlande', en:'Netherlands' },
+    BE: { de:'Belgien', en:'Belgium' },
+    IE: { de:'Irland', en:'Ireland' },
+    PT: { de:'Portugal', en:'Portugal' },
+    PL: { de:'Polen', en:'Poland' },
+    CZ: { de:'Tschechien', en:'Czech Republic' },
+    DK: { de:'Daenemark', en:'Denmark' },
+    SE: { de:'Schweden', en:'Sweden' },
+    NO: { de:'Norwegen', en:'Norway' },
+    FI: { de:'Finnland', en:'Finland' },
+  };
+  const country = names[String(cc || '').toUpperCase()];
+  if(!country) return '';
+  return lang === 'en' ? country.en : country.de;
+}
+
+function stripCountryTokenFromVenue(raw, cc){
+  const text = String(raw || '').trim();
+  if(!text) return '';
+  const countryTokenMap = {
+    CH:['ch','schweiz','switzerland','suisse','svizzera'],
+    DE:['de','deutschland','germany'],
+    AT:['at','osterreich','austria'],
+    FR:['fr','frankreich','france'],
+    IT:['it','italien','italy'],
+    LI:['li','liechtenstein'],
+    US:['us','usa','united states','vereinigte staaten'],
+    GB:['gb','uk','united kingdom','great britain','england'],
+    ES:['es','spanien','spain'],
+    NL:['nl','niederlande','netherlands','holland'],
+    BE:['be','belgien','belgium'],
+    IE:['ie','irland','ireland'],
+    PT:['pt','portugal'],
+    PL:['pl','polen','poland'],
+    CZ:['cz','tschechien','czech'],
+    DK:['dk','daenemark','denmark'],
+    SE:['se','schweden','sweden'],
+    NO:['no','norwegen','norway'],
+    FI:['fi','finnland','finland'],
+  };
+  const tokens = countryTokenMap[String(cc || '').toUpperCase()] || [];
+  let cleaned = text;
+  for(const token of tokens){
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleaned = cleaned
+      .replace(new RegExp(`(^|[\\s,;()\\-])${escaped}(?=$|[\\s,;()\\-])`, 'ig'), ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+  return cleaned.replace(/[\s,;\-]+$/g, '').trim();
+}
+
+function resolveVenueMeta(locationName, lang){
+  const raw = String(locationName || '').trim();
+  if(!raw) return { displayName: '', flagEmoji: '📍' };
+
+  const normalized = normalizeVenueText(raw);
+  const cityMap = [
+    { aliases:['luzern','lucerne'], de:'Luzern', en:'Lucerne', cc:'CH' },
+    { aliases:['zurich','zuerich'], de:'Zuerich', en:'Zurich', cc:'CH' },
+    { aliases:['genf','geneva'], de:'Genf', en:'Geneva', cc:'CH' },
+    { aliases:['bern','berne'], de:'Bern', en:'Bern', cc:'CH' },
+    { aliases:['basel','bale'], de:'Basel', en:'Basel', cc:'CH' },
+    { aliases:['lausanne'], de:'Lausanne', en:'Lausanne', cc:'CH' },
+    { aliases:['lugano'], de:'Lugano', en:'Lugano', cc:'CH' },
+    { aliases:['winterthur'], de:'Winterthur', en:'Winterthur', cc:'CH' },
+    { aliases:['st gallen','st. gallen','saint gallen'], de:'St. Gallen', en:'St. Gallen', cc:'CH' },
+    { aliases:['fribourg','freiburg ch'], de:'Freiburg', en:'Fribourg', cc:'CH' },
+    { aliases:['sion'], de:'Sitten', en:'Sion', cc:'CH' },
+    { aliases:['neuchatel'], de:'Neuenburg', en:'Neuchatel', cc:'CH' },
+    { aliases:['chur','coire'], de:'Chur', en:'Chur', cc:'CH' },
+
+    { aliases:['berlin'], de:'Berlin', en:'Berlin', cc:'DE' },
+    { aliases:['munich','muenchen'], de:'Muenchen', en:'Munich', cc:'DE' },
+    { aliases:['hamburg'], de:'Hamburg', en:'Hamburg', cc:'DE' },
+    { aliases:['cologne','koeln'], de:'Koeln', en:'Cologne', cc:'DE' },
+    { aliases:['frankfurt'], de:'Frankfurt', en:'Frankfurt', cc:'DE' },
+    { aliases:['stuttgart'], de:'Stuttgart', en:'Stuttgart', cc:'DE' },
+    { aliases:['dusseldorf','duesseldorf'], de:'Duesseldorf', en:'Dusseldorf', cc:'DE' },
+    { aliases:['dortmund'], de:'Dortmund', en:'Dortmund', cc:'DE' },
+    { aliases:['leipzig'], de:'Leipzig', en:'Leipzig', cc:'DE' },
+    { aliases:['nuremberg','nuernberg'], de:'Nuernberg', en:'Nuremberg', cc:'DE' },
+    { aliases:['hannover'], de:'Hannover', en:'Hanover', cc:'DE' },
+    { aliases:['bremen'], de:'Bremen', en:'Bremen', cc:'DE' },
+    { aliases:['essen'], de:'Essen', en:'Essen', cc:'DE' },
+    { aliases:['dresden'], de:'Dresden', en:'Dresden', cc:'DE' },
+
+    { aliases:['vienna','wien'], de:'Wien', en:'Vienna', cc:'AT' },
+    { aliases:['salzburg'], de:'Salzburg', en:'Salzburg', cc:'AT' },
+    { aliases:['innsbruck'], de:'Innsbruck', en:'Innsbruck', cc:'AT' },
+    { aliases:['linz'], de:'Linz', en:'Linz', cc:'AT' },
+    { aliases:['graz'], de:'Graz', en:'Graz', cc:'AT' },
+
+    { aliases:['paris'], de:'Paris', en:'Paris', cc:'FR' },
+    { aliases:['lyon'], de:'Lyon', en:'Lyon', cc:'FR' },
+    { aliases:['marseille'], de:'Marseille', en:'Marseille', cc:'FR' },
+    { aliases:['nice'], de:'Nizza', en:'Nice', cc:'FR' },
+    { aliases:['toulouse'], de:'Toulouse', en:'Toulouse', cc:'FR' },
+    { aliases:['lille'], de:'Lille', en:'Lille', cc:'FR' },
+    { aliases:['strasbourg'], de:'Strassburg', en:'Strasbourg', cc:'FR' },
+
+    { aliases:['milan','milano'], de:'Mailand', en:'Milan', cc:'IT' },
+    { aliases:['rome','roma'], de:'Rom', en:'Rome', cc:'IT' },
+    { aliases:['turin','torino'], de:'Turin', en:'Turin', cc:'IT' },
+    { aliases:['florence','firenze'], de:'Florenz', en:'Florence', cc:'IT' },
+    { aliases:['venice','venezia'], de:'Venedig', en:'Venice', cc:'IT' },
+    { aliases:['naples','napoli'], de:'Neapel', en:'Naples', cc:'IT' },
+    { aliases:['bologna'], de:'Bologna', en:'Bologna', cc:'IT' },
+
+    { aliases:['madrid'], de:'Madrid', en:'Madrid', cc:'ES' },
+    { aliases:['barcelona'], de:'Barcelona', en:'Barcelona', cc:'ES' },
+    { aliases:['valencia'], de:'Valencia', en:'Valencia', cc:'ES' },
+    { aliases:['seville','sevilla'], de:'Sevilla', en:'Seville', cc:'ES' },
+    { aliases:['malaga'], de:'Malaga', en:'Malaga', cc:'ES' },
+
+    { aliases:['amsterdam'], de:'Amsterdam', en:'Amsterdam', cc:'NL' },
+    { aliases:['rotterdam'], de:'Rotterdam', en:'Rotterdam', cc:'NL' },
+    { aliases:['the hague','den haag'], de:'Den Haag', en:'The Hague', cc:'NL' },
+    { aliases:['utrecht'], de:'Utrecht', en:'Utrecht', cc:'NL' },
+
+    { aliases:['brussels','brussel','bruxelles'], de:'Bruessel', en:'Brussels', cc:'BE' },
+    { aliases:['antwerp','antwerpen'], de:'Antwerpen', en:'Antwerp', cc:'BE' },
+    { aliases:['ghent','gent'], de:'Gent', en:'Ghent', cc:'BE' },
+    { aliases:['liege','luettich'], de:'Luettich', en:'Liege', cc:'BE' },
+
+    { aliases:['london'], de:'London', en:'London', cc:'GB' },
+    { aliases:['manchester'], de:'Manchester', en:'Manchester', cc:'GB' },
+    { aliases:['birmingham'], de:'Birmingham', en:'Birmingham', cc:'GB' },
+    { aliases:['edinburgh'], de:'Edinburgh', en:'Edinburgh', cc:'GB' },
+    { aliases:['glasgow'], de:'Glasgow', en:'Glasgow', cc:'GB' },
+
+    { aliases:['dublin'], de:'Dublin', en:'Dublin', cc:'IE' },
+    { aliases:['lisbon','lisboa'], de:'Lissabon', en:'Lisbon', cc:'PT' },
+    { aliases:['porto'], de:'Porto', en:'Porto', cc:'PT' },
+    { aliases:['prague','praha'], de:'Prag', en:'Prague', cc:'CZ' },
+    { aliases:['warsaw','warszawa'], de:'Warschau', en:'Warsaw', cc:'PL' },
+    { aliases:['copenhagen','kobenhavn'], de:'Kopenhagen', en:'Copenhagen', cc:'DK' },
+    { aliases:['stockholm'], de:'Stockholm', en:'Stockholm', cc:'SE' },
+    { aliases:['oslo'], de:'Oslo', en:'Oslo', cc:'NO' },
+    { aliases:['helsinki'], de:'Helsinki', en:'Helsinki', cc:'FI' },
+
+    { aliases:['new york','nyc'], de:'New York', en:'New York', cc:'US' },
+    { aliases:['los angeles','la'], de:'Los Angeles', en:'Los Angeles', cc:'US' },
+    { aliases:['chicago'], de:'Chicago', en:'Chicago', cc:'US' },
+  ];
+
+  const matchedCity = cityMap.find(city =>
+    city.aliases.some(alias => new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i').test(normalized))
+  );
+
+  if(matchedCity){
+    return {
+      displayName: (lang === 'en' ? matchedCity.en : matchedCity.de),
+      flagEmoji: countryCodeToFlagEmoji(matchedCity.cc) || '📍'
+    };
+  }
+
+  const countryMatchers = [
+    { cc:'CH', re:/\b(schweiz|switzerland|suisse|svizzera|ch)\b/i },
+    { cc:'DE', re:/\b(deutschland|germany|de)\b/i },
+    { cc:'AT', re:/\b(osterreich|austria|at)\b/i },
+    { cc:'FR', re:/\b(frankreich|france|fr)\b/i },
+    { cc:'IT', re:/\b(italien|italy|it)\b/i },
+    { cc:'LI', re:/\b(liechtenstein|li)\b/i },
+    { cc:'US', re:/\b(usa|united states|vereinigte staaten|us)\b/i },
+    { cc:'GB', re:/\b(uk|united kingdom|england|great britain|gb)\b/i },
+    { cc:'ES', re:/\b(spanien|spain|es)\b/i },
+    { cc:'NL', re:/\b(niederlande|netherlands|holland|nl)\b/i },
+    { cc:'BE', re:/\b(belgien|belgium|be)\b/i },
+    { cc:'IE', re:/\b(ireland|irland|ie)\b/i },
+    { cc:'PT', re:/\b(portugal|pt)\b/i },
+    { cc:'PL', re:/\b(poland|polen|pl)\b/i },
+    { cc:'CZ', re:/\b(czech|tschechien|cz)\b/i },
+    { cc:'DK', re:/\b(denmark|daenemark|dk)\b/i },
+    { cc:'SE', re:/\b(sweden|schweden|se)\b/i },
+    { cc:'NO', re:/\b(norway|norwegen|no)\b/i },
+    { cc:'FI', re:/\b(finland|finnland|fi)\b/i },
+  ];
+
+  const matchedCountry = countryMatchers.find(item => item.re.test(normalized));
+  if(matchedCountry){
+    const cleanedVenueName = stripCountryTokenFromVenue(raw, matchedCountry.cc);
+    return {
+      displayName: cleanedVenueName || getCountryDisplayName(matchedCountry.cc, lang) || raw,
+      flagEmoji: countryCodeToFlagEmoji(matchedCountry.cc) || '📍'
+    };
+  }
+
+  return { displayName: raw, flagEmoji: '📍' };
+}
+
 window.commitProjectorCountFromInput=()=>{
   const input=document.getElementById('projector-count-input');
   setProjectorCount(input?.value);
@@ -2291,10 +2814,10 @@ window.setProjectorCount=(value)=>{
 // ============================================================
 async function init(){
   sessionStartMs=Date.now();
-  cfg=await invoke('get_config');
+  cfg=await loadConfigWithFallback();
   cfg.pixera_api_root = (cfg.pixera_api_root||'erwer').toString();
   cfg.pixera_pjlink_module = (cfg.pixera_pjlink_module||'PJ_Link__16ch').toString();
-  cfg.pixera_scheduler_module = (cfg.pixera_scheduler_module||'EventScheduler_Projektil_V16').toString();
+  cfg.pixera_scheduler_module = (cfg.pixera_scheduler_module||'EventScheduler_Projektil_V17').toString();
   cfg.pixera_octo_port = Number(cfg.pixera_octo_port || 4000);
   cfg.poe_switch_ip = cfg.poe_switch_ip || DEFAULT_POE_IP;
   cfg.rutx50_ip = cfg.rutx50_ip || DEFAULT_RUTX50_IP;
@@ -2312,6 +2835,7 @@ async function init(){
   localStorage.setItem('viewModeLocked', viewModeLocked ? '1' : '0');
   localStorage.setItem('emergencyLockActive', '0');
   applyProjectorIpConfig();
+  applyVenueName();
   translatePage();
   await loadPersistedLogs();
   updateStartupModeSettingsUI();
@@ -2321,9 +2845,9 @@ async function init(){
   document.getElementById('em-hotline').textContent=cfg.hotline;
   document.getElementById('emergency-lock-hotline').textContent=cfg.hotline;
   const poeIpEl=document.getElementById('overlay-poe-ip');
-  if(poeIpEl) poeIpEl.textContent=`${cfg.poe_switch_ip} · SNMP ${cfg.poe_switch_snmp_port||161}`;
+  if(poeIpEl) poeIpEl.textContent=`IP: ${cfg.poe_switch_ip} · SNMP ${cfg.poe_switch_snmp_port||161}`;
   const rutxIpEl=document.getElementById('overlay-rutx-ip');
-  if(rutxIpEl) rutxIpEl.textContent=`${cfg.rutx50_ip} · SNMP ${cfg.rutx50_snmp_port||161}`;
+  if(rutxIpEl) rutxIpEl.textContent=`IP: ${cfg.rutx50_ip} · SNMP ${cfg.rutx50_snmp_port||161}`;
   buildProjGrid(); buildMonProjGrid(); buildAmpChannels(1); buildAmpChannels(2);
   addLog('info',locales[currentLang].app_started);
   addLog('info',locales[currentLang].network_polling);
@@ -2350,18 +2874,29 @@ async function init(){
   setInterval(pollAll,10000);
   setInterval(pollD40Status,5000);
   setInterval(syncProjectorsFromPjLink,5000);
-  setInterval(()=>{ clockTick(); pollSchedulerData(); pollTimelineStatus(); },1000);
-  await pollSchedulerData();
-  await ensureTimelineHandles();
-  await pollTimelineStatus();
+  // 1 s tick: clock + cursor (cursor only fires when a dayrun timeline is playing)
+  setInterval(()=>{ clockTick(); pollTimelineCursor(); tickNextEventCountdown(); },1000);
+  // 5 s tick: transport-mode check for dayrun timelines
+  setInterval(pollTimelineTransport,5000);
+  // 10 s tick: scheduler next-event name + countdown
+  setInterval(pollSchedulerNextEvent,10000);
+  // 30 s tick: upcoming events schedule card
+  setInterval(pollSchedulerUpcoming,30000);
+  await pollSchedulerNextEvent();
+  await pollSchedulerUpcoming();
+  _renderLastTriggeredEvent();
+  await refreshTimelineHandles();
+  await pollTimelineTransport();
   document.addEventListener('visibilitychange',updateCameraPreviewStreamState);
   updateCameraPreviewStreamState();
   setTimeout(async()=>{
     if(demoMode) return;
     await pollJanitzaData();
     await pollUpsData();
+    await watchUpsBatteryMode();
     setInterval(pollJanitzaData,10000);
-    setInterval(pollUpsData,10000);
+    setInterval(pollUpsData,UPS_POLL_INTERVAL_MS);
+    setInterval(watchUpsBatteryMode,UPS_WATCH_INTERVAL_MS);
   },2000);
   setTimeout(buildProjGrid,100);
 
@@ -2731,17 +3266,34 @@ async function pollUpsData(){
     const outV=Number(d.output_v??0);
     const mins=runtimeT>0?Math.round(runtimeT/6000):10;
     const loadPct=outLoad>0?Math.round(outLoad/10):0;
-    // bat_status: 2=normal (Netzstrom), 3+=Batterie-Mode
-    // Fallback zu output_online wenn bat_status nicht gelesen
-    const online=(batStatus===2)||(batStatus===0&&outOnline===1);
+    // APC semantics: output_status is usually the most reliable battery indicator.
+    // 2=online, 3=onBattery, 5=onBatteryLow. Fallback to bat_status/output_online.
+    const isBatteryMode =
+      (outStatus===3 || outStatus===5) ||
+      (batStatus===3 || batStatus===4) ||
+      ((outStatus!==2 && batStatus!==2) && outOnline!==1);
+    const online=!isBatteryMode;
+    const switchedToBattery = (upsPrevBatteryState !== true && isBatteryMode===true);
+    upsPrevBatteryState = isBatteryMode;
 
-    const sEl=document.getElementById('ups-status');if(sEl){sEl.className=`pill ${online?'pill-g':'pill-r'}`;sEl.textContent=online?locales[currentLang].ups_online_mains:locales[currentLang].ups_battery_mode;}
+    const sEl=document.getElementById('ups-status');
+    if(sEl){
+      sEl.className=`pill ${online?'pill-g':'pill-battery'}`;
+      sEl.textContent=online?locales[currentLang].ups_online_mains:locales[currentLang].ups_battery_mode;
+    }
     const bEl=document.getElementById('ups-bat');if(bEl){bEl.textContent=`${batCap}% (${batTemp}°C)`;bEl.className=`pow-val ${upsBatClass(batCap)}`;}
     const barEl=document.getElementById('ups-bar-fill');if(barEl){barEl.style.width=`${batCap}%`;barEl.style.background=batCap>50?'var(--green)':batCap>25?'#d97706':'var(--red)';}
     const rtEl=document.getElementById('ups-runtime');if(rtEl)rtEl.textContent=`${mins} min`;
     const ldEl=document.getElementById('ups-load');if(ldEl)ldEl.textContent=`${loadPct}%`;
     const ivEl=document.getElementById('ups-inv');if(ivEl)ivEl.textContent=inputV>0?`${inputV} V`:'—';
     const ovEl=document.getElementById('ups-outv');if(ovEl)ovEl.textContent=outV>0?`${(outV/10).toFixed(1)} V`:'—';
+
+    if(switchedToBattery){
+      const runtimeNow = String(document.getElementById('ups-runtime')?.textContent || '').trim();
+      const runtimePart = runtimeNow && runtimeNow !== '—' ? ` Runtime: ${runtimeNow}` : '';
+      addError(`[UPS] SOFORTALARM: UPS hat auf Batteriebetrieb gewechselt!${runtimePart}`);
+      const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--red)';
+    }
 
     if(d.warnings&&d.warnings.length>0){
       const box=document.getElementById('ups-anomaly-box');if(box)box.classList.add('show');
@@ -2757,6 +3309,47 @@ async function pollUpsData(){
     addError(`[UPS] FEHLER: ${e}`);
     const sEl=document.getElementById('ups-status');if(sEl){sEl.className='pill pill-r';sEl.innerHTML=`<span class="dot" style="width:6px;height:6px;background:var(--red)"></span>${locales[currentLang].offline}`;}
     const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--red)';
+  }
+}
+
+async function watchUpsBatteryMode(){
+  if(demoMode) return;
+  try{
+    const d=await invoke('ups_get_power_mode',{ip:cfg.ups_ip});
+    if(!d || typeof d.on_mains!=='boolean') return;
+
+    const onMains=Boolean(d.on_mains);
+    const switchedToBattery=(upsPrevOnMains!==false && onMains===false);
+    const switchedToMains=(upsPrevOnMains===false && onMains===true);
+    upsPrevOnMains=onMains;
+
+    if(switchedToBattery){
+      const runtimeNow = String(document.getElementById('ups-runtime')?.textContent || '').trim();
+      const runtimePart = runtimeNow && runtimeNow !== '—' ? ` Runtime: ${runtimeNow}` : '';
+      addError(`[UPS] SOFORTALARM: UPS hat auf Batteriebetrieb gewechselt!${runtimePart}`);
+      const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--red)';
+      const sEl=document.getElementById('ups-status');
+      if(sEl){
+        sEl.className='pill pill-battery';
+        sEl.textContent=locales[currentLang].ups_battery_mode;
+      }
+    }
+
+    if(switchedToMains){
+      addLog('info','[RESOLVED] UPS wieder im Netzbetrieb (Batteriemodus beendet).');
+      const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--green)';
+      const sEl=document.getElementById('ups-status');
+      if(sEl){
+        sEl.className='pill pill-g';
+        sEl.textContent=locales[currentLang].ups_online_mains;
+      }
+    }
+  }catch(e){
+    const now=Date.now();
+    if(now-upsWatchLastErrorAt>30000){
+      addError(`[UPS] Battery-Watch FEHLER: ${e}`,{showBanner:false});
+      upsWatchLastErrorAt=now;
+    }
   }
 }
 
@@ -2933,6 +3526,7 @@ function buildProjGrid(){
     const n=String(i+1).padStart(2,'0');
     const moduleOnline = projectorOnlineStates[i];
     const displayIp=String(p.ip);
+    const displayIpLabel=`IP: ${displayIp}`;
     const statusState = getProjectorStatusState(i);
     const statusLabel = getProjectorStatusLabel(i);
     // Unified dot coloring: Green=ON, Orange=Standby, Red=Offline
@@ -2942,11 +3536,11 @@ function buildProjGrid(){
     section.className='device-section';
     const card=document.createElement('div');
     card.className='proj-card';
-    card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIp}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button onclick="projMute(${i})" style="border-color:${p.mute?'var(--orange)':'var(--border)'};background:${p.mute?'#431407':'var(--card2)'}">${locales[currentLang].mute}</button></div>`;
+    card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button onclick="projMute(${i})" style="border-color:${p.mute?'var(--orange)':'var(--border)'};background:${p.mute?'#431407':'var(--card2)'}">${locales[currentLang].mute}</button></div>`;
     const overlay=document.createElement('div');
     overlay.className='offline-overlay'+(moduleOnline?'':' show');
     overlay.id=`overlay-pj-${n}`;
-    overlay.innerHTML=`<div class="offline-overlay-icon">📡</div><div class="offline-overlay-text">PJ-${n} — OFFLINE</div><div class="offline-overlay-ip">${displayIp}</div>`;
+    overlay.innerHTML=`<div class="offline-overlay-icon">📡</div><div class="offline-overlay-text">PJ-${n} — OFFLINE</div><div class="offline-overlay-ip">${displayIpLabel}</div>`;
     section.appendChild(card);
     section.appendChild(overlay);
     g.appendChild(section);
@@ -3663,10 +4257,21 @@ function updateErrorBadge(){
   if(c===0){document.getElementById('tb-warn-pill')?.classList.remove('show');document.getElementById('warn-banner')?.classList.remove('show');}
 }
 
-window.clearAllErrors=()=>{errors.length=0;renderErrors();updateErrorBadge();};
+window.clearAllErrors=()=>{
+  const snapshot=[...errors];
+  const total=snapshot.length;
+  snapshot.forEach((e,idx)=>{
+    addLog('info', `[RESOLVED] Error ${idx+1}/${total} geloest: ${e.msg}`);
+  });
+  errors.length=0;
+  renderErrors();
+  updateErrorBadge();
+};
 window.ackErrorById=(id)=>{
   const idx=errors.findIndex(e=>e.id===id);
   if(idx===-1)return;
+  const entry=errors[idx];
+  addLog('info', `[RESOLVED] Error 1/1 geloest: ${entry.msg}`);
   errors.splice(idx,1);
   renderErrors();
   updateErrorBadge();
@@ -3718,20 +4323,20 @@ async function pollAll(){
   await syncProjectorsFromPjLink();
 
   const d1=await tcpPing(cfg.d40_01_ip,80),d2=await tcpPing(cfg.d40_02_ip,80);
-  setDeviceOnline('amp1',d1,'D40 AMP 01 (192.168.1.51)','overlay-amp1');
-  setDeviceOnline('amp2',d2,'D40 AMP 02 (192.168.1.52)','overlay-amp2');
+  setDeviceOnline('amp1',d1,'D40 AMP 01 (IP: 192.168.1.51)','overlay-amp1');
+  setDeviceOnline('amp2',d2,'D40 AMP 02 (IP: 192.168.1.52)','overlay-amp2');
   setStatus(['sb-d40-01','amp1-dot','mon-amp1','amp1-online','sys-d40-01'],d1);
   setStatus(['sb-d40-02','amp2-dot','mon-amp2','amp2-online','sys-d40-02'],d2);
 
   if(!getPixeraDirectorOnline()){
-    try{ await schedulerCall('NextEventCountdown'); }catch(e){}
+    try{ await pixeraApiCall(buildPixeraPaths('Pixera.Timelines.getTimelines'),[]); }catch(e){}
   }
   const directorOnline=getPixeraDirectorOnline();
-  setDeviceOnline('pixera',directorOnline,'Pixera Director (192.168.1.31)',null);
+  setDeviceOnline('pixera',directorOnline,'Pixera Director (IP: 192.168.1.31)',null);
   setPixeraDirectorUi(directorOnline);
 
   const nas=await tcpPing(cfg.nas_ip,cfg.nas_port);
-  setDeviceOnline('nas',nas,'Synology NAS (192.168.1.21)','overlay-nas');
+  setDeviceOnline('nas',nas,'Synology NAS (IP: 192.168.1.21)','overlay-nas');
   setStatus(['sb-nas','mon-nas','nas-dot','sys-nas','nas-status'],nas);
   if(nas) pollNasData();
   updateNasNavBadge(nas);
@@ -3752,16 +4357,16 @@ async function pollAll(){
   updateNetworkNavBadge(poe,rutx);
 
   const ups=await tcpPing(cfg.ups_ip,443);
-  setDeviceOnline('ups',ups,'APC UPS (192.168.1.6)','overlay-ups');
+  setDeviceOnline('ups',ups,'APC UPS (IP: 192.168.1.6)','overlay-ups');
   setStatus(['sb-ups','mon-ups','ups-dot'],ups);if(ups)pollUpsData();
 
   const jan=await tcpPing(cfg.power_disp_ip,80);
-  setDeviceOnline('janitza',jan,'Janitza UMG96RM-E (192.168.1.5)','overlay-janitza');
+  setDeviceOnline('janitza',jan,'Janitza UMG96RM-E (IP: 192.168.1.5)','overlay-janitza');
   setStatus(['mon-janitza','janitza-dot','sb-janitza'],jan);if(jan)pollJanitzaData();
 
   const c1=await tcpPing(cfg.cam_01_ip,80),c2=await tcpPing(cfg.cam_02_ip,80);
-  setDeviceOnline('cam1',c1,'Cam 01 PTZ (192.168.1.22)','overlay-cam1');
-  setDeviceOnline('cam2',c2,'Cam 02 PTZ (192.168.1.23)','overlay-cam2');
+  setDeviceOnline('cam1',c1,'Cam 01 PTZ (IP: 192.168.1.22)','overlay-cam1');
+  setDeviceOnline('cam2',c2,'Cam 02 PTZ (IP: 192.168.1.23)','overlay-cam2');
   setStatus(['mon-cam1','cam1-dot','cam1-status','sb-cam1'],c1);
   setStatus(['mon-cam2','cam2-dot','cam2-status','sb-cam2'],c2);
   updateCamerasNavBadge(c1,c2);
@@ -3771,10 +4376,10 @@ async function pollAll(){
     tcpPing(cfg.pixera_octo1_ip,octoPort),
     tcpPing(cfg.pixera_octo2_ip,octoPort)
   ]);
-  setDeviceOnline('octo1',octo1Ping,'Pixera Octo 01 (192.168.1.32)',null);
-  setDeviceOnline('octo2',octo2Ping,'Pixera Octo 02 (192.168.1.33)',null);
-  setStatus(['mon-octo1'],octo1Ping);
-  setStatus(['mon-octo2'],octo2Ping);
+  setDeviceOnline('octo1',octo1Ping,'Pixera Octo 01 (IP: 192.168.1.32)',null);
+  setDeviceOnline('octo2',octo2Ping,'Pixera Octo 02 (IP: 192.168.1.33)',null);
+  setStatus(['mon-octo1','sys-octo1'],octo1Ping);
+  setStatus(['mon-octo2','sys-octo2'],octo2Ping);
   updateMonitoringNavBadge([directorOnline,d1,d2,nas,poe,rutx,ups,jan,c1,c2,octo1Ping,octo2Ping,...projectorOnlineStates]);
 }
 
@@ -3785,6 +4390,19 @@ const PIXERA_API_WS_PROTOCOL='ws_avio';
 const PIXERA_API_WS_PATH='/ws_avio';
 let schedulerWarned=false;
 let _tlHandleCache=null;
+let _tlHandleNames=new Map();   // handle.address -> timeline name
+let _tlLastRefresh=0;
+const TL_REFRESH_MS=5*60*1000; // refresh timeline list every 5 min
+let _activeTlHandle=null;       // dayrun timeline currently tracked for cursor
+let _tlTransportPollInFlight=false;
+let _tlCursorPollInFlight=false;
+let _lastUpcomingAppliedAt=0;
+let _nextEventTargetTsMs=0;
+let _nextEventSlewRemainingMs=0;
+let _nextEventRttSamples=[];
+let _nextEventLastName='';
+let _lastTriggeredEventName='';
+let _lastTriggeredEventTsMs=0;
 let _pixeraApiOnline=false;
 let _pixeraApiConsecutiveOk=0;
 let _pixeraApiConsecutiveFail=0;
@@ -3818,18 +4436,18 @@ async function runStartupConnectivityChecks(){
   const rutxPingPort=Number(cfg.rutx50_ping_port||443);
   const octoPort=Number(cfg.pixera_octo_port||4000);
   const checks=[
-    {name:'Pixera Director', host:cfg.pixera_ip, port:pixeraPort, run:()=>tcpPing(cfg.pixera_ip,pixeraPort)},
-    {name:'D40 AMP 01', host:cfg.d40_01_ip, port:80, run:()=>tcpPing(cfg.d40_01_ip,80)},
-    {name:'D40 AMP 02', host:cfg.d40_02_ip, port:80, run:()=>tcpPing(cfg.d40_02_ip,80)},
-    {name:'NAS', host:cfg.nas_ip, port:nasPort, run:()=>tcpPing(cfg.nas_ip,nasPort)},
-    {name:'PoE Switch', host:cfg.poe_switch_ip||DEFAULT_POE_IP, port:poePingPort, run:()=>tcpPing(cfg.poe_switch_ip||DEFAULT_POE_IP,poePingPort)},
-    {name:'RUTX50', host:cfg.rutx50_ip||DEFAULT_RUTX50_IP, port:rutxPingPort, run:()=>tcpPing(cfg.rutx50_ip||DEFAULT_RUTX50_IP,rutxPingPort)},
-    {name:'UPS', host:cfg.ups_ip, port:443, run:()=>tcpPing(cfg.ups_ip,443)},
-    {name:'Janitza', host:cfg.power_disp_ip, port:80, run:()=>tcpPing(cfg.power_disp_ip,80)},
-    {name:'Cam 01', host:cfg.cam_01_ip, port:80, run:()=>tcpPing(cfg.cam_01_ip,80)},
-    {name:'Cam 02', host:cfg.cam_02_ip, port:80, run:()=>tcpPing(cfg.cam_02_ip,80)},
-    {name:'Pixera Octo 01', host:cfg.pixera_octo1_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo1_ip,octoPort)},
-    {name:'Pixera Octo 02', host:cfg.pixera_octo2_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo2_ip,octoPort)}
+    {name:'Pixera Director', host:cfg.pixera_ip, port:pixeraPort, run:()=>tcpPing(cfg.pixera_ip,pixeraPort,{throwOnFail:true})},
+    {name:'D40 AMP 01', host:cfg.d40_01_ip, port:80, run:()=>tcpPing(cfg.d40_01_ip,80,{throwOnFail:true})},
+    {name:'D40 AMP 02', host:cfg.d40_02_ip, port:80, run:()=>tcpPing(cfg.d40_02_ip,80,{throwOnFail:true})},
+    {name:'NAS', host:cfg.nas_ip, port:nasPort, run:()=>tcpPing(cfg.nas_ip,nasPort,{throwOnFail:true})},
+    {name:'PoE Switch', host:cfg.poe_switch_ip||DEFAULT_POE_IP, port:poePingPort, run:()=>tcpPing(cfg.poe_switch_ip||DEFAULT_POE_IP,poePingPort,{throwOnFail:true})},
+    {name:'RUTX50', host:cfg.rutx50_ip||DEFAULT_RUTX50_IP, port:rutxPingPort, run:()=>tcpPing(cfg.rutx50_ip||DEFAULT_RUTX50_IP,rutxPingPort,{throwOnFail:true})},
+    {name:'UPS', host:cfg.ups_ip, port:443, run:()=>tcpPing(cfg.ups_ip,443,{throwOnFail:true})},
+    {name:'Janitza', host:cfg.power_disp_ip, port:80, run:()=>tcpPing(cfg.power_disp_ip,80,{throwOnFail:true})},
+    {name:'Cam 01', host:cfg.cam_01_ip, port:80, run:()=>tcpPing(cfg.cam_01_ip,80,{throwOnFail:true})},
+    {name:'Cam 02', host:cfg.cam_02_ip, port:80, run:()=>tcpPing(cfg.cam_02_ip,80,{throwOnFail:true})},
+    {name:'Pixera Octo 01', host:cfg.pixera_octo1_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo1_ip,octoPort,{throwOnFail:true})},
+    {name:'Pixera Octo 02', host:cfg.pixera_octo2_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo2_ip,octoPort,{throwOnFail:true})}
   ];
 
   // Include all configured projectors in startup checks via PJLink port.
@@ -3843,7 +4461,7 @@ async function runStartupConnectivityChecks(){
       name:`Projector PJ-${n}`,
       host:ip,
       port:pjlinkPort,
-      run:()=>tcpPing(ip,pjlinkPort)
+      run:()=>tcpPing(ip,pjlinkPort,{throwOnFail:true})
     });
   });
 
@@ -3934,7 +4552,7 @@ function markPixeraApiSuccess(){
   _pixeraApiConsecutiveOk+=1;
   if(!_pixeraApiOnline && _pixeraApiConsecutiveOk>=1){
     _pixeraApiOnline=true;
-    setDeviceOnline('pixera',true,'Pixera Director (192.168.1.31)',null);
+    setDeviceOnline('pixera',true,'Pixera Director (IP: 192.168.1.31)',null);
     setPixeraDirectorUi(true);
   }
 }
@@ -3944,7 +4562,7 @@ function markPixeraApiFailure(){
   _pixeraApiConsecutiveFail+=1;
   if(_pixeraApiOnline && _pixeraApiConsecutiveFail>=3){
     _pixeraApiOnline=false;
-    setDeviceOnline('pixera',false,'Pixera Director (192.168.1.31)',null);
+    setDeviceOnline('pixera',false,'Pixera Director (IP: 192.168.1.31)',null);
     setPixeraDirectorUi(false);
   }
 }
@@ -4143,7 +4761,7 @@ async function pjLinkCall(methodName, params=[]){
 }
 
 async function schedulerCall(methodName, params=[]){
-  const moduleName=String(cfg.pixera_scheduler_module||'EventScheduler_Projektil_V16').trim();
+  const moduleName=String(cfg.pixera_scheduler_module||'EventScheduler_Projektil_V17').trim();
   return pixeraApiCall(modulePaths(moduleName, methodName), params);
 }
 
@@ -4152,16 +4770,107 @@ async function timelineHandleCall(handle, method){
   return pixeraApiCall([addr],[handle]);
 }
 
-async function ensureTimelineHandles(){
-  if(_tlHandleCache) return _tlHandleCache;
+// Refresh the full timeline list + names (called at init and every 5 min).
+// Only names are fetched here; cursor/transport are polled separately.
+async function refreshTimelineHandles(){
+  if(demoMode) return;
   try{
     const raw=await pixeraApiCall(buildPixeraPaths('Pixera.Timelines.getTimelines'),[]);
-    if(Array.isArray(raw)&&raw.length>0){
-      _tlHandleCache=raw;
-      return raw;
+    if(!Array.isArray(raw)||raw.length===0) return;
+    _tlHandleCache=raw;
+    _tlHandleNames.clear();
+    for(const h of raw){
+      if(!h._name){
+        try{ h._name=await timelineHandleCall(h,'getName'); }catch{}
+      }
+      const n=h._name;
+      _tlHandleNames.set(h.address,typeof n==='string'?n:(Array.isArray(n)?n[0]:''));
     }
+    _tlLastRefresh=Date.now();
   }catch(e){}
-  return null;
+}
+
+function _getDayRunHandles(){
+  if(!_tlHandleCache) return [];
+  const normalize=(value)=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  return _tlHandleCache.filter(h=>{
+    const name=_tlHandleNames.get(h.address)||h._name||'';
+    return normalize(name).includes('dayrun');
+  });
+}
+
+// Called every 5 s: check transport mode of dayrun timelines only.
+// Sets _activeTlHandle to the one that is playing (or paused as fallback).
+async function pollTimelineTransport(){
+  if(demoMode) return;
+  if(_tlTransportPollInFlight) return;
+  if(Date.now()-_tlLastRefresh>TL_REFRESH_MS) await refreshTimelineHandles();
+  _tlTransportPollInFlight=true;
+  try{
+    const handles=_getDayRunHandles();
+    if(!handles.length){ _activeTlHandle=null; return; }
+    const statuses=await Promise.all(handles.map(async h=>{
+      try{
+        const tm=await timelineHandleCall(h,'getTransportMode');
+        return {h,tm:typeof tm==='number'?tm:null};
+      }catch{ return {h,tm:null}; }
+    }));
+    const playing=statuses.find(s=>s.tm===1);
+    const paused=statuses.find(s=>s.tm===2);
+    _activeTlHandle=(playing||paused||null)?.h??null;
+    // Update transport-state display (no cursor data here)
+    const active=playing||paused;
+    if(active){
+      const name=_tlHandleNames.get(active.h.address)||'';
+      _updateTimelineUI(name,active.tm,null,null);
+    } else {
+      _updateTimelineUI(null,0,null,null);
+    }
+  }catch(e){}finally{
+    _tlTransportPollInFlight=false;
+  }
+}
+
+// Called every 1 s — but only when there is an active playing dayrun timeline.
+async function pollTimelineCursor(){
+  if(demoMode) return;
+  if(!_activeTlHandle) return;
+  if(_tlCursorPollInFlight) return;
+  _tlCursorPollInFlight=true;
+  try{
+    const ct=await timelineHandleCall(_activeTlHandle,'getCurrentTime').catch(()=>null);
+    const name=_tlHandleNames.get(_activeTlHandle.address)||'';
+    _updateTimelineUI(name,1,typeof ct==='number'?ct:null,null);
+  }catch(e){}finally{
+    _tlCursorPollInFlight=false;
+  }
+}
+
+function _updateTimelineUI(name,tm,ctMs,durMs){
+  const nameStr=typeof name==='string'?name:'';
+  const drMatch=nameStr.match(/DayRun_?(\d+)/i);
+  const drNum=drMatch?drMatch[1]:'—';
+  const nameEl=document.getElementById('tl-name'); if(nameEl) nameEl.textContent=nameStr||'—';
+  const badge=document.getElementById('dr-badge'); if(badge) badge.textContent=`DR ${drNum}`;
+  const tlSt=document.getElementById('tl-status');
+  if(tlSt){
+    const cls=_TM_CLASS[tm]||'pill-r';
+    const label=locales[currentLang][_TM_LABEL[tm]||'stopped']||_TM_LABEL[tm]||'Stopped';
+    const dotClr=_TM_DOT_COLOR[tm]||'var(--red)';
+    tlSt.className=`pill ${cls}`;
+    tlSt.innerHTML=`<span class="dot" style="width:6px;height:6px;background:${dotClr}"></span> ${label}`;
+  }
+  if(ctMs!=null){
+    const curEl=document.getElementById('tl-current'); if(curEl) curEl.textContent=_msToTimecode(ctMs);
+  }
+  if(durMs!=null&&durMs>0&&ctMs!=null){
+    const remMs=Math.max(0,durMs-ctMs);
+    const remEl=document.getElementById('tl-remaining'); if(remEl) remEl.textContent=_msToTimecode(remMs);
+    const pct=Math.min(100,Math.round((ctMs/durMs)*100));
+    const progEl=document.getElementById('tl-progress'); if(progEl) progEl.style.width=`${pct}%`;
+    const pctEl=document.getElementById('tl-pct'); if(pctEl) pctEl.textContent=`${pct}%`;
+    const warnEl=document.getElementById('tl-warn-lbl'); if(warnEl) warnEl.style.display=remMs<300000?'':'none';
+  }
 }
 
 const _TM_LABEL={0:'stopped',1:'playing',2:'paused'};
@@ -4178,69 +4887,141 @@ function _msToTimecode(ms){
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}:${String(cs).padStart(2,'0')}`;
 }
 
-async function pollTimelineStatus(){
-  if(demoMode) return;
-  try{
-    const handles=await ensureTimelineHandles();
-    if(!handles||!handles.length) return;
-    const results=await Promise.all(handles.map(async h=>{
-      try{
-        const [tm,ct,dur]=await Promise.all([
-          timelineHandleCall(h,'getTransportMode').catch(()=>null),
-          timelineHandleCall(h,'getCurrentTime').catch(()=>null),
-          timelineHandleCall(h,'getDuration').catch(()=>null),
-        ]);
-        const name=h._name||(h._name=await timelineHandleCall(h,'getName').then(v=>v).catch(()=>null));
-        return {handle:h,name,tm:typeof tm==='number'?tm:null,ctMs:typeof ct==='number'?ct:null,durMs:typeof dur==='number'?dur:null};
-      }catch(e){return null;}
-    }));
-    const valid=results.filter(r=>r&&r.tm!==null);
-    if(!valid.length) return;
-    // find the playing one with the highest currentTime
-    const playing=valid.filter(r=>r.tm===1).sort((a,b)=>(b.ctMs||0)-(a.ctMs||0));
-    const active=playing[0]||valid.sort((a,b)=>(b.ctMs||0)-(a.ctMs||0))[0];
-    if(!active) return;
-
-    const name=typeof active.name==='string'?active.name:(Array.isArray(active.name)?active.name[0]:'—');
-    const drMatch=name&&name.match(/DayRun_?(\d+)/i);
-    const drNum=drMatch?drMatch[1]:'—';
-    const tmVal=active.tm;
-    const ctMs=active.ctMs;
-    const durMs=active.durMs;
-
-    const nameEl=document.getElementById('tl-name'); if(nameEl) nameEl.textContent=name||'—';
-    const badge=document.getElementById('dr-badge'); if(badge) badge.textContent=`DR ${drNum}`;
-    const tlSt=document.getElementById('tl-status');
-    if(tlSt){
-      const cls=_TM_CLASS[tmVal]||'pill-r';
-      const label=locales[currentLang][_TM_LABEL[tmVal]||'stopped']||_TM_LABEL[tmVal]||'Stopped';
-      const dotClr=_TM_DOT_COLOR[tmVal]||'var(--red)';
-      tlSt.className=`pill ${cls}`;
-      tlSt.innerHTML=`<span class="dot" style="width:6px;height:6px;background:${dotClr}"></span> ${label}`;
-    }
-    const curEl=document.getElementById('tl-current'); if(curEl) curEl.textContent=_msToTimecode(ctMs);
-    if(durMs&&durMs>0&&ctMs!=null){
-      const remMs=Math.max(0,durMs-ctMs);
-      const remEl=document.getElementById('tl-remaining'); if(remEl) remEl.textContent=_msToTimecode(remMs);
-      const pct=Math.min(100,Math.round((ctMs/durMs)*100));
-      const progEl=document.getElementById('tl-progress'); if(progEl) progEl.style.width=`${pct}%`;
-      const pctEl=document.getElementById('tl-pct'); if(pctEl) pctEl.textContent=`${pct}%`;
-      const warnEl=document.getElementById('tl-warn-lbl'); if(warnEl) warnEl.style.display=remMs<300000?'':'none';
-    }
-  }catch(e){}
+function _parseCountdownToSeconds(value){
+  const s=String(value??'').trim();
+  const m=s.match(/^(\d+):(\d{2}):(\d{2})$/);
+  if(!m) return null;
+  const h=Number(m[1]);
+  const min=Number(m[2]);
+  const sec=Number(m[3]);
+  if(Number.isNaN(h)||Number.isNaN(min)||Number.isNaN(sec)) return null;
+  return (h*3600)+(min*60)+sec;
 }
 
-async function pollSchedulerData(){
+function _formatCountdownSeconds(totalSeconds){
+  const safe=Math.max(0,Math.floor(Number(totalSeconds)||0));
+  const h=Math.floor(safe/3600);
+  const m=Math.floor((safe%3600)/60);
+  const s=safe%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function _setNextEventCountdownText(text){
+  const cdEl=document.getElementById('next-countdown');
+  if(cdEl) cdEl.textContent=text;
+}
+
+function _formatLastTriggeredTime(tsMs){
+  if(!tsMs||tsMs<=0) return '--:--';
+  const lang=(currentLang==='de')?'de-CH':'en-US';
+  return new Intl.DateTimeFormat(lang,{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(tsMs));
+}
+
+function _renderLastTriggeredEvent(){
+  const timeEl=document.getElementById('schedule-last-time');
+  const nameEl=document.getElementById('schedule-last-name');
+  if(timeEl) timeEl.textContent=_formatLastTriggeredTime(_lastTriggeredEventTsMs);
+  if(nameEl){
+    if(_lastTriggeredEventName){
+      nameEl.textContent=_lastTriggeredEventName;
+      nameEl.removeAttribute('data-l10n-key');
+    }else{
+      const fallback=locales[currentLang]?.schedule_last_none||'Noch kein Event ausgelöst';
+      nameEl.textContent=fallback;
+      nameEl.setAttribute('data-l10n-key','schedule_last_none');
+    }
+  }
+}
+
+function _registerLastTriggeredFromTransition(nextEventName){
+  const currentName=String(nextEventName??'').trim();
+  if(!currentName||currentName==='—') return;
+  if(!_nextEventLastName){
+    _nextEventLastName=currentName;
+    return;
+  }
+  if(currentName!==_nextEventLastName){
+    _lastTriggeredEventName=_nextEventLastName;
+    _lastTriggeredEventTsMs=Date.now();
+    _nextEventLastName=currentName;
+    _renderLastTriggeredEvent();
+  }
+}
+
+function _median(values){
+  if(!Array.isArray(values)||values.length===0) return 0;
+  const sorted=[...values].sort((a,b)=>a-b);
+  const mid=Math.floor(sorted.length/2);
+  return sorted.length%2===0?Math.round((sorted[mid-1]+sorted[mid])/2):sorted[mid];
+}
+
+function _syncNextEventCountdownFromServer(serverCountdown, eventName, latencyCompMs=0){
+  const parsedSeconds=_parseCountdownToSeconds(serverCountdown);
+  if(parsedSeconds==null){
+    _nextEventTargetTsMs=0;
+    _nextEventSlewRemainingMs=0;
+    _setNextEventCountdownText('--:--:--');
+    return;
+  }
+
+  const nowMs=Date.now();
+  const compMs=Math.max(0,Math.floor(Number(latencyCompMs)||0));
+  const newTargetTsMs=nowMs+(parsedSeconds*1000)-compMs;
+  const normalizedEventName=String(eventName??'').trim();
+  const eventChanged=normalizedEventName!==_nextEventLastName;
+
+  if(_nextEventTargetTsMs===0||eventChanged){
+    // Hard reset on first sync or when the event changed.
+    _nextEventTargetTsMs=newTargetTsMs;
+    _nextEventSlewRemainingMs=0;
+  }else{
+    // Same event: apply drift correction gradually instead of jumping.
+    const effectiveTargetMs=_nextEventTargetTsMs;
+    const deltaMs=Math.max(-8000,Math.min(8000,newTargetTsMs-effectiveTargetMs));
+    _nextEventSlewRemainingMs+=deltaMs;
+  }
+
+  _nextEventLastName=normalizedEventName;
+  const remainingSec=Math.max(0,Math.floor((_nextEventTargetTsMs-nowMs)/1000));
+  _setNextEventCountdownText(_formatCountdownSeconds(remainingSec));
+}
+
+function tickNextEventCountdown(){
+  if(_nextEventTargetTsMs===0) return;
+
+  // Slew: max 250ms correction per second to avoid visible jumps.
+  if(_nextEventSlewRemainingMs!==0){
+    const step=Math.max(-250,Math.min(250,_nextEventSlewRemainingMs));
+    _nextEventTargetTsMs+=step;
+    _nextEventSlewRemainingMs-=step;
+  }
+
+  const remainingSec=Math.max(0,Math.floor((_nextEventTargetTsMs-Date.now())/1000));
+  _setNextEventCountdownText(_formatCountdownSeconds(remainingSec));
+}
+
+// Called every 10 s: fetch next-event name + countdown from the scheduler module.
+async function pollSchedulerNextEvent(){
   if(demoMode) return;
   try{
+    const reqStartedAt=Date.now();
     const [nextName,nextCountdown]=await Promise.all([
       schedulerCall('NextEventName'),
       schedulerCall('NextEventCountdown')
     ]);
+    const rttMs=Math.max(0,Date.now()-reqStartedAt);
+    _nextEventRttSamples.push(rttMs);
+    if(_nextEventRttSamples.length>5) _nextEventRttSamples.shift();
+    const latencyCompMs=Math.round(_median(_nextEventRttSamples)/2);
+    _registerLastTriggeredFromTransition(nextName);
     const nameEl=document.getElementById('next-event-name');
-    if(nameEl) nameEl.textContent=(nextName!==null&&nextName!==undefined&&`${nextName}`!=='')?`${nextName}`:'—';
-    const cdEl=document.getElementById('next-countdown');
-    if(cdEl) cdEl.textContent=(nextCountdown!==null&&nextCountdown!==undefined&&`${nextCountdown}`!=='')?`${nextCountdown}`:'--:--:--';
+    if(nameEl) nameEl.textContent=(nextName!=null&&`${nextName}`!=='')?`${nextName}`:'—';
+    _syncNextEventCountdownFromServer(nextCountdown,nextName,latencyCompMs);
+    // Keep the Tagesplan populated even if UpcomingEventsJson is unavailable.
+    // If no upcoming payload was applied recently, mirror next-event data.
+    if(Date.now()-_lastUpcomingAppliedAt>45000){
+      _applyScheduleFallbackFromNextEvent();
+    }
     schedulerWarned=false;
   }catch(e){
     if(!schedulerWarned){
@@ -4250,9 +5031,154 @@ async function pollSchedulerData(){
   }
 }
 
+function _parseUpcomingEvents(raw){
+  // Pixera can return plain JSON, double-encoded JSON, or already materialized objects.
+  let value=raw;
+  for(let i=0;i<3;i++){
+    if(Array.isArray(value)) return value;
+    if(value==null) return [];
+    if(typeof value==='string'){
+      const s=value.trim();
+      if(!s) return [];
+      try{ value=JSON.parse(s); continue; }catch{ return []; }
+    }
+    if(typeof value==='object'){
+      if(Array.isArray(value.value)) return value.value;
+      if(Array.isArray(value.events)) return value.events;
+      try{ value=JSON.parse(JSON.stringify(value)); }catch{ return []; }
+      continue;
+    }
+    return [];
+  }
+  return Array.isArray(value)?value:[];
+}
+
+function _formatScheduleClock(timeStr){
+  const m=String(timeStr||'').match(/(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if(!m) return '--:--';
+  return `${m[1].padStart(2,'0')}:${m[2]}`;
+}
+
+function _extractDayRunLabel(name, fallbackNum){
+  const n=String(name||'');
+  const m=n.match(/day[\s_-]*run[\s_-]*(\d+)/i);
+  if(m) return `DR${m[1]}`;
+  if(fallbackNum!=null&&fallbackNum!=='') return `DR${fallbackNum}`;
+  return 'DR—';
+}
+
+function _parsePixeraScheduleDateTime(timeStr){
+  const m=String(timeStr||'').match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if(!m) return null;
+  const year=Number(m[1]);
+  const month=Number(m[2]);
+  const day=Number(m[3]);
+  const hour=Number(m[4]);
+  const minute=Number(m[5]);
+  const second=Number(m[6]||0);
+  if([year,month,day,hour,minute,second].some(v=>Number.isNaN(v))) return null;
+  const dt=new Date(year,month-1,day,hour,minute,second,0);
+  return Number.isNaN(dt.getTime())?null:dt;
+}
+
+function _formatScheduleDetailLine(event, kind){
+  const dayRunLabel=_extractDayRunLabel(event?.name,event?.dayRun);
+  const lang=(currentLang==='de')?'de-CH':'en-US';
+  const kindLabel=kind==='warmup'
+    ? (locales[currentLang]?.warmup_label||'Warmup')
+    : (locales[currentLang]?.show_label||'Show');
+
+  const dt=_parsePixeraScheduleDateTime(event?.time);
+  if(!dt){
+    const hhmm=String(_formatScheduleClock(event?.time)).replace(':','');
+    return `${kindLabel} ${dayRunLabel} ${hhmm}`.trim();
+  }
+
+  const weekday=new Intl.DateTimeFormat(lang,{weekday:'long'}).format(dt);
+  const day=new Intl.DateTimeFormat(lang,{day:'2-digit'}).format(dt);
+  const month=new Intl.DateTimeFormat(lang,{month:'long'}).format(dt);
+  const hhmm=new Intl.DateTimeFormat(lang,{hour:'2-digit',minute:'2-digit',hour12:false}).format(dt).replace(':','');
+  return `${weekday} ${day}. ${month} ${hhmm} ${kindLabel} ${dayRunLabel}`;
+}
+
+function _renderScheduleList(events){
+  const listEl=document.getElementById('schedule-list');
+  const emptyEl=document.getElementById('schedule-empty');
+  if(!listEl) return;
+
+  listEl.innerHTML='';
+  const items=Array.isArray(events)?events.slice(0,8):[];
+  if(items.length===0){
+    if(emptyEl) emptyEl.style.display='block';
+    return;
+  }
+
+  if(emptyEl) emptyEl.style.display='none';
+  for(const ev of items){
+    const kind=(String(ev?.kind||'show').toLowerCase()==='warmup')?'warmup':'show';
+    const row=document.createElement('div');
+    row.className='srow';
+
+    const time=document.createElement('div');
+    time.className='stime';
+    time.textContent=_formatScheduleClock(ev?.time);
+
+    const detail=document.createElement('div');
+    detail.className='schedule-detail';
+    detail.textContent=_formatScheduleDetailLine(ev,kind);
+
+    const tag=document.createElement('div');
+    tag.className=`stag ${kind==='warmup'?'stag-w':'stag-s'}`;
+    tag.textContent=kind==='warmup'
+      ? (locales[currentLang]?.warmup_label||'Warmup')
+      : (locales[currentLang]?.show_label||'Show');
+
+    row.appendChild(time);
+    row.appendChild(detail);
+    row.appendChild(tag);
+    listEl.appendChild(row);
+  }
+}
+
+function _applyScheduleFallbackFromNextEvent(){
+  const nameEl=document.getElementById('next-event-name');
+  const cdEl=document.getElementById('next-countdown');
+  const nextName=nameEl?String(nameEl.textContent||'').trim():'';
+  const nextCd=cdEl?String(cdEl.textContent||'').trim():'--:--:--';
+  if(!nextName||nextName==='—'){
+    _renderScheduleList([]);
+    return;
+  }
+
+  const fallbackItem={
+    kind:'show',
+    time:(nextCd&&nextCd!=='--:--:--')?`0000.00.00 ${nextCd}`:'',
+    name:nextName,
+    dayRun:null
+  };
+  _renderScheduleList([fallbackItem]);
+}
+
+// Called every 30 s: fetch UpcomingEventsJson and update the schedule card.
+async function pollSchedulerUpcoming(){
+  if(demoMode) return;
+  try{
+    const raw=await schedulerCall('UpcomingEventsJson');
+    const events=_parseUpcomingEvents(raw);
+    if(!events.length){
+      _applyScheduleFallbackFromNextEvent();
+      return;
+    }
+    _renderScheduleList(events);
+    _lastUpcomingAppliedAt=Date.now();
+  }catch(e){
+    _applyScheduleFallbackFromNextEvent();
+  }
+}
+
 window.restartPixeraServer=async(serverKey)=>{
   if(demoMode) return;
-  const map={director:'Pixera Director (.31)',octo1:'Pixera Octo 01 (.32)',octo2:'Pixera Octo 02 (.33)'};
+  const map={director:'Pixera Director (IP: 192.168.1.31)',octo1:'Pixera Octo 01 (IP: 192.168.1.32)',octo2:'Pixera Octo 02 (IP: 192.168.1.33)'};
   addError(`[Pixera API] Restart fuer ${map[serverKey]||serverKey} ist im Standard-API-Flow noch nicht hinterlegt.`);
 };
 
@@ -4304,7 +5230,16 @@ window.addEventListener('unhandledrejection',(ev)=>{
   }
 });
 
-init();
+init().catch((e)=>{
+  const reason = String(e?.message || e || 'Unbekannter Initialisierungsfehler');
+  console.error('[init] fatal', e);
+  try{
+    closeStartupOverlay();
+    addError(`[Init] ${reason}`);
+  }catch(_err){
+    // Avoid cascading failures in fatal bootstrap path.
+  }
+});
 </script>
 </body>
 </html>

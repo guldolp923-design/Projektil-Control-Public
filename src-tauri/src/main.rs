@@ -18,6 +18,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use chrono::{Local, TimeZone};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
@@ -43,6 +44,9 @@ const LOG_PRUNE_INTERVAL_MS: u64 = 12 * 60 * 60 * 1000;
 
 static APP_LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
 static LAST_LOG_PRUNE_MS: OnceLock<Mutex<u64>> = OnceLock::new();
+static TELEGRAM_LAST_SENT: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+
+const TELEGRAM_MIN_REPEAT_MS: u64 = 60_000;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct AppLogEntry {
@@ -192,6 +196,327 @@ fn write_app_log(level: &str, message: &str, timestamp_ms: u64, app: Option<&App
 
     maybe_prune_logs(app);
     Ok(())
+}
+
+fn classify_error_category(message: &str) -> &'static str {
+    let m = message.to_ascii_lowercase();
+    if m.contains("[ups]") || m.contains("batterie") || m.contains("ups") {
+        "ups"
+    } else if m.contains("[janitza]") || m.contains("spannung") || m.contains("frequenz") {
+        "power"
+    } else if m.contains("[pixera") || m.contains("timeline") || m.contains("scheduler") {
+        "pixera"
+    } else if m.contains("pj-link") || m.contains("projector") || m.contains("projektor") {
+        "projector"
+    } else if m.contains("cam 0") || m.contains("camera") {
+        "camera"
+    } else if m.contains("[startup]") {
+        "startup"
+    } else {
+        "system"
+    }
+}
+
+fn normalize_text(input: &str) -> String {
+    input
+        .to_ascii_lowercase()
+        .replace('ä', "ae")
+        .replace('ö', "oe")
+        .replace('ü', "ue")
+        .replace('ß', "ss")
+}
+
+fn detect_country_code_from_location(location: &str) -> Option<&'static str> {
+    let l = normalize_text(location);
+
+    let city_matchers: [(&str, &[&str]); 10] = [
+        ("CH", &["luzern", "lucerne", "zuerich", "zurich", "bern", "basel", "lausanne", "lugano", "st. gallen", "winterthur"]),
+        ("FR", &["paris", "lyon", "marseille", "toulouse", "lille", "strasbourg"]),
+        ("DE", &["berlin", "muenchen", "munich", "hamburg", "koeln", "cologne", "frankfurt"]),
+        ("AT", &["wien", "vienna", "salzburg", "innsbruck", "graz", "linz"]),
+        ("IT", &["roma", "rome", "milano", "milan", "florence", "firenze", "venice", "venezia"]),
+        ("ES", &["madrid", "barcelona", "sevilla", "seville", "valencia"]),
+        ("NL", &["amsterdam", "rotterdam", "den haag", "the hague", "utrecht"]),
+        ("BE", &["brussels", "bruessel", "bruxelles", "antwerp", "antwerpen", "gent", "ghent"]),
+        ("GB", &["london", "manchester", "birmingham", "edinburgh", "glasgow"]),
+        ("US", &["new york", "nyc", "los angeles", "chicago"]),
+    ];
+
+    for (cc, cities) in city_matchers {
+        if cities.iter().any(|c| l.contains(c)) {
+            return Some(cc);
+        }
+    }
+
+    let country_matchers: [(&str, &[&str]); 18] = [
+        ("CH", &["schweiz", "switzerland", "suisse", "svizzera", " ch ", " ch,"]),
+        ("DE", &["deutschland", "germany", " de ", " de,"]),
+        ("AT", &["oesterreich", "austria", " at ", " at,"]),
+        ("FR", &["frankreich", "france", " fr ", " fr,"]),
+        ("IT", &["italien", "italy", " it ", " it,"]),
+        ("US", &["usa", "united states", " us ", " us,"]),
+        ("GB", &["uk", "united kingdom", "great britain", " gb ", " gb,"]),
+        ("ES", &["spanien", "spain", " es ", " es,"]),
+        ("NL", &["niederlande", "netherlands", "holland", " nl ", " nl,"]),
+        ("BE", &["belgien", "belgium", " be ", " be,"]),
+        ("IE", &["irland", "ireland", " ie ", " ie,"]),
+        ("PT", &["portugal", " pt ", " pt,"]),
+        ("PL", &["polen", "poland", " pl ", " pl,"]),
+        ("CZ", &["tschechien", "czech", " cz ", " cz,"]),
+        ("DK", &["daenemark", "denmark", " dk ", " dk,"]),
+        ("SE", &["schweden", "sweden", " se ", " se,"]),
+        ("NO", &["norwegen", "norway", " no ", " no,"]),
+        ("FI", &["finnland", "finland", " fi ", " fi,"]),
+    ];
+
+    for (cc, keys) in country_matchers {
+        if keys.iter().any(|k| l.contains(k)) {
+            return Some(cc);
+        }
+    }
+
+    None
+}
+
+fn country_code_to_flag_emoji(code: &str) -> Option<String> {
+    let cc = code.trim().to_ascii_uppercase();
+    if cc.len() != 2 || !cc.chars().all(|c| c.is_ascii_alphabetic()) {
+        return None;
+    }
+    let mut out = String::new();
+    for ch in cc.chars() {
+        let base = 0x1F1E6u32;
+        let offset = (ch as u32).saturating_sub('A' as u32);
+        out.push(char::from_u32(base + offset)?);
+    }
+    Some(out)
+}
+
+fn format_human_datetime(timestamp_ms: u64) -> String {
+    Local
+        .timestamp_millis_opt(timestamp_ms as i64)
+        .single()
+        .unwrap_or_else(Local::now)
+        .format("%d.%m.%Y, %H:%M:%S")
+        .to_string()
+}
+
+fn extract_runtime_from_message(message: &str) -> Option<String> {
+    let lower = message.to_ascii_lowercase();
+    let idx = lower.find("runtime:")?;
+    let rest = message.get(idx + "runtime:".len()..)?.trim();
+    if rest.is_empty() {
+        None
+    } else {
+        Some(rest.to_string())
+    }
+}
+
+fn strip_runtime_from_message(message: &str) -> String {
+    let lower = message.to_ascii_lowercase();
+    if let Some(idx) = lower.find("runtime:") {
+        return message[..idx].trim().trim_end_matches('-').trim().to_string();
+    }
+    message.trim().to_string()
+}
+
+fn is_resolution_message(message: &str) -> bool {
+    message.trim_start().starts_with("[RESOLVED]")
+}
+
+fn strip_resolution_prefix(message: &str) -> String {
+    message
+        .trim_start()
+        .strip_prefix("[RESOLVED]")
+        .unwrap_or(message)
+        .trim()
+        .to_string()
+}
+
+fn contains_critical_keyword(message: &str, cfg: &serde_json::Value) -> bool {
+    let m = message.to_ascii_lowercase();
+
+    let built_in_keywords = [
+        "sofortalarm",
+        "ups hat auf batteriebetrieb gewechselt",
+        "batterie mode aktiviert",
+        "panic:",
+        "emergency",
+        "ueberfrequenz",
+        "unterfrequenz",
+        "offline!",
+    ];
+
+    if built_in_keywords.iter().any(|k| m.contains(k)) {
+        return true;
+    }
+
+    cfg["telegram"]["critical_error_keywords"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty())
+                .any(|kw| m.contains(&kw))
+        })
+        .unwrap_or(false)
+}
+
+fn should_send_telegram_for_error(level: &str, message: &str, cfg: &serde_json::Value) -> bool {
+    if !level.eq_ignore_ascii_case("error") {
+        return false;
+    }
+    contains_critical_keyword(message, cfg)
+}
+
+fn telegram_rate_limited(fingerprint: &str, timestamp_ms: u64) -> bool {
+    let gate = TELEGRAM_LAST_SENT.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut map = match gate.lock() {
+        Ok(m) => m,
+        Err(_) => return true,
+    };
+
+    if let Some(last) = map.get(fingerprint) {
+        if timestamp_ms.saturating_sub(*last) < TELEGRAM_MIN_REPEAT_MS {
+            return true;
+        }
+    }
+
+    map.insert(fingerprint.to_string(), timestamp_ms);
+    false
+}
+
+fn build_telegram_alarm_text(cfg: &serde_json::Value, message: &str, timestamp_ms: u64) -> String {
+    let location = cfg["location_name"].as_str().unwrap_or("Standort unbekannt").trim();
+    let location = if location.is_empty() { "Standort unbekannt" } else { location };
+    let country = detect_country_code_from_location(location);
+    let flag = country
+        .and_then(country_code_to_flag_emoji)
+        .unwrap_or_else(|| "📍".to_string());
+    let anydesk = cfg["anydesk_address"].as_str().unwrap_or("").trim();
+
+    let message_clean = strip_runtime_from_message(message);
+    let mut lines = vec![
+        format!("🚨{}{}🚨", flag, location),
+        format_human_datetime(timestamp_ms),
+        message_clean,
+    ];
+
+    let is_ups_battery = message.to_ascii_lowercase().contains("batteriebetrieb");
+    if is_ups_battery {
+        if let Some(rt) = extract_runtime_from_message(message) {
+            lines.push(format!("Runtime: {}", rt));
+        }
+    }
+
+    if !anydesk.is_empty() {
+        lines.push(format!(
+            "Anydeskadresse: <a href=\"anydesk://{}\">{}</a>",
+            anydesk, anydesk
+        ));
+    }
+
+    lines.join("\n")
+}
+
+fn build_telegram_resolved_text(cfg: &serde_json::Value, message: &str, timestamp_ms: u64) -> String {
+    let location = cfg["location_name"].as_str().unwrap_or("Standort unbekannt").trim();
+    let location = if location.is_empty() { "Standort unbekannt" } else { location };
+    let country = detect_country_code_from_location(location);
+    let flag = country
+        .and_then(country_code_to_flag_emoji)
+        .unwrap_or_else(|| "📍".to_string());
+
+    let resolved = strip_resolution_prefix(message);
+    let text = if resolved.is_empty() {
+        "Error geloest".to_string()
+    } else {
+        resolved
+    };
+
+    format!(
+        "✅{}{}✅\n{}\n{}",
+        flag,
+        location,
+        format_human_datetime(timestamp_ms),
+        text
+    )
+}
+
+fn send_telegram_message_async(bot_token: String, chat_id: String, text: String) {
+    thread::spawn(move || {
+        let url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(6))
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = write_app_log("error", &format!("Telegram client init failed: {}", e), now_timestamp_ms(), None);
+                return;
+            }
+        };
+
+        let form = [
+            ("chat_id", chat_id),
+            ("text", text),
+            ("parse_mode", "HTML".to_string()),
+            ("disable_web_page_preview", "true".to_string()),
+        ];
+
+        match client.post(url).form(&form).send() {
+            Ok(resp) => {
+                if !resp.status().is_success() {
+                    let _ = write_app_log(
+                        "error",
+                        &format!("Telegram send failed with status {}", resp.status()),
+                        now_timestamp_ms(),
+                        None,
+                    );
+                }
+            }
+            Err(e) => {
+                let _ = write_app_log("error", &format!("Telegram send request failed: {}", e), now_timestamp_ms(), None);
+            }
+        }
+    });
+}
+
+fn maybe_send_critical_telegram(level: &str, message: &str, timestamp_ms: u64) {
+    let cfg = get_config();
+    if !cfg["telegram"]["enabled"].as_bool().unwrap_or(false) {
+        return;
+    }
+
+    let bot_token = cfg["telegram"]["bot_token"].as_str().unwrap_or("").trim().to_string();
+    let chat_id = cfg["telegram"]["chat_id"].as_str().unwrap_or("").trim().to_string();
+    if bot_token.is_empty() || chat_id.is_empty() {
+        return;
+    }
+
+    if is_resolution_message(message) && level.eq_ignore_ascii_case("info") {
+        let fingerprint = format!("resolved:{}", strip_resolution_prefix(message));
+        if telegram_rate_limited(&fingerprint, timestamp_ms) {
+            return;
+        }
+        let text = build_telegram_resolved_text(&cfg, message, timestamp_ms);
+        send_telegram_message_async(bot_token, chat_id, text);
+        return;
+    }
+
+    if !should_send_telegram_for_error(level, message, &cfg) {
+        return;
+    }
+
+    let category = classify_error_category(message);
+    let fingerprint = format!("{}:{}", category, message);
+    if telegram_rate_limited(&fingerprint, timestamp_ms) {
+        return;
+    }
+
+    let text = build_telegram_alarm_text(&cfg, message, timestamp_ms);
+    send_telegram_message_async(bot_token, chat_id, text);
 }
 
 fn install_panic_logging_hook() {
@@ -1074,8 +1399,18 @@ async fn camera_stream_frame(ip: String, stream: Option<u8>) -> Result<String, S
 async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
     let community = "Projektil";
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
-    socket.set_read_timeout(Some(Duration::from_millis(2000))).ok();
+    socket.set_read_timeout(Some(Duration::from_millis(450))).ok();
     socket.connect(format!("{}:161", ip)).map_err(|e| e.to_string())?;
+
+    // Fast-fail on unreachable UPS: only query critical OIDs first.
+    let fast_bat_status = snmp_query_raw(&socket, community, &[1,3,6,1,4,1,318,1,1,1,2,1,1,0])
+        .and_then(|raw| extract_snmp_value(&raw));
+    let fast_output_online = snmp_query_raw(&socket, community, &[1,3,6,1,4,1,318,1,1,1,4,1,2,0])
+        .and_then(|raw| extract_snmp_value(&raw));
+
+    if fast_bat_status.is_none() && fast_output_online.is_none() {
+        return Err("UPS antwortet nicht auf SNMP-Abfragen".to_string());
+    }
 
     let queries: Vec<(&str, Vec<u32>)> = vec![
         ("bat_status",      vec![1,3,6,1,4,1,318,1,1,1,2,1,1,0]), 
@@ -1096,7 +1431,16 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
     ];
 
     let mut result = serde_json::Map::new();
+    if let Some(v) = fast_bat_status {
+        result.insert("bat_status".to_string(), serde_json::json!(v));
+    }
+    if let Some(v) = fast_output_online {
+        result.insert("output_online".to_string(), serde_json::json!(v));
+    }
     for (key, oid) in &queries {
+        if result.contains_key(*key) {
+            continue;
+        }
         let packet = snmp_get_packet(community, oid);
         if socket.send(&packet).is_ok() {
             let mut buf = [0u8; 512];
@@ -1178,6 +1522,46 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
     result.insert("warnings".to_string(), serde_json::json!(warnings));
 
     Ok(serde_json::Value::Object(result))
+}
+
+#[tauri::command]
+async fn ups_get_power_mode(ip: String) -> Result<serde_json::Value, String> {
+    let community = "Projektil";
+    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+    socket.set_read_timeout(Some(Duration::from_millis(250))).ok();
+    socket.connect(format!("{}:161", ip)).map_err(|e| e.to_string())?;
+
+    let bat_status = snmp_query_raw(&socket, community, &[1,3,6,1,4,1,318,1,1,1,2,1,1,0])
+        .and_then(|raw| extract_snmp_value(&raw));
+    let output_status = snmp_query_raw(&socket, community, &[1,3,6,1,4,1,318,1,1,1,4,1,1,0])
+        .and_then(|raw| extract_snmp_value(&raw));
+    let output_online = snmp_query_raw(&socket, community, &[1,3,6,1,4,1,318,1,1,1,4,1,2,0])
+        .and_then(|raw| extract_snmp_value(&raw));
+
+    if bat_status.is_none() && output_status.is_none() && output_online.is_none() {
+        return Err("UPS antwortet nicht auf SNMP-Abfragen".to_string());
+    }
+
+    // Priority: explicit battery state from output_status, then bat_status, then output_online fallback.
+    let on_mains = match (bat_status, output_status, output_online) {
+        // APC output status commonly reports 2=online, 3=onBattery
+        (_, Some(3), _) | (_, Some(5), _) => false,
+        (_, Some(2), _) => true,
+        // RFC1628: upsBatteryStatus 2 = batteryNormal (typically mains)
+        (Some(2), _, _) => true,
+        // RFC1628: 3/4 indicate battery-low or battery-fault -> not on mains
+        (Some(3), _, _) | (Some(4), _, _) => false,
+        // Legacy fallback used by existing UI logic
+        (_, _, Some(1)) => true,
+        _ => false,
+    };
+
+    Ok(serde_json::json!({
+        "on_mains": on_mains,
+        "bat_status": bat_status,
+        "output_status": output_status,
+        "output_online": output_online
+    }))
 }
 
 fn decode_asn1_length(data: &[u8], offset: usize) -> Option<(usize, usize)> {
@@ -1871,8 +2255,100 @@ fn open_external_url(url: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<bool, String> {
+    let config_path = "config.json";
+    let content = fs::read_to_string(config_path).map_err(|e| e.to_string())?;
+    let mut cfg: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    if let Some(obj) = cfg.as_object_mut() {
+        obj.insert("location_name".to_string(), serde_json::json!(location_name.trim()));
+        obj.insert("anydesk_address".to_string(), serde_json::json!(anydesk_address.trim()));
+    }
+
+    let out = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
+    fs::write(config_path, out).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String) -> Result<bool, String> {
+    let config_path = "config.json";
+    let content = fs::read_to_string(config_path).map_err(|e| e.to_string())?;
+    let mut cfg: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    if let Some(obj) = cfg.as_object_mut() {
+        let telegram = obj.entry("telegram").or_insert_with(|| serde_json::json!({}));
+        if let Some(t) = telegram.as_object_mut() {
+            t.insert("enabled".to_string(), serde_json::json!(enabled));
+            t.insert("bot_token".to_string(), serde_json::json!(bot_token.trim()));
+            t.insert("chat_id".to_string(), serde_json::json!(chat_id.trim()));
+        }
+    }
+
+    let out = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
+    fs::write(config_path, out).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn telegram_send_test(bot_token: String, chat_id: String) -> Result<String, String> {
+    let token = bot_token.trim().to_string();
+    let chat  = chat_id.trim().to_string();
+    if token.is_empty() || chat.is_empty() {
+        return Err("Bot-Token oder Chat-ID fehlt".to_string());
+    }
+    
+    // Load config for location and AnyDesk
+    let config_path = "config.json";
+    let content = fs::read_to_string(config_path).map_err(|e| e.to_string())?;
+    let cfg: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    
+    // Build test message with formatted structure
+    let timestamp_ms = now_timestamp_ms();
+    let location = cfg["location_name"].as_str().unwrap_or("Standort unbekannt").trim();
+    let location = if location.is_empty() { "Standort unbekannt" } else { location };
+    let country = detect_country_code_from_location(location);
+    let flag = country
+        .and_then(country_code_to_flag_emoji)
+        .unwrap_or_else(|| "📍".to_string());
+    let anydesk = cfg["anydesk_address"].as_str().unwrap_or("").trim();
+    
+    let anydesk_line = if anydesk.is_empty() { 
+        String::new() 
+    } else { 
+        format!("\nAnydeskadresse: <a href=\"anydesk://{}\">{}</a>", anydesk, anydesk) 
+    };
+    
+    let text = format!(
+        "🧪{}{}🧪\n{}\nTest erfolgreich{}",
+        flag, location, format_human_datetime(timestamp_ms), anydesk_line
+    );
+    
+    let url = format!("https://api.telegram.org/bot{}/sendMessage", token);
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(8))
+        .build()
+        .map_err(|e| e.to_string())?;
+    
+    let form = [
+        ("chat_id", chat),
+        ("text", text),
+        ("parse_mode", "HTML".to_string()),
+        ("disable_web_page_preview", "true".to_string()),
+    ];
+    let resp = client.post(&url).form(&form).send().map_err(|e| e.to_string())?;
+    if resp.status().is_success() {
+        Ok("Testnachricht gesendet!".to_string())
+    } else {
+        Err(format!("Telegram API Fehler: {}", resp.status()))
+    }
+}
+
+#[tauri::command]
 fn append_app_log(app: AppHandle, level: String, message: String, timestamp_ms: Option<u64>) -> Result<bool, String> {
-    write_app_log(&level, &message, timestamp_ms.unwrap_or_else(now_timestamp_ms), Some(&app))?;
+    let ts = timestamp_ms.unwrap_or_else(now_timestamp_ms);
+    write_app_log(&level, &message, ts, Some(&app))?;
+    maybe_send_critical_telegram(&level, &message, ts);
     Ok(true)
 }
 
@@ -2279,6 +2755,20 @@ fn get_config() -> serde_json::Value {
         "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
         "projector_start": 101, "projector_count": 16,
         "hotline": "+41 XX XXX XX XX",
+        "location_name": "",
+        "anydesk_address": "",
+        "telegram": {
+            "enabled": false,
+            "bot_token": "",
+            "chat_id": "",
+            "critical_error_keywords": [
+                "sofortalarm",
+                "batteriebetrieb",
+                "panic",
+                "emergency",
+                "offline!"
+            ]
+        },
         "thresholds": {
             "v_min": 195.0,
             "v_max": 253.0,
@@ -2324,8 +2814,7 @@ fn main() {
             let menu = Menu::with_items(app, &[
                 &show, &sep, &mute_all, &power_all, &sep, &emergency, &sep, &quit
             ])?;
-            TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let mut tray_builder = TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip("PROJEKTIL Control")
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -2345,17 +2834,27 @@ fn main() {
                             let _ = w.show(); let _ = w.set_focus();
                         }
                     }
-                })
-                .build(app)?;
+                });
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            } else {
+                let _ = write_app_log("error", "Tray icon missing: default_window_icon() returned None", now_timestamp_ms(), Some(&app_handle));
+            }
+
+            if let Err(e) = tray_builder.build(app) {
+                let _ = write_app_log("error", &format!("Tray initialization failed: {}", e), now_timestamp_ms(), Some(&app_handle));
+            }
             if let Some(w) = app.get_webview_window("main") { let _ = w.center(); }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             d40_command, d40_ping, d40_status, d40_set_gain, http_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
-            ups_get_status, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
+            ups_get_status, ups_get_power_mode, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             minimize_window, toggle_fullscreen,
-            hide_to_tray, quit_app, open_external_url, append_app_log, load_app_logs, get_config
+            hide_to_tray, quit_app, open_external_url, append_app_log, load_app_logs, get_config,
+            save_site_metadata, save_telegram_config, telegram_send_test
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten");
