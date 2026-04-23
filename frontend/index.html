@@ -1330,6 +1330,8 @@ const CAMERA_STREAM_BLACKOUT_GRACE_MS = 15000;
 const CAMERA_STREAM_RETRY_DELAY_MS = 2500;
 const UPS_WATCH_INTERVAL_MS = 1000;
 const UPS_POLL_INTERVAL_MS = 1000;
+const LOCAL_BATTERY_WARN_THRESHOLD = 20;
+const LOCAL_BATTERY_POLL_INTERVAL_MS = 60000;
 let cameraPreviewIntervalMs = cameraViewMode==='stream' ? CAMERA_PREVIEW_INTERVAL_STREAM_MS : CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS;
 let cameraPreviewTimerId = null;
 const cameraPreviewInFlight = {1:false,2:false};
@@ -1339,6 +1341,7 @@ const cameraStreamDiagInFlight={1:false,2:false};
 let upsPrevOnMains = null;
 let upsPrevBatteryState = null;
 let upsWatchLastErrorAt = 0;
+let localBatteryLowAlertActive = false;
 
 async function invokeStrict(cmd, args){
   if (isDemoModeEnabled() && shouldBlockNetworkCommandInDemo(cmd)) {
@@ -2874,6 +2877,8 @@ async function init(){
   setInterval(pollAll,10000);
   setInterval(pollD40Status,5000);
   setInterval(syncProjectorsFromPjLink,5000);
+  setInterval(pollLocalBatteryStatus,LOCAL_BATTERY_POLL_INTERVAL_MS);
+  await pollLocalBatteryStatus();
   // 1 s tick: clock + cursor (cursor only fires when a dayrun timeline is playing)
   setInterval(()=>{ clockTick(); pollTimelineCursor(); tickNextEventCountdown(); },1000);
   // 5 s tick: transport-mode check for dayrun timelines
@@ -3350,6 +3355,27 @@ async function watchUpsBatteryMode(){
       addError(`[UPS] Battery-Watch FEHLER: ${e}`,{showBanner:false});
       upsWatchLastErrorAt=now;
     }
+  }
+}
+
+async function pollLocalBatteryStatus(){
+  if(demoMode) return;
+  try{
+    const d=await invoke('system_get_battery_status');
+    if(!d || d.available!==true) return;
+    const pct=Number(d.percent??-1);
+    if(!Number.isFinite(pct) || pct<0) return;
+
+    if(pct<LOCAL_BATTERY_WARN_THRESHOLD){
+      if(!localBatteryLowAlertActive){
+        localBatteryLowAlertActive=true;
+        addError(`[SYSTEM] AKKU WARNUNG: Akkustand unter ${LOCAL_BATTERY_WARN_THRESHOLD}% (aktuell ${pct}%).`);
+      }
+    } else {
+      localBatteryLowAlertActive=false;
+    }
+  }catch(_e){
+    // Not all systems expose a local battery (e.g. desktop workstation)
   }
 }
 
@@ -4257,11 +4283,17 @@ function updateErrorBadge(){
   if(c===0){document.getElementById('tb-warn-pill')?.classList.remove('show');document.getElementById('warn-banner')?.classList.remove('show');}
 }
 
+function isUpsErrorMessage(msg){
+  return /\[ups\]|\bups\b/i.test(String(msg || ''));
+}
+
 window.clearAllErrors=()=>{
   const snapshot=[...errors];
   const total=snapshot.length;
   snapshot.forEach((e,idx)=>{
-    addLog('info', `[RESOLVED] Error ${idx+1}/${total} geloest: ${e.msg}`);
+    if(isUpsErrorMessage(e.msg)){
+      addLog('info', `[RESOLVED] Error ${idx+1}/${total} geloest: ${e.msg}`);
+    }
   });
   errors.length=0;
   renderErrors();
@@ -4271,7 +4303,9 @@ window.ackErrorById=(id)=>{
   const idx=errors.findIndex(e=>e.id===id);
   if(idx===-1)return;
   const entry=errors[idx];
-  addLog('info', `[RESOLVED] Error 1/1 geloest: ${entry.msg}`);
+  if(isUpsErrorMessage(entry.msg)){
+    addLog('info', `[RESOLVED] Error 1/1 geloest: ${entry.msg}`);
+  }
   errors.splice(idx,1);
   renderErrors();
   updateErrorBadge();
