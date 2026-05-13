@@ -1,0 +1,3342 @@
+{
+ "api": [
+  {
+   "body": "if self._autoInitChecked ~= true then\n\tself._autoInitChecked = true\n\tlocal autoInitEnabled = false\n\tlocal ok = pcall(function()\n\t\tif self.helper == nil then\n\t\t\trequire \"pixcHelper\"\n\t\t\tself.helper = createPixcHelper(pixc,self())\n\t\tend\n\t\tautoInitEnabled = tostring(self.helper:getProperty(\"Auto Init\")) == \"true\"\n\tend)\n\tif ok and autoInitEnabled and self.isInit ~= true and self.isDuringInit ~= true then\n\t\tself.init()\n\tend\nend\nreturn self()\n",
+   "kind": "func",
+   "name": "ref",
+   "path": "Projektil_EventScheduler_V21.ref",
+   "slotStyle": "leftIn;rightNone"
+  },
+  {
+   "body": "local initNow = os.clock()\nif self.isInit == true and self._lastInitAt ~= nil and (initNow - self._lastInitAt) < 0.5 then\n\treturn\nend\nif self.isDuringInit == true then\n\treturn\nend\nself.isDuringInit = true\nif self.isInit == true then\n\tself.uninit()\n\tUtils.Timer.sleep(500)\nend\nif self.json == nil then\n\tself.json = require \"json\"\nend\nif self.helper == nil then\n\trequire \"pixcHelper\"\n\tself.helper = createPixcHelper(pixc,self())\nend\nif self.interval ~= nil then\n\tfor retry = 1, 3 do\n\t\tpcall(function()\n\t\t\tpixc.getRoot().Utils.Timer.clearInterval(self.interval)\n\t\tend)\n\t\tif retry < 3 then Utils.Timer.sleep(100) end\n\tend\n\tself.interval = nil\nend\nUtils.Timer.sleep(200)\nself.interval = pixc.getRoot().Utils.Timer.setInterval(\n\tfunction()\n\t\tself.Time()\n\tend, 1000\n)\nif self.timetable == nil then\n\tself.dropdown()\nend\nself.timeFormatCode = self.timetable[self.helper:getProperty(\"Time Format\")]\nself._upcomingLimit = tonumber(self.helper:getProperty(\"Upcoming Events Limit\")) or 8\nself._includeWarmupEvents = tostring(self.helper:getProperty(\"Include Warmup Events\")) == \"true\"\nself._timelineCheckDelay = tonumber(self.helper:getProperty(\"Timeline Check Delay Seconds\")) or 30\nself._upcomingDirty = true\nself._nextUpcomingRefresh = 0\nself._pendingTimelineChecks = {}\nself.moduleNameString = self()..\"\"\nif self.ensureSchedule() ~= true then\n\tself.isDuringInit = nil\n\tpixc.error(self()..\": Failed to initialize scheduler.\")\n\treturn\nend\nif self.Events ~= nil then\n\tfor actionName, action in pairs(self.Events) do\n\t\tif type(action) == \"function\" then\n\t\t\tlocal eventInfo = self[\"_\"..actionName]\n\t\t\tif eventInfo ~= nil and eventInfo ~= \"\" then\n\t\t\t\tlocal Event = self.helper.stringSplit(eventInfo, \";\")\n\t\t\t\tlocal EventTime = Event[1] or eventInfo\n\t\t\t\tlocal recurrence = nil\n\t\t\t\tEventTime, recurrence = self.convertTime(EventTime, Event[2])\n\t\t\t\tif EventTime ~= nil then\n\t\t\t\t\tself.registerEvent(EventTime, actionName, recurrence)\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\nend\n-- Check for missed events on startup\nself.checkMissedEvents()\nself.isInit = true\nself._lastInitAt = os.clock()\nself.isDuringInit = nil\npixc.log(self()..\": Init complete\")\n",
+   "kind": "func",
+   "name": "init",
+   "path": "Projektil_EventScheduler_V21.init",
+   "slotStyle": "leftIn;rightNone"
+  },
+  {
+   "body": "if self.interval ~= nil then\n\tpcall(function()\n\t\tpixc.getRoot().Utils.Timer.clearInterval(self.interval)\n\tend)\n\tself.interval = nil\nend\nif self.schedule ~= nil then\n\tpcall(function()\n\t\tself.schedule.remove()\n\tend)\n\tself.schedule = nil\nend\nself.isInit = nil\n",
+   "kind": "func",
+   "name": "uninit",
+   "path": "Projektil_EventScheduler_V21.uninit",
+   "slotStyle": "leftIn;rightNone"
+  },
+  {
+   "body": "if self.moduleNameString == nil or self.moduleNameString == \"\" then\n\tself.moduleNameString = self()..\"\"\nend\nlocal existing = Utils.Scheduler.getSchedule(self.moduleNameString)\nif existing ~= nil then\n\tpcall(function()\n\t\texisting.remove()\n\tend)\nend\nlocal created = Utils.Scheduler.createSchedule(self.moduleNameString, self.moduleNameString)\nif created == nil then\n\tself.schedule = nil\n\treturn false\nend\nlocal okMode = pcall(function()\n\tcreated.setTimeMode(\"Local\")\nend)\nif not okMode then\n\tself.schedule = nil\n\treturn false\nend\nself.schedule = created\nreturn true\n",
+   "kind": "func",
+   "name": "ensureSchedule",
+   "path": "Projektil_EventScheduler_V21.ensureSchedule",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "day = tonumber(day)\nmonth = tonumber(month)\nyear = tonumber(year)\nif day == nil or month == nil or year == nil then return false end\nif year < 1970 or year > 2755 then return false end\nif month < 1 or month > 12 then return false end\nlocal dim = {31,28,31,30,31,30,31,31,30,31,30,31}\nlocal leap = (year % 4 == 0 and year % 100 ~= 0) or (year % 400 == 0)\nif leap then dim[2] = 29 end\nreturn day >= 1 and day <= dim[month]\n",
+   "kind": "func",
+   "name": "isValidDateParts",
+   "params": [
+    {
+     "name": "day",
+     "type": "number"
+    },
+    {
+     "name": "month",
+     "type": "number"
+    },
+    {
+     "name": "year",
+     "type": "number"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.isValidDateParts",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "hour = tonumber(hour)\nminute = tonumber(minute)\nsecond = tonumber(second)\nif hour == nil or minute == nil or second == nil then return false end\nif hour < 0 or hour > 23 then return false end\nif minute < 0 or minute > 59 then return false end\nif second < 0 or second > 59 then return false end\nreturn true\n",
+   "kind": "func",
+   "name": "isValidTimeParts",
+   "params": [
+    {
+     "name": "hour",
+     "type": "number"
+    },
+    {
+     "name": "minute",
+     "type": "number"
+    },
+    {
+     "name": "second",
+     "type": "number"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.isValidTimeParts",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "dayRun = tonumber(dayRun)\nif dayRun == nil then return end\nif self._pendingTimelineChecks == nil then self._pendingTimelineChecks = {} end\ntable.insert(self._pendingTimelineChecks, {\n\ttime = os.time() + (self._timelineCheckDelay or 30),\n\tdayRun = dayRun\n})\n",
+   "kind": "func",
+   "name": "enqueueTimelineCheck",
+   "params": [
+    {
+     "name": "dayRun",
+     "type": "number"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.enqueueTimelineCheck",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "local tlFormat = \"\"\nif self.helper ~= nil then\n\ttlFormat = self.helper:getProperty(\"Timeline Name Format\") or \"\"\nend\nif tlFormat == \"\" then\n\tpixc.warning(self()..\": Timeline Name Format is not set. Cannot verify timeline for DayRun_\"..tostring(pendingDayRun)..\".\")\n\treturn\nend\nlocal timelineName = tlFormat:gsub(\"%%d\", tostring(pendingDayRun))\nlocal ok, timelines = pcall(function() return Pixera.Timelines.getTimelines() end)\nif not ok or timelines == nil then\n\tpixc.warning(self()..\": Could not retrieve timelines from Pixera API. Timeline check skipped.\")\n\treturn\nend\nlocal found = false\nfor _, tl in ipairs(timelines) do\n\tlocal ok2, tlName = pcall(function() return tl.getName() end)\n\tif ok2 and tlName == timelineName then\n\t\tfound = true\n\t\tlocal ok3, mode = pcall(function() return tl.getTransportMode() end)\n\t\tif ok3 then\n\t\t\tif mode == 1 then\n\t\t\t\tpixc.log(self()..\": Timeline '\"..timelineName..\"' is playing correctly.\")\n\t\t\telse\n\t\t\t\tlocal modeStr = ({[1]=\"Play\",[2]=\"Pause\",[3]=\"Stop\"})[mode] or tostring(mode)\n\t\t\t\tpixc.warning(self()..\": TIMELINE ERROR - '\"..timelineName\n\t\t\t\t\t..\"' is not playing after DayRun_\"..pendingDayRun..\" fired (mode: \"..modeStr..\").\")\n\t\t\t\tself.OnTimelineError(timelineName)\n\t\t\tend\n\t\telse\n\t\t\tpixc.warning(self()..\": Could not get transport mode for '\"..timelineName..\"'.\")\n\t\t\tself.OnTimelineError(timelineName)\n\t\tend\n\t\tbreak\n\tend\nend\nif not found then\n\tpixc.warning(self()..\": TIMELINE ERROR - Timeline '\"..timelineName..\"' not found in Pixera.\")\n\tself.OnTimelineError(timelineName)\nend\n",
+   "kind": "func",
+   "name": "checkTimelineForDayRun",
+   "params": [
+    {
+     "name": "pendingDayRun",
+     "type": "number"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.checkTimelineForDayRun",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "if time == nil or format == nil then return end\nif self.helper == nil then\n\trequire \"pixcHelper\"\n\tself.helper = createPixcHelper(pixc,self())\nend\nlocal internalFormat = self.timetable[format]\nif internalFormat == nil then\n\tpixc.error(self()..\": Unknown time format: \"..tostring(format))\n\treturn\nend\nif internalFormat == \"%Y-%m-%d %X\" then\n\ttime = string.gsub(time, \"%.\", \"-\")\n\treturn time, \"\"\nend\nif internalFormat == \"%X\" then\n\treturn os.date(\"%Y-%m-%d\") .. \" \" .. time, \"every 1 day\"\nend\nif internalFormat == \"%M:%S\" then\n\treturn os.date(\"%Y-%m-%d %H:\") .. time, \"every 1 hour\"\nend\nif internalFormat == \"%S\" then\n\treturn os.date(\"%Y-%m-%d %H:%M:\") .. time, \"every 1 minute\"\nend\nif internalFormat == \"%a %X\" then\n\tlocal parts = self.helper.stringSplit(time, \" \")\n\tif #parts ~= 2 then\n\t\tpixc.error(self()..\": DayName format must be e.g. 'Mon 09:00:00'\")\n\t\treturn\n\tend\n\treturn os.date(\"%Y-%m-%d\") .. \" \" .. parts[2], \"every 1 week on \" .. parts[1]\nend\n",
+   "kind": "func",
+   "name": "convertTime",
+   "params": [
+    {
+     "name": "time",
+     "type": "string"
+    },
+    {
+     "name": "format",
+     "type": "string"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.convertTime",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "if self.helper == nil then\n\trequire \"pixcHelper\"\n\tself.helper = createPixcHelper(pixc,self())\nend\nif self.json == nil then\n\tself.json = require \"json\"\nend\nlocal eventDate    = self.helper:getProperty(\"Event Date\")\nlocal eventTime    = self.helper:getProperty(\"Event Time\")\nlocal dayRunNumStr = self.helper:getProperty(\"DayRun\")\nlocal warmupOffset = tonumber(self.helper:getProperty(\"Projector Warmup Minutes\")) or 0\n-- Validate date (DD.MM.YYYY or DD.MM.YY)\nlocal dd, mm, yyyy = eventDate:match(\"(%d+)%.(%d+)%.(%d+)\")\nif not dd then\n\tpixc.error(self()..\": Event Date '\"..tostring(eventDate)..\"' is invalid. Expected format: DD.MM.YYYY (e.g. 13.03.2026)\")\n\treturn\nend\n-- Validate time (HH:MM or HH:MM:SS)\nlocal hh, mn, ss = eventTime:match(\"(%d+):(%d+):?(%d*)\")\nif not hh or not mn then\n\tpixc.error(self()..\": Event Time '\"..tostring(eventTime)..\"' is invalid. Expected format: HH:MM or HH:MM:SS (e.g. 17:00 or 17:00:00)\")\n\treturn\nend\ndd = tonumber(dd)\nmm = tonumber(mm)\nyyyy = tonumber(yyyy)\nhh = tonumber(hh)\nmn = tonumber(mn)\nss = tonumber(ss) or 0\nif not self.isValidDateParts(dd, mm, yyyy) then\n\tpixc.error(self()..\": Event Date '\"..tostring(eventDate)..\"' is out of valid range.\")\n\treturn\nend\nif not self.isValidTimeParts(hh, mn, ss) then\n\tpixc.error(self()..\": Event Time '\"..tostring(eventTime)..\"' is out of valid range.\")\n\treturn\nend\n-- Validate DayRun number\nlocal dayRunNum = tonumber(dayRunNumStr)\nif not dayRunNum or dayRunNum < 1 then\n\tpixc.error(self()..\": DayRun '\"..tostring(dayRunNumStr)..\"' is invalid. Please enter a positive number (e.g. 1, 2, 3).\")\n\treturn\nend\ndayRunNum = math.floor(dayRunNum)\n-- Auto-generate names (same style as CSV import)\nlocal yearShort = tostring(yyyy):sub(-2)\nlocal datePrefix = string.format(\"%02d%02d%s\", dd, mm, yearShort)\nlocal wName = \"Warmup_\"..datePrefix..\"_DR\"..dayRunNum\nlocal sName = \"Day_\"..datePrefix..\"_DR\"..dayRunNum\n-- Collect existing events and check for duplicates\nlocal module = {}\nif self.Events ~= nil then\n\tfor i, n in pairs(self.Events) do\n\t\tif type(n) == \"function\" then\n\t\t\tif i == wName or i == sName or i == (\"Shutdown_\"..datePrefix..\"_DR\"..dayRunNum) then\n\t\t\t\tpixc.error(self()..\": Event for \"..eventDate..\" DayRun \"..dayRunNum..\" already exists (\"..i..\"). Use a different date/DayRun or clear all events first.\")\n\t\t\t\treturn\n\t\t\tend\n\t\t\ttable.insert(module, {cont=\"true\", name=i})\n\t\tend\n\tend\nend\n-- Ensure this DayRun exists in the DayRuns namespace; create it if missing\nlocal actionName = \"DayRun_\"..dayRunNum\nlocal dayRunExists = false\nif self.DayRuns ~= nil then\n\tlocal ok, result = pcall(function() return self.DayRuns[actionName] end)\n\tif ok and result ~= nil then dayRunExists = true end\nend\nif not dayRunExists then\n\tpixc.warning(self()..\": Action '\"..actionName..\"' not found in DayRuns namespace! Creating it automatically. Please connect DayRuns.\"..actionName..\" to the matching timeline in the Control graph.\")\n\tlocal dayRunActions = {}\n\tif self.DayRuns ~= nil then\n\t\tfor n, fn in pairs(self.DayRuns) do\n\t\t\tif type(fn) == \"function\" then\n\t\t\t\tlocal existingNum = tonumber(tostring(n):match(\"^DayRun_(%d+)$\"))\n\t\t\t\tif existingNum ~= nil and existingNum ~= dayRunNum then\n\t\t\t\t\ttable.insert(dayRunActions, {\n\t\t\t\t\t\tkind=\"func\", name=n, slotStyle=\"leftIn;rightOut\",\n\t\t\t\t\t\tbody=\"pixc.report(\\\"\"..n..\"\\\"); pixc.callRefs(\\\"\"..n..\"\\\")\\n\"\n\t\t\t\t\t\t\t..\"self.enqueueTimelineCheck(\"..existingNum..\")\",\n\t\t\t\t\t\tparams={}\n\t\t\t\t\t})\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\n\ttable.insert(dayRunActions, {\n\t\tkind=\"func\", name=actionName, slotStyle=\"leftIn;rightOut\",\n\t\tbody=\"pixc.report(\\\"\"..actionName..\"\\\"); pixc.callRefs(\\\"\"..actionName..\"\\\")\\n\"\n\t\t\t..\"self.enqueueTimelineCheck(\"..dayRunNum..\")\",\n\t\tparams={}\n\t})\n\tself().dynamicRebuildFromDescriptions(self.json.encode(dayRunActions), \"DayRuns\", \"(.*)\")\nend\n-- Calculate warmup and show times\nlocal startTimeEpoch = os.time({\n\tyear=yyyy, month=mm, day=dd,\n\thour=hh, min=mn, sec=ss\n})\nif startTimeEpoch == nil then\n\tpixc.error(self()..\": Could not create event time from Date/Time. Please check values.\")\n\treturn\nend\nlocal warmupEpoch   = startTimeEpoch - (warmupOffset * 60)\nlocal warmupTimeStr = os.date(\"%Y.%m.%d %H:%M:%S\", warmupEpoch)\nlocal showTimeStr   = os.date(\"%Y.%m.%d %H:%M:%S\", startTimeEpoch)\n-- Warmup event (triggers PowerAll)\ntable.insert(module, {\n\tkind=\"func\", attKind=\"internal\", name=wName, slotStyle=\"leftNone;rightOut\",\n\tattReports={[\"0\"]=warmupTimeStr..\";YYYY.MM.DD HH:MM:SS\"},\n\tparams={{name=\"val\",type=\"string\"},{name=\"doSet\",type=\"bool\"}},\n\tbody=\"--custom_attribute\\n\"\n\t\t..\"if val ~= nil then self._\"..wName..\"=val; return val end\\n\"\n\t\t..\"self._fired_\"..wName..\"=os.time()\\n\"\n\t\t..\"self.PowerAll(); return self._\"..wName\n})\nself[\"_\"..wName] = warmupTimeStr..\";YYYY.MM.DD HH:MM:SS\"\n-- Show event (triggers DayRuns.DayRun_X)\nlocal callBody = \"self.DayRuns.DayRun_\"..dayRunNum..\"()\"\ntable.insert(module, {\n\tkind=\"func\", attKind=\"internal\", name=sName, slotStyle=\"leftNone;rightOut\",\n\tattReports={[\"0\"]=showTimeStr..\";YYYY.MM.DD HH:MM:SS\"},\n\tparams={{name=\"val\",type=\"string\"},{name=\"doSet\",type=\"bool\"}},\n\tbody=\"--custom_attribute\\n\"\n\t\t..\"if val ~= nil then self._\"..sName..\"=val; return val end\\n\"\n\t\t..\"self._fired_\"..sName..\"=os.time()\\n\"\n\t\t..callBody..\"; return self._\"..sName\n})\nself[\"_\"..sName] = showTimeStr..\";YYYY.MM.DD HH:MM:SS\"\n-- Shutdown event (triggers PowerOff)\nlocal shutdownTimeStr = self.helper:getProperty(\"Shutdown Time\")\nif shutdownTimeStr ~= nil and shutdownTimeStr ~= \"\" then\n\tlocal shH, shM, shS = shutdownTimeStr:match(\"(%d+):(%d+):?(%d*)\")\n\tif shH and shM then\n\t\tshH = tonumber(shH); shM = tonumber(shM); shS = tonumber(shS) or 0\n\t\tif self.isValidTimeParts(shH, shM, shS) then\n\t\t\tlocal sdName = \"Shutdown_\"..datePrefix..\"_DR\"..dayRunNum\n\t\t\tlocal shutEpoch = os.time({year=yyyy, month=mm, day=dd, hour=shH, min=shM, sec=shS})\n\t\t\tlocal shutTimeStr2 = os.date(\"%Y.%m.%d %H:%M:%S\", shutEpoch)\n\t\t\ttable.insert(module, {\n\t\t\t\tkind=\"func\", attKind=\"internal\", name=sdName, slotStyle=\"leftNone;rightOut\",\n\t\t\t\tattReports={[\"0\"]=shutTimeStr2..\";YYYY.MM.DD HH:MM:SS\"},\n\t\t\t\tparams={{name=\"val\",type=\"string\"},{name=\"doSet\",type=\"bool\"}},\n\t\t\t\tbody=\"--custom_attribute\\n\"\n\t\t\t\t\t..\"if val ~= nil then self._\"..sdName..\"=val; return val end\\n\"\n\t\t\t\t\t..\"self._fired_\"..sdName..\"=os.time()\\n\"\n\t\t\t\t\t..\"self.PowerOff(); return self._\"..sdName\n\t\t\t})\n\t\t\tself[\"_\"..sdName] = shutTimeStr2..\";YYYY.MM.DD HH:MM:SS\"\n\t\t\tpixc.log(self()..\": Shutdown event: \"..sdName..\" at \"..shutTimeStr2)\n\t\tend\n\tend\nend\n-- Rebuild Events namespace and re-init scheduler\nself().dynamicRebuildFromDescriptions(self.json.encode(module), \"Events\", \"(.*)\")\nUtils.Timer.sleep(500)\nself.init()\nself._upcomingDirty = true\npixc.log(self()..\": Manual events created: \"..wName..\" at \"..warmupTimeStr..\" | \"..sName..\" at \"..showTimeStr)\n",
+   "kind": "func",
+   "name": "createEvent",
+   "path": "Projektil_EventScheduler_V21.createEvent",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "if self.helper == nil then\n\trequire \"pixcHelper\"\n\tself.helper = createPixcHelper(pixc,self())\nend\nif self.json == nil then self.json = require \"json\" end\nlocal filePath = self.helper:getProperty(\"CSV File Path\")\nlocal warmupOffset = tonumber(self.helper:getProperty(\"Projector Warmup Minutes\")) or 0\nif filePath == nil or filePath == \"\" then\n\tpixc.error(self()..\": CSV File Path is empty. Please set the path in the 'CSV Import' section.\")\n\treturn\nend\nfilePath = filePath:match(\"^%s*(.-)%s*$\")\nlocal function splitCSVLine(line)\n\tlocal result = {}\n\tlocal field = \"\"; local inQuote = false\n\tfor i = 1, #line do\n\t\tlocal c = line:sub(i, i)\n\t\tif c == '\"' then inQuote = not inQuote\n\t\telseif c == \",\" and not inQuote then table.insert(result, field); field = \"\"\n\t\telse field = field .. c end\n\tend\n\ttable.insert(result, field)\n\treturn result\nend\nlocal file = io.open(filePath, \"r\")\nif not file then\n\tpixc.error(self()..\": Cannot open CSV file: '\"..filePath..\"'. NOTE: Path must be ASCII only - no umlauts (ae/oe/ue), spaces or brackets. Move file to e.g. C:\\\\Pixera\\\\Showtimings.csv.\")\n\treturn\nend\nlocal content = file:read(\"*a\"); file:close()\nlocal lines = {}\nfor line in content:gmatch(\"[^\\n\\r]+\") do table.insert(lines, line) end\nif #lines < 3 then\n\tpixc.error(self()..\": CSV file has fewer than 3 rows. Expected: row 1 = header, row 2 = time slots, row 3+ = show data.\")\n\treturn\nend\n-- Parse time slots from row 2 (columns 4+)\nlocal headerCells = splitCSVLine(lines[2])\nlocal timeSlotMap = {}       -- colIdx -> {h, m}\nlocal sortedCols = {}        -- sorted list of colIdx with valid time slots\nfor i = 4, #headerCells do\n\tlocal hh, mm = headerCells[i]:match(\"(%d%d?):(%d%d)\")\n\tif hh then\n\t\ttimeSlotMap[i] = {h=tonumber(hh), m=tonumber(mm)}\n\t\ttable.insert(sortedCols, i)\n\tend\nend\ntable.sort(sortedCols)\nif #sortedCols == 0 then\n\tpixc.error(self()..\": No valid time slots found in row 2 of the CSV. Expected format HH:MM (e.g. 09:00).\")\n\treturn\nend\n-- Pre-scan: collect all DayRun numbers used in the CSV\nlocal dayRunsInCSV = {}\nfor rowIdx = 3, #lines do\n\tlocal cells = splitCSVLine(lines[rowIdx])\n\tif #cells >= 3 then\n\t\tlocal drNum = cells[3]:match(\"(%d+)%s*$\")\n\t\tif drNum then dayRunsInCSV[tonumber(drNum)] = true end\n\tend\nend\n-- Rebuild DayRuns namespace (merge CSV DayRuns with existing ones)\nlocal dayRunActions = {}\nif self.DayRuns ~= nil then\n\tfor n, fn in pairs(self.DayRuns) do\n\t\tif type(fn) == \"function\" then\n\t\t\tlocal existingNum = tonumber(tostring(n):match(\"^DayRun_(%d+)$\"))\n\t\t\tif existingNum ~= nil and not dayRunsInCSV[existingNum] then\n\t\t\t\ttable.insert(dayRunActions, {\n\t\t\t\t\tkind=\"func\", name=n, slotStyle=\"leftIn;rightOut\",\n\t\t\t\t\tbody=\"pixc.report(\\\"\"..n..\"\\\"); pixc.callRefs(\\\"\"..n..\"\\\")\\n\"\n\t\t\t\t\t\t..\"self.enqueueTimelineCheck(\"..existingNum..\")\",\n\t\t\t\t\tparams={}\n\t\t\t\t})\n\t\t\tend\n\t\tend\n\tend\nend\nfor num, _ in pairs(dayRunsInCSV) do\n\tlocal n = \"DayRun_\"..num\n\tlocal isNew = true\n\tif self.DayRuns ~= nil then\n\t\tlocal ok, result = pcall(function() return self.DayRuns[n] end)\n\t\tif ok and result ~= nil then isNew = false end\n\tend\n\tif isNew then\n\t\tpixc.warning(self()..\": Action '\"..n..\"' is new – created automatically in DayRuns namespace. Please connect DayRuns.\"..n..\" to the matching timeline in the Control graph.\")\n\tend\n\ttable.insert(dayRunActions, {\n\t\tkind=\"func\", name=n, slotStyle=\"leftIn;rightOut\",\n\t\tbody=\"pixc.report(\\\"\"..n..\"\\\"); pixc.callRefs(\\\"\"..n..\"\\\")\\n\"\n\t\t\t..\"self.enqueueTimelineCheck(\"..num..\")\",\n\t\tparams={}\n\t})\nend\nif #dayRunActions > 0 then\n\tself().dynamicRebuildFromDescriptions(self.json.encode(dayRunActions), \"DayRuns\", \"(.*)\")\nend\n-- Build all Events: 3 events per day\n--   Warmup_DDMMYY_DRx  : TEST column time - warmupOffset min  -> PowerAll\n--   Day_DDMMYY_DRx     : TEST column time                     -> DayRun_X()\n--   Shutdown_DDMMYY_DRx: one slot AFTER last non-empty col    -> PowerOff()\nlocal module = {}\nlocal eventCount = 0\nlocal skippedRows = 0\nlocal noShowDays = {}\nlocal seenKeys = {}\nlocal duplicateCount = 0\nfor rowIdx = 3, #lines do\n\tlocal cells = splitCSVLine(lines[rowIdx])\n\tif #cells >= 3 then\n\t\tlocal dd, mm, yyyy = cells[2]:match(\"(%d+)%.(%d+)%.(%d+)\")\n\t\tlocal dayRunNum = cells[3]:match(\"(%d+)%s*$\")\n\t\tif dd then\n\t\t\tdd = tonumber(dd)\n\t\t\tmm = tonumber(mm)\n\t\t\tyyyy = tonumber(yyyy)\n\t\t\tif not self.isValidDateParts(dd, mm, yyyy) then\n\t\t\t\ttable.insert(noShowDays, cells[2]..\" (invalid date - no events created)\")\n\t\t\t\tskippedRows = skippedRows + 1\n\t\t\telse\n\t\t\t\tlocal numCount = 0\n\t\t\t\tif cells[3] then\n\t\t\t\t\tfor _ in cells[3]:gmatch(\"%d+\") do numCount = numCount + 1 end\n\t\t\t\tend\n\t\t\t\tif not dayRunNum then\n\t\t\t\t\tlocal dateStr = cells[2]\n\t\t\t\t\tlocal drInfo = (cells[3] ~= nil and cells[3]:match(\"%S\")) and cells[3] or \"no DayRun\"\n\t\t\t\t\ttable.insert(noShowDays, dateStr..\" (\"..drInfo..\" - rest day)\")\n\t\t\t\t\tskippedRows = skippedRows + 1\n\t\t\t\telseif numCount > 1 then\n\t\t\t\t\tpixc.error(self()..\": MULTI-DAYRUN - \"..cells[2]..\" contains multiple DayRuns: '\"\n\t\t\t\t\t\t..cells[3]..\"'. No events created for this day. Please add them manually.\")\n\t\t\t\t\ttable.insert(noShowDays, cells[2]..\" (MULTI-DAYRUN: '\"..cells[3]..\"' - add manually!)\")\n\t\t\t\t\tskippedRows = skippedRows + 1\n\t\t\t\telse\n\t\t\t\t\tlocal yyyyStr = tostring(yyyy)\n\t\t\t\t\tlocal yearSuffix = yyyyStr:sub(-2)\n\t\t\t\t\tlocal datePrefix = string.format(\"%02d%02d%s\", dd, mm, yearSuffix)\n\t\t\t\t\t-- Duplicate check\n\t\t\t\t\tlocal dupKey = datePrefix..\"_DR\"..dayRunNum\n\t\t\t\t\tif seenKeys[dupKey] then\n\t\t\t\t\t\tduplicateCount = duplicateCount + 1\n\t\t\t\t\t\tpixc.warning(self()..\": DUPLICATE - \"..cells[2]..\" DayRun \"..dayRunNum\n\t\t\t\t\t\t\t..\" found in rows \"..seenKeys[dupKey]..\" and \"..rowIdx..\".\")\n\t\t\t\t\tend\n\t\t\t\t\tseenKeys[dupKey] = rowIdx\n\t\t\t\t\t-- ── Find show start: first cell matching 'test' (case-insensitive) ──\n\t\t\t\t\tlocal showCol = nil\n\t\t\t\t\tfor _, colIdx in ipairs(sortedCols) do\n\t\t\t\t\t\tlocal val = cells[colIdx]\n\t\t\t\t\t\tif val ~= nil and val:lower():match(\"test\") then\n\t\t\t\t\t\t\tshowCol = colIdx\n\t\t\t\t\t\t\tbreak\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\t\t-- ── Find shutdown: one slot before the last non-empty cell ──\n\t\t\t\t\tlocal lastCol = nil\n\t\t\t\t\tfor i = #cells, 3, -1 do\n\t\t\t\t\t\tif cells[i] ~= nil and cells[i]:match(\"%S\") and timeSlotMap[i] then\n\t\t\t\t\t\t\tlastCol = i\n\t\t\t\t\t\t\tbreak\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\t\tlocal shutdownCol = nil\n\t\t\t\t\tif lastCol ~= nil then\n\t\t\t\t\t\t-- Shutdown = one slot AFTER the last occupied col (to the right)\n\t\t\t\t\t\tfor si = 1, #sortedCols do\n\t\t\t\t\t\t\tif sortedCols[si] == lastCol then\n\t\t\t\t\t\t\t\tif si < #sortedCols then shutdownCol = sortedCols[si + 1] end\n\t\t\t\t\t\t\t\tbreak\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\t\t-- ── Create events ──\n\t\t\t\t\tif showCol == nil then\n\t\t\t\t\t\ttable.insert(noShowDays, cells[2]..\" (no TEST cell found - no events created)\")\n\t\t\t\t\t\tskippedRows = skippedRows + 1\n\t\t\t\t\telseif shutdownCol == nil then\n\t\t\t\t\t\ttable.insert(noShowDays, cells[2]..\" (cannot determine shutdown time - no events created)\")\n\t\t\t\t\t\tskippedRows = skippedRows + 1\n\t\t\t\t\telse\n\t\t\t\t\t\tlocal showData = timeSlotMap[showCol]\n\t\t\t\t\t\tlocal shutData = timeSlotMap[shutdownCol]\n\t\t\t\t\t\tif self.isValidTimeParts(showData.h, showData.m, 0)\n\t\t\t\t\t\t\tand self.isValidTimeParts(shutData.h, shutData.m, 0) then\n\t\t\t\t\t\t\tlocal showEpoch = os.time({year=yyyy, month=mm, day=dd,\n\t\t\t\t\t\t\t\thour=showData.h, min=showData.m, sec=0})\n\t\t\t\t\t\t\tlocal shutEpoch = os.time({year=yyyy, month=mm, day=dd,\n\t\t\t\t\t\t\t\thour=shutData.h, min=shutData.m, sec=0})\n\t\t\t\t\t\t\tif showEpoch ~= nil and shutEpoch ~= nil then\n\t\t\t\t\t\t\t\tlocal warmupEpoch   = showEpoch - (warmupOffset * 60)\n\t\t\t\t\t\t\t\tlocal warmupTimeStr = os.date(\"%Y.%m.%d %H:%M:%S\", warmupEpoch)\n\t\t\t\t\t\t\t\tlocal showTimeStr   = os.date(\"%Y.%m.%d %H:%M:%S\", showEpoch)\n\t\t\t\t\t\t\t\tlocal shutTimeStr   = os.date(\"%Y.%m.%d %H:%M:%S\", shutEpoch)\n\t\t\t\t\t\t\t\tlocal wName   = \"Warmup_\"..datePrefix..\"_DR\"..dayRunNum\n\t\t\t\t\t\t\t\tlocal sName   = \"Day_\"..datePrefix..\"_DR\"..dayRunNum\n\t\t\t\t\t\t\t\tlocal sdName  = \"Shutdown_\"..datePrefix..\"_DR\"..dayRunNum\n\t\t\t\t\t\t\t\t-- Warmup event -> PowerAll\n\t\t\t\t\t\t\t\ttable.insert(module, {\n\t\t\t\t\t\t\t\t\tkind=\"func\", attKind=\"internal\", name=wName, slotStyle=\"leftNone;rightOut\",\n\t\t\t\t\t\t\t\t\tattReports={[\"0\"]=warmupTimeStr..\";YYYY.MM.DD HH:MM:SS\"},\n\t\t\t\t\t\t\t\t\tparams={{name=\"val\",type=\"string\"},{name=\"doSet\",type=\"bool\"}},\n\t\t\t\t\t\t\t\t\tbody=\"--custom_attribute\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"if val ~= nil then self._\"..wName..\"=val; return val end\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"self._fired_\"..wName..\"=os.time()\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"self.PowerAll(); return self._\"..wName,\n\t\t\t\t\t\t\t\t\t_epoch = warmupEpoch\n\t\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\t\tself[\"_\"..wName] = warmupTimeStr..\";YYYY.MM.DD HH:MM:SS\"\n\t\t\t\t\t\t\t\t-- Day event -> DayRun_X\n\t\t\t\t\t\t\t\tlocal callBody = \"self.DayRuns.DayRun_\"..dayRunNum..\"()\"\n\t\t\t\t\t\t\t\ttable.insert(module, {\n\t\t\t\t\t\t\t\t\tkind=\"func\", attKind=\"internal\", name=sName, slotStyle=\"leftNone;rightOut\",\n\t\t\t\t\t\t\t\t\tattReports={[\"0\"]=showTimeStr..\";YYYY.MM.DD HH:MM:SS\"},\n\t\t\t\t\t\t\t\t\tparams={{name=\"val\",type=\"string\"},{name=\"doSet\",type=\"bool\"}},\n\t\t\t\t\t\t\t\t\tbody=\"--custom_attribute\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"if val ~= nil then self._\"..sName..\"=val; return val end\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"self._fired_\"..sName..\"=os.time()\\n\"\n\t\t\t\t\t\t\t\t\t\t..callBody..\"; return self._\"..sName,\n\t\t\t\t\t\t\t\t\t_epoch = showEpoch\n\t\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\t\tself[\"_\"..sName] = showTimeStr..\";YYYY.MM.DD HH:MM:SS\"\n\t\t\t\t\t\t\t\t-- Shutdown event -> PowerOff\n\t\t\t\t\t\t\t\ttable.insert(module, {\n\t\t\t\t\t\t\t\t\tkind=\"func\", attKind=\"internal\", name=sdName, slotStyle=\"leftNone;rightOut\",\n\t\t\t\t\t\t\t\t\tattReports={[\"0\"]=shutTimeStr..\";YYYY.MM.DD HH:MM:SS\"},\n\t\t\t\t\t\t\t\t\tparams={{name=\"val\",type=\"string\"},{name=\"doSet\",type=\"bool\"}},\n\t\t\t\t\t\t\t\t\tbody=\"--custom_attribute\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"if val ~= nil then self._\"..sdName..\"=val; return val end\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"self._fired_\"..sdName..\"=os.time()\\n\"\n\t\t\t\t\t\t\t\t\t\t..\"self.PowerOff(); return self._\"..sdName,\n\t\t\t\t\t\t\t\t\t_epoch = shutEpoch\n\t\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\t\tself[\"_\"..sdName] = shutTimeStr..\";YYYY.MM.DD HH:MM:SS\"\n\t\t\t\t\t\t\t\teventCount = eventCount + 1\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\nend\nif #module > 0 then\n\t-- Sort events chronologically for clean display in Pixera\n\ttable.sort(module, function(a, b) return (a._epoch or 0) < (b._epoch or 0) end)\n\tfor _, ev in ipairs(module) do ev._epoch = nil end\n\tself().dynamicRebuildFromDescriptions(self.json.encode(module), \"Events\", \"(.*)\")\n\tUtils.Timer.sleep(500)\n\tself.init()\n\tself._upcomingDirty = true\n\tlocal msg = \"CSV import complete: \"..eventCount..\" day(s) imported (Warmup + DayRun + Shutdown).\"\n\tif duplicateCount > 0 then msg = msg..\" | \"..duplicateCount..\" duplicate(s) detected – see warnings!\" end\n\tif skippedRows > 0 then msg = msg..\" | \"..skippedRows..\" day(s) skipped – see log\" end\n\tpixc.log(self()..\": \"..msg)\n\tif #noShowDays > 0 then\n\t\tpixc.log(self()..\": Skipped days:\")\n\t\tfor _, d in ipairs(noShowDays) do pixc.log(self()..\":   -> \"..d) end\n\tend\n\tpixc.report(msg)\nelse\n\tpixc.error(self()..\": No events were created. Check CSV format: row 1 = title, row 2 = time slots (HH:MM), row 3+ = show data. Each day needs a 'Test' cell and at least one other filled cell.\")\nend\n",
+   "kind": "func",
+   "name": "importCSV",
+   "path": "Projektil_EventScheduler_V21.importCSV",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "local json = '[ {\"name\": \"\"} ]'\nself().dynamicRebuildFromDescriptions(json, \"Events\", \"(.*)\")\nself._upcomingDirty = true\npixc.log(self()..\": All events cleared.\")\n",
+   "kind": "func",
+   "name": "deleteEvents",
+   "path": "Projektil_EventScheduler_V21.deleteEvents",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "if time == \"\" or time == nil then return end\nif actionName == \"\" or actionName == nil then return end\nif self.json == nil then self.json = require \"json\" end\nif self.schedule == nil then\n\tif self.ensureSchedule() ~= true then\n\t\tpixc.error(self()..\": registerEvent failed to prepare scheduler for action '\"..tostring(actionName)..\"'.\")\n\t\treturn\n\tend\nend\nlocal registerAction = { self()..\".Events.\"..actionName, {} }\nlocal isOneShot = (recurrence == nil or recurrence == \"\")\nlocal buildEntry = {\n\tallDay = false, start = time,\n\t[\"end\"] = isOneShot and time or \"2755-12-31 00:00:00\",\n\tendless = not isOneShot,\n\tname = actionName, recurrence = recurrence or \"\",\n\tactions = { [actionName] = \"\" }\n}\nlocal entryJson = self.json.encode(buildEntry)\nlocal okAdd = pcall(function()\n\tself.schedule.addAction(actionName, registerAction)\nend)\nif not okAdd then\n\tif self.ensureSchedule() ~= true then\n\t\tpixc.error(self()..\": registerEvent addAction disposed for '\"..tostring(actionName)..\"'.\")\n\t\treturn\n\tend\n\tokAdd = pcall(function()\n\t\tself.schedule.addAction(actionName, registerAction)\n\tend)\n\tif not okAdd then\n\t\tpixc.error(self()..\": registerEvent addAction failed after retry for '\"..tostring(actionName)..\"'.\")\n\t\treturn\n\tend\nend\nlocal okEntry = pcall(function()\n\tself.schedule.createEntry(entryJson)\nend)\nif not okEntry then\n\tif self.ensureSchedule() ~= true then\n\t\tpixc.error(self()..\": registerEvent createEntry disposed for '\"..tostring(actionName)..\"'.\")\n\t\treturn\n\tend\n\tlocal okAdd2 = pcall(function()\n\t\tself.schedule.addAction(actionName, registerAction)\n\tend)\n\tif not okAdd2 then\n\t\tpixc.error(self()..\": registerEvent addAction retry failed before createEntry for '\"..tostring(actionName)..\"'.\")\n\t\treturn\n\tend\n\tokEntry = pcall(function()\n\t\tself.schedule.createEntry(entryJson)\n\tend)\n\tif not okEntry then\n\t\tpixc.error(self()..\": registerEvent createEntry failed after retry for '\"..tostring(actionName)..\"'.\")\n\t\treturn\n\tend\nend\n",
+   "kind": "func",
+   "name": "registerEvent",
+   "params": [
+    {
+     "name": "time",
+     "type": "string"
+    },
+    {
+     "name": "actionName",
+     "type": "string"
+    },
+    {
+     "name": "recurrence",
+     "type": "string"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.registerEvent",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "body": "if self.schedule == nil then return false end\nlocal ok = pcall(function()\n\tif self.schedule.getName == nil then return end\n\tself.schedule.getName()\nend)\nreturn ok == true\n",
+   "kind": "func",
+   "name": "isScheduleHealthy",
+   "path": "Projektil_EventScheduler_V21.isScheduleHealthy",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "attKind": "internal",
+   "body": "-- Recover scheduler if Pixera disposed it.\nif self.isInit == true and not self.isScheduleHealthy() then\n\tpixc.warning(self()..\": Schedule disposed, recovering...\")\n\tself.init()\n\treturn\nend\n-- Update clock display\nif self.timeFormatCode == nil then return end\nlocal res = os.date(self.timeFormatCode)\nif self.lastRes ~= res then self.lastRes = res; pixc.report(res) end\n-- Find next upcoming event across all events in self.Events\nlocal now = os.time()\nlocal minDiff = 999999999\nlocal nextName = \"-\"\nlocal foundNext = false\nif self.Events ~= nil then\n\tfor eName, eFunc in pairs(self.Events) do\n\t\tif type(eFunc) == \"function\" then\n\t\t\tlocal stored = self[\"_\"..eName]\n\t\t\tif stored ~= nil and stored ~= \"\" then\n\t\t\t\tlocal timePart = stored:match(\"^([^;]+)\")\n\t\t\t\tif timePart then\n\t\t\t\t\tlocal y, mo, d, h, m, s = timePart:match(\"(%d+)%.(%d+)%.(%d+) (%d+):(%d+):(%d+)\")\n\t\t\t\t\tif y then\n\t\t\t\t\t\tlocal ep = os.time({\n\t\t\t\t\t\t\tyear=tonumber(y), month=tonumber(mo), day=tonumber(d),\n\t\t\t\t\t\t\thour=tonumber(h), min=tonumber(m), sec=tonumber(s)\n\t\t\t\t\t\t})\n\t\t\t\t\t\tlocal diff = ep - now\n\t\t\t\t\t\tif diff > 0 and diff < minDiff then\n\t\t\t\t\t\t\tminDiff = diff\n\t\t\t\t\t\t\tnextName = eName\n\t\t\t\t\t\t\tfoundNext = true\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\nend\n-- Format countdown as HH:MM:SS\nlocal countdown = \"-\"\nif foundNext then\n\tlocal h = math.floor(minDiff / 3600)\n\tlocal m = math.floor((minDiff % 3600) / 60)\n\tlocal s = minDiff % 60\n\tcountdown = string.format(\"%02d:%02d:%02d\", h, m, s)\nend\n-- Push to outputs (only update name when it changes, countdown updates every second)\nif self._lastNextName ~= nextName then\n\tself._lastNextName = nextName\n\tself.NextEventName(nextName)\nend\nself.NextEventCountdown(countdown)\nif self._upcomingDirty == true or now >= (self._nextUpcomingRefresh or 0) then\n\tself.updateUpcomingEvents()\n\tself._upcomingDirty = false\n\tself._nextUpcomingRefresh = now + 10\nend\n-- 5-minute post-event missed check: fire once per event, exactly 5+ min after scheduled time\nlocal today2 = os.date(\"%Y.%m.%d\")\nif self.Events ~= nil then\n\tfor eName, eFunc in pairs(self.Events) do\n\t\tif type(eFunc) == \"function\"\n\t\t\tand self[\"_fired_\"..eName] == nil\n\t\t\tand self[\"_reported_\"..eName] == nil then\n\t\t\tlocal stored = self[\"_\"..eName]\n\t\t\tif stored ~= nil and stored ~= \"\" then\n\t\t\t\tlocal timePart = stored:match(\"^([^;]+)\")\n\t\t\t\tif timePart then\n\t\t\t\t\tlocal storedDate = timePart:match(\"^(%d+%.%d+%.%d+)\")\n\t\t\t\t\tlocal y2, mo2, d2, h2, m2, s2 = timePart:match(\"(%d+)%.(%d+)%.(%d+) (%d+):(%d+):(%d+)\")\n\t\t\t\t\tif y2 and storedDate == today2 then\n\t\t\t\t\t\tlocal ep2 = os.time({year=tonumber(y2), month=tonumber(mo2), day=tonumber(d2),\n\t\t\t\t\t\t\thour=tonumber(h2), min=tonumber(m2), sec=tonumber(s2)})\n\t\t\t\t\t\tif (now - ep2) >= 300 then\n\t\t\t\t\t\t\tself[\"_reported_\"..eName] = true\n\t\t\t\t\t\t\tpixc.warning(self()..\": MISSED EVENT – '\"..eName\n\t\t\t\t\t\t\t\t..\"' was scheduled at \"..timePart\n\t\t\t\t\t\t\t\t..\" and has not fired 5 minutes after its scheduled time.\")\n\t\t\t\t\t\t\tself.OnMissedEvent(eName)\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\nend\n-- 4:00 AM daily recovery: reinit schedule to prevent Pixera disposal timeout issues\nlocal hour = tonumber(os.date(\"%H\"))\nlocal minute = tonumber(os.date(\"%M\"))\nlocal second = tonumber(os.date(\"%S\"))\nif hour == 4 and minute == 0 and second == 0 and self._last4amInit ~= os.date(\"%Y.%m.%d\") then\n\tself._last4amInit = os.date(\"%Y.%m.%d\")\n\tpixc.log(self()..\": Performing 4:00 AM schedule recovery...\")\n\tself.init()\n\treturn\nend\n-- Timeline watchdog: check N seconds after a DayRun fired whether its timeline is playing\nif self._pendingTimelineChecks ~= nil and #self._pendingTimelineChecks > 0 then\n\tlocal remaining = {}\n\tfor _, pending in ipairs(self._pendingTimelineChecks) do\n\t\tif now >= (pending.time or 0) then\n\t\t\tself.checkTimelineForDayRun(pending.dayRun)\n\t\telse\n\t\t\ttable.insert(remaining, pending)\n\t\tend\n\tend\n\tself._pendingTimelineChecks = remaining\nend\n",
+   "kind": "func",
+   "name": "Time",
+   "params": [
+    {
+     "name": "val",
+     "type": ""
+    },
+    {
+     "name": "doSet",
+     "type": "bool"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.Time",
+   "slotStyle": "leftNone;rightNone;triggerHidden"
+  },
+  {
+   "attKind": "internal",
+   "body": "--custom_attribute\nif val ~= nil then\n\tself._NextEventName = val\n\tpixc.report(self._NextEventName)\n\tpixc.callRefs(self._NextEventName)\n\treturn self._NextEventName\nend\npixc.report(self._NextEventName)\npixc.callRefs(self._NextEventName)\nreturn self._NextEventName\n",
+   "kind": "func",
+   "name": "NextEventName",
+   "params": [
+    {
+     "name": "val",
+     "type": "string"
+    },
+    {
+     "name": "doSet",
+     "type": "bool"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.NextEventName",
+   "slotStyle": "leftNone;rightOut"
+  },
+  {
+   "attKind": "internal",
+   "body": "--custom_attribute\nif val ~= nil then\n\tself._NextEventCountdown = val\n\tpixc.report(self._NextEventCountdown)\n\tpixc.callRefs(self._NextEventCountdown)\n\treturn self._NextEventCountdown\nend\npixc.report(self._NextEventCountdown)\npixc.callRefs(self._NextEventCountdown)\nreturn self._NextEventCountdown\n",
+   "kind": "func",
+   "name": "NextEventCountdown",
+   "params": [
+    {
+     "name": "val",
+     "type": "string"
+    },
+    {
+     "name": "doSet",
+     "type": "bool"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.NextEventCountdown",
+   "slotStyle": "leftNone;rightOut"
+  },
+  {
+   "body": "if self.json == nil then self.json = require \"json\" end\nlocal now = os.time()\nlocal maxItems = tonumber(self._upcomingLimit) or 8\nif maxItems < 1 then maxItems = 1 end\nif maxItems > 50 then maxItems = 50 end\nlocal includeWarmup = self._includeWarmupEvents == true\nlocal events = {}\nif self.Events ~= nil then\n\tfor eName, eFunc in pairs(self.Events) do\n\t\tif type(eFunc) == \"function\" then\n\t\t\tlocal stored = self[\"_\"..eName]\n\t\t\tif stored ~= nil and stored ~= \"\" then\n\t\t\t\tlocal timePart = stored:match(\"^([^;]+)\")\n\t\t\t\tif timePart then\n\t\t\t\t\tlocal y, mo, d, h, m, s = timePart:match(\"(%d+)%.(%d+)%.(%d+) (%d+):(%d+):(%d+)\")\n\t\t\t\t\tif y then\n\t\t\t\t\t\tlocal ep = os.time({\n\t\t\t\t\t\t\tyear=tonumber(y), month=tonumber(mo), day=tonumber(d),\n\t\t\t\t\t\t\thour=tonumber(h), min=tonumber(m), sec=tonumber(s)\n\t\t\t\t\t\t})\n\t\t\t\t\t\tif ep > now then\n\t\t\t\t\t\t\tlocal isWarmup   = eName:match(\"^Warmup_\")   ~= nil\n\t\t\t\t\t\t\tlocal isShutdown = eName:match(\"^Shutdown_\") ~= nil\n\t\t\t\t\t\t\tlocal kind = isWarmup and \"warmup\" or (isShutdown and \"shutdown\" or \"show\")\n\t\t\t\t\t\t\t-- Include warmup/shutdown only when setting is enabled; always include show events\n\t\t\t\t\t\t\tif (not isWarmup and not isShutdown) or includeWarmup then\n\t\t\t\t\t\t\t\tlocal dayRun = tonumber(eName:match(\"_DR(%d+)$\"))\n\t\t\t\t\t\t\t\ttable.insert(events, {\n\t\t\t\t\t\t\t\t\tname = eName,\n\t\t\t\t\t\t\t\t\ttime = timePart,\n\t\t\t\t\t\t\t\t\tinSec = ep - now,\n\t\t\t\t\t\t\t\t\tkind = kind,\n\t\t\t\t\t\t\t\t\tdayRun = dayRun\n\t\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\nend\ntable.sort(events, function(a, b)\n\treturn (a.inSec or 0) < (b.inSec or 0)\nend)\nlocal trimmed = {}\nfor i = 1, math.min(#events, maxItems) do\n\ttable.insert(trimmed, events[i])\nend\nlocal payload = self.json.encode(trimmed)\nself.UpcomingEventsJson(payload, true)\n",
+   "kind": "func",
+   "name": "updateUpcomingEvents",
+   "path": "Projektil_EventScheduler_V21.updateUpcomingEvents",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "attKind": "internal",
+   "body": "--custom_attribute\nif val ~= nil then\n\tself._UpcomingEventsJson = val\n\tpixc.report(self._UpcomingEventsJson)\n\tpixc.callRefs(self._UpcomingEventsJson)\n\treturn self._UpcomingEventsJson\nend\npixc.report(self._UpcomingEventsJson)\npixc.callRefs(self._UpcomingEventsJson)\nreturn self._UpcomingEventsJson\n",
+   "kind": "func",
+   "name": "UpcomingEventsJson",
+   "params": [
+    {
+     "name": "val",
+     "type": "string"
+    },
+    {
+     "name": "doSet",
+     "type": "bool"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.UpcomingEventsJson",
+   "slotStyle": "leftNone;rightOut"
+  },
+  {
+   "body": "local today = os.date(\"%Y.%m.%d\")\nlocal now   = os.time()\nlocal missedCount = 0\nif self.Events ~= nil then\n\tfor eName, eFunc in pairs(self.Events) do\n\t\tif type(eFunc) == \"function\" then\n\t\t\tlocal stored = self[\"_\"..eName]\n\t\t\tif stored ~= nil and stored ~= \"\" then\n\t\t\t\tlocal timePart = stored:match(\"^([^;]+)\")\n\t\t\t\tif timePart then\n\t\t\t\t\tlocal storedDate = timePart:match(\"^(%d+%.%d+%.%d+)\")\n\t\t\t\t\tlocal y, mo, d, h, m, s = timePart:match(\"(%d+)%.(%d+)%.(%d+) (%d+):(%d+):(%d+)\")\n\t\t\t\t\tif y and storedDate == today then\n\t\t\t\t\t\tlocal ep = os.time({year=tonumber(y), month=tonumber(mo), day=tonumber(d),\n\t\t\t\t\t\t\thour=tonumber(h), min=tonumber(m), sec=tonumber(s)})\n\t\t\t\t\t\tif ep < now and self[\"_fired_\"..eName] == nil and self[\"_reported_\"..eName] == nil then\n\t\t\t\t\t\t\tself[\"_reported_\"..eName] = true\n\t\t\t\t\t\t\tmissedCount = missedCount + 1\n\t\t\t\t\t\t\tpixc.warning(self()..\": MISSED EVENT (startup) – '\"..eName\n\t\t\t\t\t\t\t\t..\"' was scheduled at \"..timePart..\" but was never triggered.\")\n\t\t\t\t\t\t\tself.OnMissedEvent(eName)\n\t\t\t\t\t\tend\n\t\t\t\t\tend\n\t\t\t\tend\n\t\t\tend\n\t\tend\n\tend\nend\nif missedCount > 0 then\n\tpixc.log(self()..\": \"..missedCount..\" missed event(s) detected.\")\nend\n",
+   "kind": "func",
+   "name": "checkMissedEvents",
+   "path": "Projektil_EventScheduler_V21.checkMissedEvents",
+   "slotStyle": "leftNone;rightNone;triggerHidden;hidden"
+  },
+  {
+   "attKind": "internal",
+   "body": "--custom_attribute\nif val ~= nil then\n\tself._OnMissedEvent = val\n\tpixc.report(self._OnMissedEvent)\n\tpixc.callRefs(self._OnMissedEvent)\n\treturn self._OnMissedEvent\nend\npixc.report(self._OnMissedEvent)\npixc.callRefs(self._OnMissedEvent)\nreturn self._OnMissedEvent\n",
+   "kind": "func",
+   "name": "OnMissedEvent",
+   "params": [
+    {
+     "name": "val",
+     "type": "string"
+    },
+    {
+     "name": "doSet",
+     "type": "bool"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.OnMissedEvent",
+   "slotStyle": "leftNone;rightOut"
+  },
+  {
+   "attKind": "internal",
+   "body": "--custom_attribute\nif val ~= nil then\n\tself._OnTimelineError = val\n\tpixc.report(self._OnTimelineError)\n\tpixc.callRefs(self._OnTimelineError)\n\treturn self._OnTimelineError\nend\npixc.report(self._OnTimelineError)\npixc.callRefs(self._OnTimelineError)\nreturn self._OnTimelineError\n",
+   "kind": "func",
+   "name": "OnTimelineError",
+   "params": [
+    {
+     "name": "val",
+     "type": "string"
+    },
+    {
+     "name": "doSet",
+     "type": "bool"
+    }
+   ],
+   "path": "Projektil_EventScheduler_V21.OnTimelineError",
+   "slotStyle": "leftNone;rightOut"
+  },
+  {
+   "body": "self.timetable = {\n\t[\"HH:MM:SS\"] = \"%X\",\n\t[\"MM:SS\"] = \"%M:%S\",\n\t[\"SS\"] = \"%S\",\n\t[\"YYYY.MM.DD HH:MM:SS\"] = \"%Y-%m-%d %X\",\n\t[\"DayName HH:MM:SS\"] = \"%a %X\"\n}\nlocal list = {}\nfor k in pairs(self.timetable) do table.insert(list, k) end\nreturn list\n",
+   "kind": "func",
+   "name": "dropdown",
+   "path": "Projektil_EventScheduler_V21.dropdown",
+   "slotStyle": "hidden"
+  },
+  {
+   "body": "pixc.report(\"PowerAll\"); pixc.callRefs(\"PowerAll\")\n",
+   "kind": "func",
+   "name": "PowerAll",
+   "path": "Projektil_EventScheduler_V21.PowerAll",
+   "slotStyle": "leftIn;rightOut"
+  },
+  {
+   "body": "pixc.report(\"PowerOff\"); pixc.callRefs(\"PowerOff\")\n",
+   "kind": "func",
+   "name": "PowerOff",
+   "path": "Projektil_EventScheduler_V21.PowerOff",
+   "slotStyle": "leftIn;rightOut"
+  },
+  {
+   "elems": [
+    {
+     "body": "pixc.report(\"DayRun_1\"); pixc.callRefs(\"DayRun_1\")\nself.enqueueTimelineCheck(1)",
+     "kind": "func",
+     "name": "DayRun_1",
+     "path": "Projektil_EventScheduler_V21.DayRuns.DayRun_1",
+     "slotStyle": "leftIn;rightOut"
+    },
+    {
+     "body": "pixc.report(\"DayRun_2\"); pixc.callRefs(\"DayRun_2\")\nself.enqueueTimelineCheck(2)",
+     "kind": "func",
+     "name": "DayRun_2",
+     "path": "Projektil_EventScheduler_V21.DayRuns.DayRun_2",
+     "slotStyle": "leftIn;rightOut"
+    },
+    {
+     "body": "pixc.report(\"DayRun_3\"); pixc.callRefs(\"DayRun_3\")\nself.enqueueTimelineCheck(3)",
+     "kind": "func",
+     "name": "DayRun_3",
+     "path": "Projektil_EventScheduler_V21.DayRuns.DayRun_3",
+     "slotStyle": "leftIn;rightOut"
+    },
+    {
+     "body": "pixc.report(\"DayRun_4\"); pixc.callRefs(\"DayRun_4\")\nself.enqueueTimelineCheck(4)",
+     "kind": "func",
+     "name": "DayRun_4",
+     "path": "Projektil_EventScheduler_V21.DayRuns.DayRun_4",
+     "slotStyle": "leftIn;rightOut"
+    },
+    {
+     "body": "pixc.report(\"DayRun_1377\"); pixc.callRefs(\"DayRun_1377\")\nself.enqueueTimelineCheck(1377)",
+     "kind": "func",
+     "name": "DayRun_1377",
+     "path": "Projektil_EventScheduler_V21.DayRuns.DayRun_1377",
+     "slotStyle": "leftIn;rightOut"
+    }
+   ],
+   "kind": "ns",
+   "name": "DayRuns"
+  },
+  {
+   "elems": [
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.22 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_220426_DR2=val; return val end\nself._fired_Warmup_220426_DR2=os.time()\nself.PowerAll(); return self._Warmup_220426_DR2",
+     "kind": "func",
+     "name": "Warmup_220426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_220426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.22 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_220426_DR2=val; return val end\nself._fired_Day_220426_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_220426_DR2",
+     "kind": "func",
+     "name": "Day_220426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_220426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.22 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_220426_DR2=val; return val end\nself._fired_Shutdown_220426_DR2=os.time()\nself.PowerOff(); return self._Shutdown_220426_DR2",
+     "kind": "func",
+     "name": "Shutdown_220426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_220426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.23 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_230426_DR2=val; return val end\nself._fired_Warmup_230426_DR2=os.time()\nself.PowerAll(); return self._Warmup_230426_DR2",
+     "kind": "func",
+     "name": "Warmup_230426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_230426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.23 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_230426_DR2=val; return val end\nself._fired_Day_230426_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_230426_DR2",
+     "kind": "func",
+     "name": "Day_230426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_230426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.23 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_230426_DR2=val; return val end\nself._fired_Shutdown_230426_DR2=os.time()\nself.PowerOff(); return self._Shutdown_230426_DR2",
+     "kind": "func",
+     "name": "Shutdown_230426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_230426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.24 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_240426_DR2=val; return val end\nself._fired_Warmup_240426_DR2=os.time()\nself.PowerAll(); return self._Warmup_240426_DR2",
+     "kind": "func",
+     "name": "Warmup_240426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_240426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.24 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_240426_DR2=val; return val end\nself._fired_Day_240426_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_240426_DR2",
+     "kind": "func",
+     "name": "Day_240426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_240426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.24 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_240426_DR2=val; return val end\nself._fired_Shutdown_240426_DR2=os.time()\nself.PowerOff(); return self._Shutdown_240426_DR2",
+     "kind": "func",
+     "name": "Shutdown_240426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_240426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.25 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_250426_DR1=val; return val end\nself._fired_Warmup_250426_DR1=os.time()\nself.PowerAll(); return self._Warmup_250426_DR1",
+     "kind": "func",
+     "name": "Warmup_250426_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_250426_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.25 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_250426_DR1=val; return val end\nself._fired_Day_250426_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_250426_DR1",
+     "kind": "func",
+     "name": "Day_250426_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_250426_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.25 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_250426_DR1=val; return val end\nself._fired_Shutdown_250426_DR1=os.time()\nself.PowerOff(); return self._Shutdown_250426_DR1",
+     "kind": "func",
+     "name": "Shutdown_250426_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_250426_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.26 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_260426_DR1=val; return val end\nself._fired_Warmup_260426_DR1=os.time()\nself.PowerAll(); return self._Warmup_260426_DR1",
+     "kind": "func",
+     "name": "Warmup_260426_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_260426_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.26 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_260426_DR1=val; return val end\nself._fired_Day_260426_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_260426_DR1",
+     "kind": "func",
+     "name": "Day_260426_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_260426_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.26 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_260426_DR1=val; return val end\nself._fired_Shutdown_260426_DR1=os.time()\nself.PowerOff(); return self._Shutdown_260426_DR1",
+     "kind": "func",
+     "name": "Shutdown_260426_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_260426_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.29 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_290426_DR2=val; return val end\nself._fired_Warmup_290426_DR2=os.time()\nself.PowerAll(); return self._Warmup_290426_DR2",
+     "kind": "func",
+     "name": "Warmup_290426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_290426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.29 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_290426_DR2=val; return val end\nself._fired_Day_290426_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_290426_DR2",
+     "kind": "func",
+     "name": "Day_290426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_290426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.29 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_290426_DR2=val; return val end\nself._fired_Shutdown_290426_DR2=os.time()\nself.PowerOff(); return self._Shutdown_290426_DR2",
+     "kind": "func",
+     "name": "Shutdown_290426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_290426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.30 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_300426_DR2=val; return val end\nself._fired_Warmup_300426_DR2=os.time()\nself.PowerAll(); return self._Warmup_300426_DR2",
+     "kind": "func",
+     "name": "Warmup_300426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_300426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.30 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_300426_DR2=val; return val end\nself._fired_Day_300426_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_300426_DR2",
+     "kind": "func",
+     "name": "Day_300426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_300426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.04.30 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_300426_DR2=val; return val end\nself._fired_Shutdown_300426_DR2=os.time()\nself.PowerOff(); return self._Shutdown_300426_DR2",
+     "kind": "func",
+     "name": "Shutdown_300426_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_300426_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.01 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_010526_DR2=val; return val end\nself._fired_Warmup_010526_DR2=os.time()\nself.PowerAll(); return self._Warmup_010526_DR2",
+     "kind": "func",
+     "name": "Warmup_010526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_010526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.01 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_010526_DR2=val; return val end\nself._fired_Day_010526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_010526_DR2",
+     "kind": "func",
+     "name": "Day_010526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_010526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.01 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_010526_DR2=val; return val end\nself._fired_Shutdown_010526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_010526_DR2",
+     "kind": "func",
+     "name": "Shutdown_010526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_010526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.02 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_020526_DR1=val; return val end\nself._fired_Warmup_020526_DR1=os.time()\nself.PowerAll(); return self._Warmup_020526_DR1",
+     "kind": "func",
+     "name": "Warmup_020526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_020526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.02 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_020526_DR1=val; return val end\nself._fired_Day_020526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_020526_DR1",
+     "kind": "func",
+     "name": "Day_020526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_020526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.02 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_020526_DR1=val; return val end\nself._fired_Shutdown_020526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_020526_DR1",
+     "kind": "func",
+     "name": "Shutdown_020526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_020526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.03 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_030526_DR1=val; return val end\nself._fired_Warmup_030526_DR1=os.time()\nself.PowerAll(); return self._Warmup_030526_DR1",
+     "kind": "func",
+     "name": "Warmup_030526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_030526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.03 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_030526_DR1=val; return val end\nself._fired_Day_030526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_030526_DR1",
+     "kind": "func",
+     "name": "Day_030526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_030526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.03 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_030526_DR1=val; return val end\nself._fired_Shutdown_030526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_030526_DR1",
+     "kind": "func",
+     "name": "Shutdown_030526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_030526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.06 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_060526_DR2=val; return val end\nself._fired_Warmup_060526_DR2=os.time()\nself.PowerAll(); return self._Warmup_060526_DR2",
+     "kind": "func",
+     "name": "Warmup_060526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_060526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.06 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_060526_DR2=val; return val end\nself._fired_Day_060526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_060526_DR2",
+     "kind": "func",
+     "name": "Day_060526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_060526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.06 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_060526_DR2=val; return val end\nself._fired_Shutdown_060526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_060526_DR2",
+     "kind": "func",
+     "name": "Shutdown_060526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_060526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.07 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_070526_DR2=val; return val end\nself._fired_Warmup_070526_DR2=os.time()\nself.PowerAll(); return self._Warmup_070526_DR2",
+     "kind": "func",
+     "name": "Warmup_070526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_070526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.07 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_070526_DR2=val; return val end\nself._fired_Day_070526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_070526_DR2",
+     "kind": "func",
+     "name": "Day_070526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_070526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.07 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_070526_DR2=val; return val end\nself._fired_Shutdown_070526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_070526_DR2",
+     "kind": "func",
+     "name": "Shutdown_070526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_070526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.08 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_080526_DR2=val; return val end\nself._fired_Warmup_080526_DR2=os.time()\nself.PowerAll(); return self._Warmup_080526_DR2",
+     "kind": "func",
+     "name": "Warmup_080526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_080526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.08 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_080526_DR2=val; return val end\nself._fired_Day_080526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_080526_DR2",
+     "kind": "func",
+     "name": "Day_080526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_080526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.08 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_080526_DR2=val; return val end\nself._fired_Shutdown_080526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_080526_DR2",
+     "kind": "func",
+     "name": "Shutdown_080526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_080526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.09 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_090526_DR1=val; return val end\nself._fired_Warmup_090526_DR1=os.time()\nself.PowerAll(); return self._Warmup_090526_DR1",
+     "kind": "func",
+     "name": "Warmup_090526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_090526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.09 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_090526_DR1=val; return val end\nself._fired_Day_090526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_090526_DR1",
+     "kind": "func",
+     "name": "Day_090526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_090526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.09 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_090526_DR1=val; return val end\nself._fired_Shutdown_090526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_090526_DR1",
+     "kind": "func",
+     "name": "Shutdown_090526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_090526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.10 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_100526_DR1=val; return val end\nself._fired_Warmup_100526_DR1=os.time()\nself.PowerAll(); return self._Warmup_100526_DR1",
+     "kind": "func",
+     "name": "Warmup_100526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_100526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.10 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_100526_DR1=val; return val end\nself._fired_Day_100526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_100526_DR1",
+     "kind": "func",
+     "name": "Day_100526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_100526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.10 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_100526_DR1=val; return val end\nself._fired_Shutdown_100526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_100526_DR1",
+     "kind": "func",
+     "name": "Shutdown_100526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_100526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.13 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_130526_DR2=val; return val end\nself._fired_Warmup_130526_DR2=os.time()\nself.PowerAll(); return self._Warmup_130526_DR2",
+     "kind": "func",
+     "name": "Warmup_130526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_130526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.13 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_130526_DR2=val; return val end\nself._fired_Day_130526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_130526_DR2",
+     "kind": "func",
+     "name": "Day_130526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_130526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.13 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_130526_DR2=val; return val end\nself._fired_Shutdown_130526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_130526_DR2",
+     "kind": "func",
+     "name": "Shutdown_130526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_130526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.14 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_140526_DR2=val; return val end\nself._fired_Warmup_140526_DR2=os.time()\nself.PowerAll(); return self._Warmup_140526_DR2",
+     "kind": "func",
+     "name": "Warmup_140526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_140526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.14 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_140526_DR2=val; return val end\nself._fired_Day_140526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_140526_DR2",
+     "kind": "func",
+     "name": "Day_140526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_140526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.14 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_140526_DR2=val; return val end\nself._fired_Shutdown_140526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_140526_DR2",
+     "kind": "func",
+     "name": "Shutdown_140526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_140526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.15 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_150526_DR2=val; return val end\nself._fired_Warmup_150526_DR2=os.time()\nself.PowerAll(); return self._Warmup_150526_DR2",
+     "kind": "func",
+     "name": "Warmup_150526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_150526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.15 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_150526_DR2=val; return val end\nself._fired_Day_150526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_150526_DR2",
+     "kind": "func",
+     "name": "Day_150526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_150526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.15 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_150526_DR2=val; return val end\nself._fired_Shutdown_150526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_150526_DR2",
+     "kind": "func",
+     "name": "Shutdown_150526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_150526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.16 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_160526_DR1=val; return val end\nself._fired_Warmup_160526_DR1=os.time()\nself.PowerAll(); return self._Warmup_160526_DR1",
+     "kind": "func",
+     "name": "Warmup_160526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_160526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.16 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_160526_DR1=val; return val end\nself._fired_Day_160526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_160526_DR1",
+     "kind": "func",
+     "name": "Day_160526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_160526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.16 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_160526_DR1=val; return val end\nself._fired_Shutdown_160526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_160526_DR1",
+     "kind": "func",
+     "name": "Shutdown_160526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_160526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.17 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_170526_DR1=val; return val end\nself._fired_Warmup_170526_DR1=os.time()\nself.PowerAll(); return self._Warmup_170526_DR1",
+     "kind": "func",
+     "name": "Warmup_170526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_170526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.17 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_170526_DR1=val; return val end\nself._fired_Day_170526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_170526_DR1",
+     "kind": "func",
+     "name": "Day_170526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_170526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.17 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_170526_DR1=val; return val end\nself._fired_Shutdown_170526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_170526_DR1",
+     "kind": "func",
+     "name": "Shutdown_170526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_170526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.20 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_200526_DR2=val; return val end\nself._fired_Warmup_200526_DR2=os.time()\nself.PowerAll(); return self._Warmup_200526_DR2",
+     "kind": "func",
+     "name": "Warmup_200526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_200526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.20 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_200526_DR2=val; return val end\nself._fired_Day_200526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_200526_DR2",
+     "kind": "func",
+     "name": "Day_200526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_200526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.20 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_200526_DR2=val; return val end\nself._fired_Shutdown_200526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_200526_DR2",
+     "kind": "func",
+     "name": "Shutdown_200526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_200526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.21 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_210526_DR2=val; return val end\nself._fired_Warmup_210526_DR2=os.time()\nself.PowerAll(); return self._Warmup_210526_DR2",
+     "kind": "func",
+     "name": "Warmup_210526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_210526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.21 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_210526_DR2=val; return val end\nself._fired_Day_210526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_210526_DR2",
+     "kind": "func",
+     "name": "Day_210526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_210526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.21 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_210526_DR2=val; return val end\nself._fired_Shutdown_210526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_210526_DR2",
+     "kind": "func",
+     "name": "Shutdown_210526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_210526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.22 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_220526_DR2=val; return val end\nself._fired_Warmup_220526_DR2=os.time()\nself.PowerAll(); return self._Warmup_220526_DR2",
+     "kind": "func",
+     "name": "Warmup_220526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_220526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.22 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_220526_DR2=val; return val end\nself._fired_Day_220526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_220526_DR2",
+     "kind": "func",
+     "name": "Day_220526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_220526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.22 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_220526_DR2=val; return val end\nself._fired_Shutdown_220526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_220526_DR2",
+     "kind": "func",
+     "name": "Shutdown_220526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_220526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.23 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_230526_DR1=val; return val end\nself._fired_Warmup_230526_DR1=os.time()\nself.PowerAll(); return self._Warmup_230526_DR1",
+     "kind": "func",
+     "name": "Warmup_230526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_230526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.23 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_230526_DR1=val; return val end\nself._fired_Day_230526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_230526_DR1",
+     "kind": "func",
+     "name": "Day_230526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_230526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.23 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_230526_DR1=val; return val end\nself._fired_Shutdown_230526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_230526_DR1",
+     "kind": "func",
+     "name": "Shutdown_230526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_230526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.24 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_240526_DR1=val; return val end\nself._fired_Warmup_240526_DR1=os.time()\nself.PowerAll(); return self._Warmup_240526_DR1",
+     "kind": "func",
+     "name": "Warmup_240526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_240526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.24 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_240526_DR1=val; return val end\nself._fired_Day_240526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_240526_DR1",
+     "kind": "func",
+     "name": "Day_240526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_240526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.24 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_240526_DR1=val; return val end\nself._fired_Shutdown_240526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_240526_DR1",
+     "kind": "func",
+     "name": "Shutdown_240526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_240526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.27 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_270526_DR2=val; return val end\nself._fired_Warmup_270526_DR2=os.time()\nself.PowerAll(); return self._Warmup_270526_DR2",
+     "kind": "func",
+     "name": "Warmup_270526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_270526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.27 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_270526_DR2=val; return val end\nself._fired_Day_270526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_270526_DR2",
+     "kind": "func",
+     "name": "Day_270526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_270526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.27 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_270526_DR2=val; return val end\nself._fired_Shutdown_270526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_270526_DR2",
+     "kind": "func",
+     "name": "Shutdown_270526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_270526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.28 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_280526_DR2=val; return val end\nself._fired_Warmup_280526_DR2=os.time()\nself.PowerAll(); return self._Warmup_280526_DR2",
+     "kind": "func",
+     "name": "Warmup_280526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_280526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.28 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_280526_DR2=val; return val end\nself._fired_Day_280526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_280526_DR2",
+     "kind": "func",
+     "name": "Day_280526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_280526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.28 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_280526_DR2=val; return val end\nself._fired_Shutdown_280526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_280526_DR2",
+     "kind": "func",
+     "name": "Shutdown_280526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_280526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.29 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_290526_DR2=val; return val end\nself._fired_Warmup_290526_DR2=os.time()\nself.PowerAll(); return self._Warmup_290526_DR2",
+     "kind": "func",
+     "name": "Warmup_290526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_290526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.29 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_290526_DR2=val; return val end\nself._fired_Day_290526_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_290526_DR2",
+     "kind": "func",
+     "name": "Day_290526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_290526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.29 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_290526_DR2=val; return val end\nself._fired_Shutdown_290526_DR2=os.time()\nself.PowerOff(); return self._Shutdown_290526_DR2",
+     "kind": "func",
+     "name": "Shutdown_290526_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_290526_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.30 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_300526_DR1=val; return val end\nself._fired_Warmup_300526_DR1=os.time()\nself.PowerAll(); return self._Warmup_300526_DR1",
+     "kind": "func",
+     "name": "Warmup_300526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_300526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.30 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_300526_DR1=val; return val end\nself._fired_Day_300526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_300526_DR1",
+     "kind": "func",
+     "name": "Day_300526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_300526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.30 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_300526_DR1=val; return val end\nself._fired_Shutdown_300526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_300526_DR1",
+     "kind": "func",
+     "name": "Shutdown_300526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_300526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.31 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_310526_DR1=val; return val end\nself._fired_Warmup_310526_DR1=os.time()\nself.PowerAll(); return self._Warmup_310526_DR1",
+     "kind": "func",
+     "name": "Warmup_310526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_310526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.31 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_310526_DR1=val; return val end\nself._fired_Day_310526_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_310526_DR1",
+     "kind": "func",
+     "name": "Day_310526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_310526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.05.31 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_310526_DR1=val; return val end\nself._fired_Shutdown_310526_DR1=os.time()\nself.PowerOff(); return self._Shutdown_310526_DR1",
+     "kind": "func",
+     "name": "Shutdown_310526_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_310526_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.03 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_030626_DR2=val; return val end\nself._fired_Warmup_030626_DR2=os.time()\nself.PowerAll(); return self._Warmup_030626_DR2",
+     "kind": "func",
+     "name": "Warmup_030626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_030626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.03 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_030626_DR2=val; return val end\nself._fired_Day_030626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_030626_DR2",
+     "kind": "func",
+     "name": "Day_030626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_030626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.03 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_030626_DR2=val; return val end\nself._fired_Shutdown_030626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_030626_DR2",
+     "kind": "func",
+     "name": "Shutdown_030626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_030626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.04 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_040626_DR2=val; return val end\nself._fired_Warmup_040626_DR2=os.time()\nself.PowerAll(); return self._Warmup_040626_DR2",
+     "kind": "func",
+     "name": "Warmup_040626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_040626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.04 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_040626_DR2=val; return val end\nself._fired_Day_040626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_040626_DR2",
+     "kind": "func",
+     "name": "Day_040626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_040626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.04 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_040626_DR2=val; return val end\nself._fired_Shutdown_040626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_040626_DR2",
+     "kind": "func",
+     "name": "Shutdown_040626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_040626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.05 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_050626_DR2=val; return val end\nself._fired_Warmup_050626_DR2=os.time()\nself.PowerAll(); return self._Warmup_050626_DR2",
+     "kind": "func",
+     "name": "Warmup_050626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_050626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.05 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_050626_DR2=val; return val end\nself._fired_Day_050626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_050626_DR2",
+     "kind": "func",
+     "name": "Day_050626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_050626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.05 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_050626_DR2=val; return val end\nself._fired_Shutdown_050626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_050626_DR2",
+     "kind": "func",
+     "name": "Shutdown_050626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_050626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.06 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_060626_DR1=val; return val end\nself._fired_Warmup_060626_DR1=os.time()\nself.PowerAll(); return self._Warmup_060626_DR1",
+     "kind": "func",
+     "name": "Warmup_060626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_060626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.06 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_060626_DR1=val; return val end\nself._fired_Day_060626_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_060626_DR1",
+     "kind": "func",
+     "name": "Day_060626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_060626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.06 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_060626_DR1=val; return val end\nself._fired_Shutdown_060626_DR1=os.time()\nself.PowerOff(); return self._Shutdown_060626_DR1",
+     "kind": "func",
+     "name": "Shutdown_060626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_060626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.07 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_070626_DR1=val; return val end\nself._fired_Warmup_070626_DR1=os.time()\nself.PowerAll(); return self._Warmup_070626_DR1",
+     "kind": "func",
+     "name": "Warmup_070626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_070626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.07 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_070626_DR1=val; return val end\nself._fired_Day_070626_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_070626_DR1",
+     "kind": "func",
+     "name": "Day_070626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_070626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.07 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_070626_DR1=val; return val end\nself._fired_Shutdown_070626_DR1=os.time()\nself.PowerOff(); return self._Shutdown_070626_DR1",
+     "kind": "func",
+     "name": "Shutdown_070626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_070626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.10 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_100626_DR2=val; return val end\nself._fired_Warmup_100626_DR2=os.time()\nself.PowerAll(); return self._Warmup_100626_DR2",
+     "kind": "func",
+     "name": "Warmup_100626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_100626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.10 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_100626_DR2=val; return val end\nself._fired_Day_100626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_100626_DR2",
+     "kind": "func",
+     "name": "Day_100626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_100626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.10 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_100626_DR2=val; return val end\nself._fired_Shutdown_100626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_100626_DR2",
+     "kind": "func",
+     "name": "Shutdown_100626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_100626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.11 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_110626_DR2=val; return val end\nself._fired_Warmup_110626_DR2=os.time()\nself.PowerAll(); return self._Warmup_110626_DR2",
+     "kind": "func",
+     "name": "Warmup_110626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_110626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.11 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_110626_DR2=val; return val end\nself._fired_Day_110626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_110626_DR2",
+     "kind": "func",
+     "name": "Day_110626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_110626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.11 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_110626_DR2=val; return val end\nself._fired_Shutdown_110626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_110626_DR2",
+     "kind": "func",
+     "name": "Shutdown_110626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_110626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.12 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_120626_DR2=val; return val end\nself._fired_Warmup_120626_DR2=os.time()\nself.PowerAll(); return self._Warmup_120626_DR2",
+     "kind": "func",
+     "name": "Warmup_120626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_120626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.12 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_120626_DR2=val; return val end\nself._fired_Day_120626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_120626_DR2",
+     "kind": "func",
+     "name": "Day_120626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_120626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.12 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_120626_DR2=val; return val end\nself._fired_Shutdown_120626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_120626_DR2",
+     "kind": "func",
+     "name": "Shutdown_120626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_120626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.13 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_130626_DR1=val; return val end\nself._fired_Warmup_130626_DR1=os.time()\nself.PowerAll(); return self._Warmup_130626_DR1",
+     "kind": "func",
+     "name": "Warmup_130626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_130626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.13 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_130626_DR1=val; return val end\nself._fired_Day_130626_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_130626_DR1",
+     "kind": "func",
+     "name": "Day_130626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_130626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.13 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_130626_DR1=val; return val end\nself._fired_Shutdown_130626_DR1=os.time()\nself.PowerOff(); return self._Shutdown_130626_DR1",
+     "kind": "func",
+     "name": "Shutdown_130626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_130626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.14 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_140626_DR1=val; return val end\nself._fired_Warmup_140626_DR1=os.time()\nself.PowerAll(); return self._Warmup_140626_DR1",
+     "kind": "func",
+     "name": "Warmup_140626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_140626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.14 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_140626_DR1=val; return val end\nself._fired_Day_140626_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_140626_DR1",
+     "kind": "func",
+     "name": "Day_140626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_140626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.14 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_140626_DR1=val; return val end\nself._fired_Shutdown_140626_DR1=os.time()\nself.PowerOff(); return self._Shutdown_140626_DR1",
+     "kind": "func",
+     "name": "Shutdown_140626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_140626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.17 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_170626_DR2=val; return val end\nself._fired_Warmup_170626_DR2=os.time()\nself.PowerAll(); return self._Warmup_170626_DR2",
+     "kind": "func",
+     "name": "Warmup_170626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_170626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.17 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_170626_DR2=val; return val end\nself._fired_Day_170626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_170626_DR2",
+     "kind": "func",
+     "name": "Day_170626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_170626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.17 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_170626_DR2=val; return val end\nself._fired_Shutdown_170626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_170626_DR2",
+     "kind": "func",
+     "name": "Shutdown_170626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_170626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.18 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_180626_DR2=val; return val end\nself._fired_Warmup_180626_DR2=os.time()\nself.PowerAll(); return self._Warmup_180626_DR2",
+     "kind": "func",
+     "name": "Warmup_180626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_180626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.18 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_180626_DR2=val; return val end\nself._fired_Day_180626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_180626_DR2",
+     "kind": "func",
+     "name": "Day_180626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_180626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.18 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_180626_DR2=val; return val end\nself._fired_Shutdown_180626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_180626_DR2",
+     "kind": "func",
+     "name": "Shutdown_180626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_180626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.19 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_190626_DR2=val; return val end\nself._fired_Warmup_190626_DR2=os.time()\nself.PowerAll(); return self._Warmup_190626_DR2",
+     "kind": "func",
+     "name": "Warmup_190626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_190626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.19 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_190626_DR2=val; return val end\nself._fired_Day_190626_DR2=os.time()\nself.DayRuns.DayRun_2(); return self._Day_190626_DR2",
+     "kind": "func",
+     "name": "Day_190626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_190626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.19 17:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_190626_DR2=val; return val end\nself._fired_Shutdown_190626_DR2=os.time()\nself.PowerOff(); return self._Shutdown_190626_DR2",
+     "kind": "func",
+     "name": "Shutdown_190626_DR2",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_190626_DR2",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.20 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_200626_DR1=val; return val end\nself._fired_Warmup_200626_DR1=os.time()\nself.PowerAll(); return self._Warmup_200626_DR1",
+     "kind": "func",
+     "name": "Warmup_200626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_200626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.20 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_200626_DR1=val; return val end\nself._fired_Day_200626_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_200626_DR1",
+     "kind": "func",
+     "name": "Day_200626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_200626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.20 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_200626_DR1=val; return val end\nself._fired_Shutdown_200626_DR1=os.time()\nself.PowerOff(); return self._Shutdown_200626_DR1",
+     "kind": "func",
+     "name": "Shutdown_200626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_200626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.21 09:25:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Warmup_210626_DR1=val; return val end\nself._fired_Warmup_210626_DR1=os.time()\nself.PowerAll(); return self._Warmup_210626_DR1",
+     "kind": "func",
+     "name": "Warmup_210626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Warmup_210626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.21 09:30:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Day_210626_DR1=val; return val end\nself._fired_Day_210626_DR1=os.time()\nself.DayRuns.DayRun_1(); return self._Day_210626_DR1",
+     "kind": "func",
+     "name": "Day_210626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Day_210626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    },
+    {
+     "attKind": "internal",
+     "attReports": {
+      "0": "2026.06.21 18:45:00;YYYY.MM.DD HH:MM:SS"
+     },
+     "body": "--custom_attribute\nif val ~= nil then self._Shutdown_210626_DR1=val; return val end\nself._fired_Shutdown_210626_DR1=os.time()\nself.PowerOff(); return self._Shutdown_210626_DR1",
+     "kind": "func",
+     "name": "Shutdown_210626_DR1",
+     "params": [
+      {
+       "name": "val",
+       "type": "string"
+      },
+      {
+       "name": "doSet",
+       "type": "bool"
+      }
+     ],
+     "path": "Projektil_EventScheduler_V21.Events.Shutdown_210626_DR1",
+     "slotStyle": "leftNone;rightOut"
+    }
+   ],
+   "kind": "ns",
+   "name": "Events"
+  }
+ ],
+ "canHaveExternalConnections": true,
+ "cjv": {
+  "h": 804.484869910903,
+  "page": "Page 1",
+  "w": 617.7237940862924,
+  "x": 0.0,
+  "y": 46.0
+ },
+ "definedExternally": false,
+ "hasExternalConnection": 0,
+ "hostInfo": {
+  "systemType": ""
+ },
+ "libraryExportPath": "C:/ProgramData/AV Stumpfl/Pixera/control_library_user/Projektil_EventScheduler_V21.json",
+ "license": "1GNTlyr7sewU1l3S6nhV4riphz9/1vdZX1dQ7gFyvVNvcFfT8K50L+r2cKE41jT4lBnJQXDEDv9wWH2XVJAVsdfxSi9k4xyb7pEmnH6cqKSPl0KKD4AIflahYk38seTkY+Qv3HwvYQndUyCPnqxiVQ==",
+ "name": "Projektil_EventScheduler_V21",
+ "properties": [
+  {
+   "cont": "true",
+   "name": "Auto Init",
+   "typeHint": "bool"
+  },
+  {
+   "cont": "",
+   "imageBase64": "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",
+   "name": "Logo",
+   "readOnly": true,
+   "typeHint": "image"
+  },
+  {
+   "cont": "Jonas.ha (WE ARE PROJEKTIL AG)",
+   "name": "Author",
+   "readOnly": true
+  },
+  {
+   "cont": "V21",
+   "name": "Version",
+   "readOnly": true
+  },
+  {
+   "cont": "13.5.2026",
+   "name": "Date",
+   "readOnly": true
+  },
+  {
+   "cont": "Automates daily show operations through scheduled events. CSV import creates 3 events per day: Warmup (PowerAll), DayRun (show start), Shutdown (PowerOff). Show start is detected by \"Test\" keyword in CSV. Shutdown is one time slot before the last occupied column. Features schedule watchdog, 4AM daily recovery, and missed-event reporting.",
+   "name": "Description",
+   "readOnly": true
+  },
+  {
+   "area": "Settings",
+   "cont": "5",
+   "name": "Projector Warmup Minutes",
+   "typeHint": "string"
+  },
+  {
+   "area": "Settings",
+   "cont": "HH:MM:SS",
+   "name": "Time Format",
+   "optionsAction": "self.init",
+   "optionsSourceFunc": "self.dropdown",
+   "typeHint": "string"
+  },
+  {
+   "area": "Settings",
+   "cont": "DayRun_%d",
+   "name": "Timeline Name Format",
+   "typeHint": "string"
+  },
+  {
+   "area": "Settings",
+   "cont": "10",
+   "name": "Timeline Check Delay Seconds",
+   "typeHint": "string"
+  },
+  {
+   "area": "Settings",
+   "cont": "8",
+   "name": "Upcoming Events Limit",
+   "typeHint": "string"
+  },
+  {
+   "area": "Settings",
+   "cont": "true",
+   "name": "Include Warmup Events",
+   "typeHint": "bool"
+  },
+  {
+   "area": "Create Event",
+   "cont": "15.05.2026",
+   "name": "Event Date",
+   "typeHint": "string"
+  },
+  {
+   "area": "Create Event",
+   "cont": "22:00",
+   "name": "Event Time",
+   "typeHint": "string"
+  },
+  {
+   "area": "Create Event",
+   "cont": "17:45",
+   "name": "Shutdown Time",
+   "typeHint": "string"
+  },
+  {
+   "area": "Create Event",
+   "cont": "3",
+   "name": "DayRun",
+   "typeHint": "string"
+  },
+  {
+   "area": "Create Event",
+   "cont": "Creates Warmup_DDMMYY_DRx, Day_DDMMYY_DRx and Shutdown_DDMMYY_DRx events. DayRun_x will be created in DayRuns namespace if missing. Shutdown Time is optional – leave empty to skip shutdown event.",
+   "name": "Note",
+   "readOnly": true,
+   "showName": false,
+   "typeHint": "string"
+  },
+  {
+   "area": "Create Event",
+   "cont": "Create",
+   "name": "Create",
+   "optionsAction": "self.createEvent",
+   "showName": false,
+   "typeHint": "button"
+  },
+  {
+   "area": "CSV Import",
+   "cont": "C:\\Users\\jonas\\Downloads\\Agenturprojekt_Phaernomena_Showrunner_2026.xlsx - Angepasste Showtimings Dietikon (1).csv",
+   "name": "CSV File Path",
+   "typeHint": "file"
+  },
+  {
+   "area": "CSV Import",
+   "cont": "Import CSV",
+   "name": "Import CSV",
+   "optionsAction": "self.importCSV",
+   "showName": false,
+   "typeHint": "button"
+  },
+  {
+   "cont": "Clear All",
+   "name": "Clear All",
+   "optionsAction": "self.deleteEvents",
+   "showName": false,
+   "typeHint": "button"
+  }
+ ],
+ "separateCode": false,
+ "uiUrl": ""
+}
