@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![recursion_limit = "256"]
 mod oca;
 use base64::{engine::general_purpose, Engine as _};
 use tauri::{
@@ -2322,27 +2323,196 @@ fn open_external_url(url: String) -> Result<bool, String> {
     Err("Diese Plattform wird für URL-Open nicht unterstützt".to_string())
 }
 
+fn default_config_json() -> serde_json::Value {
+    serde_json::json!({
+        "pixera_ip": "192.168.1.31", "pixera_port": 1338,
+        "pixera_octo1_ip": "192.168.1.32", "pixera_octo2_ip": "192.168.1.33",
+        "pixera_octo_port": 4000,
+        "pixera_api_root": "erwer",
+        "pixera_pjlink_module": "PJ_Link__16ch",
+        "pixera_scheduler_module": "Projektil_EventScheduler_V21",
+        "d40_01_ip": "192.168.1.51", "d40_02_ip": "192.168.1.52", "d40_oca_port": 50014,
+        "nas_ip": "192.168.1.21", "nas_port": 5000,
+        "nas_snmp_port": 161, "nas_snmp_community": "projektil",
+        "poe_switch_ip": "192.168.1.11", "poe_switch_name": "", "poe_switch_ping_port": 443,
+        "poe_switch_snmp_port": 161, "poe_switch_snmp_community": "projektil",
+        "rutx50_ip": "192.168.1.1", "rutx50_ping_port": 443,
+        "rutx50_snmp_port": 161, "rutx50_snmp_community": "public",
+        "ups_ip": "192.168.1.6", "power_disp_ip": "192.168.1.5",
+        "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
+        "projector_start": 101, "projector_count": 16,
+        "hotline": "+41 XX XXX XX XX",
+        "location_name": "",
+        "anydesk_address": "",
+        "telegram": {
+            "enabled": false,
+            "bot_token": "",
+            "chat_id": "",
+            "critical_error_keywords": [
+                "sofortalarm",
+                "batteriebetrieb",
+                "panic",
+                "emergency",
+                "offline!"
+            ]
+        },
+        "thresholds": {
+            "v_min": 195.0,
+            "v_max": 253.0,
+            "v_imbal": 15.0,
+            "f_min": 49.5,
+            "f_max": 50.5,
+            "i_max_32": 28.0,
+            "i_max_63": 58.0,
+            "ups_load_warn": 80
+        }
+    })
+}
+
+fn ensure_config_defaults(cfg: &mut serde_json::Value) {
+    let Some(obj) = cfg.as_object_mut() else {
+        *cfg = default_config_json();
+        return;
+    };
+
+    if !obj.contains_key("pixera_octo_port") {
+        obj.insert("pixera_octo_port".to_string(), serde_json::json!(4000));
+    }
+    if !obj.contains_key("pixera_api_root") {
+        obj.insert("pixera_api_root".to_string(), serde_json::json!("erwer"));
+    }
+    if !obj.contains_key("pixera_pjlink_module") {
+        obj.insert("pixera_pjlink_module".to_string(), serde_json::json!("PJ_Link__16ch"));
+    }
+    if !obj.contains_key("pixera_scheduler_module") {
+        obj.insert(
+            "pixera_scheduler_module".to_string(),
+            serde_json::json!("Projektil_EventScheduler_V21"),
+        );
+    }
+
+    let telegram = obj
+        .entry("telegram".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    if let Some(t) = telegram.as_object_mut() {
+        if !t.contains_key("enabled") {
+            t.insert("enabled".to_string(), serde_json::json!(false));
+        }
+        if !t.contains_key("bot_token") {
+            t.insert("bot_token".to_string(), serde_json::json!(""));
+        }
+        if !t.contains_key("chat_id") {
+            t.insert("chat_id".to_string(), serde_json::json!(""));
+        }
+        if !t.contains_key("critical_error_keywords") {
+            t.insert(
+                "critical_error_keywords".to_string(),
+                serde_json::json!(["sofortalarm", "batteriebetrieb", "panic", "emergency", "offline!"]),
+            );
+        }
+    }
+}
+
+fn config_path_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+
+    if let Some(app) = APP_HANDLE.get() {
+        if let Ok(app_data) = app.path().app_data_dir() {
+            out.push(app_data.join("config.json"));
+        }
+        if let Ok(app_cfg) = app.path().app_config_dir() {
+            out.push(app_cfg.join("config.json"));
+        }
+    }
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            out.push(dir.join("config.json"));
+            if let Some(parent) = dir.parent() {
+                out.push(parent.join("config.json"));
+            }
+        }
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        out.push(cwd.join("config.json"));
+    }
+
+    out.push(PathBuf::from("config.json"));
+
+    let mut dedup = Vec::new();
+    for p in out {
+        if !dedup.iter().any(|e: &PathBuf| e == &p) {
+            dedup.push(p);
+        }
+    }
+    dedup
+}
+
+fn read_config_json_from_disk() -> Option<(PathBuf, serde_json::Value)> {
+    for path in config_path_candidates() {
+        let content = match fs::read_to_string(&path) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let json = match serde_json::from_str::<serde_json::Value>(&content) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        return Some((path, json));
+    }
+    None
+}
+
+fn resolve_config_write_path() -> PathBuf {
+    if let Some((path, _)) = read_config_json_from_disk() {
+        return path;
+    }
+
+    for path in config_path_candidates() {
+        if let Some(parent) = path.parent() {
+            if parent.as_os_str().is_empty() {
+                return path;
+            }
+            if fs::create_dir_all(parent).is_ok() {
+                return path;
+            }
+        } else {
+            return path;
+        }
+    }
+
+    PathBuf::from("config.json")
+}
+
+fn write_config_json_to_disk(cfg: &serde_json::Value) -> Result<(), String> {
+    let path = resolve_config_write_path();
+    let body = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+    fs::write(path, body).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<bool, String> {
-    let config_path = "config.json";
-    let content = fs::read_to_string(config_path).map_err(|e| e.to_string())?;
-    let mut cfg: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let mut cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
 
     if let Some(obj) = cfg.as_object_mut() {
         obj.insert("location_name".to_string(), serde_json::json!(location_name.trim()));
         obj.insert("anydesk_address".to_string(), serde_json::json!(anydesk_address.trim()));
     }
 
-    let out = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
-    fs::write(config_path, out).map_err(|e| e.to_string())?;
+    write_config_json_to_disk(&cfg)?;
     Ok(true)
 }
 
 #[tauri::command]
 fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String) -> Result<bool, String> {
-    let config_path = "config.json";
-    let content = fs::read_to_string(config_path).map_err(|e| e.to_string())?;
-    let mut cfg: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let mut cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
 
     if let Some(obj) = cfg.as_object_mut() {
         let telegram = obj.entry("telegram").or_insert_with(|| serde_json::json!({}));
@@ -2353,8 +2523,7 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String) -> Re
         }
     }
 
-    let out = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
-    fs::write(config_path, out).map_err(|e| e.to_string())?;
+    write_config_json_to_disk(&cfg)?;
     Ok(true)
 }
 
@@ -2367,9 +2536,10 @@ fn telegram_send_test(bot_token: String, chat_id: String) -> Result<String, Stri
     }
     
     // Load config for location and AnyDesk
-    let config_path = "config.json";
-    let content = fs::read_to_string(config_path).map_err(|e| e.to_string())?;
-    let cfg: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let mut cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
     
     // Build test message with formatted structure
     let timestamp_ms = now_timestamp_ms();
@@ -2799,59 +2969,13 @@ fn pjlink_set_shutter(ip: String, muted: bool, password: Option<String>) -> Resu
 
 #[tauri::command]
 fn get_config() -> serde_json::Value {
-    let config_path = "config.json";
-
-    // Versuche die Datei zu lesen
-    if let Ok(content) = fs::read_to_string(config_path) {
-        if let Ok(json) = serde_json::from_str(&content) {
-            return json;
-        }
+    if let Some((_path, mut json)) = read_config_json_from_disk() {
+        ensure_config_defaults(&mut json);
+        return json;
     }
 
-    // Fallback: Standardwerte, falls Datei nicht existiert oder fehlerhaft ist
-    let default_config = serde_json::json!({
-        "pixera_ip": "192.168.1.31", "pixera_port": 1338,
-        "pixera_octo1_ip": "192.168.1.32", "pixera_octo2_ip": "192.168.1.33",
-        "d40_01_ip": "192.168.1.51", "d40_02_ip": "192.168.1.52", "d40_oca_port": 50014,
-        "nas_ip": "192.168.1.21", "nas_port": 5000,
-        "nas_snmp_port": 161, "nas_snmp_community": "projektil",
-        "poe_switch_ip": "192.168.1.11", "poe_switch_name": "", "poe_switch_ping_port": 443,
-        "poe_switch_snmp_port": 161, "poe_switch_snmp_community": "projektil",
-        "rutx50_ip": "192.168.1.1", "rutx50_ping_port": 443,
-        "rutx50_snmp_port": 161, "rutx50_snmp_community": "public",
-        "ups_ip": "192.168.1.6", "power_disp_ip": "192.168.1.5",
-        "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
-        "projector_start": 101, "projector_count": 16,
-        "hotline": "+41 XX XXX XX XX",
-        "location_name": "",
-        "anydesk_address": "",
-        "telegram": {
-            "enabled": false,
-            "bot_token": "",
-            "chat_id": "",
-            "critical_error_keywords": [
-                "sofortalarm",
-                "batteriebetrieb",
-                "panic",
-                "emergency",
-                "offline!"
-            ]
-        },
-        "thresholds": {
-            "v_min": 195.0,
-            "v_max": 253.0,
-            "v_imbal": 15.0,
-            "f_min": 49.5,
-            "f_max": 50.5,
-            "i_max_32": 28.0,
-            "i_max_63": 58.0,
-            "ups_load_warn": 80
-        }
-    });
-
-    // Datei mit Standardwerten neu anlegen, falls sie fehlte
-    let _ = fs::write(config_path, serde_json::to_string_pretty(&default_config).unwrap_or_default());
-    
+    let default_config = default_config_json();
+    let _ = write_config_json_to_disk(&default_config);
     default_config
 }
 

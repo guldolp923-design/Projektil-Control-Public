@@ -6,19 +6,30 @@
   "d40_02_ip": "192.168.1.52",
   "d40_oca_port": 50014,
   "hotline": "+41 XX XXX XX XX",
-  "location_name": "Luzern",
+  "location_name": "Luzern Testaufbau",
   "nas_ip": "192.168.1.21",
   "nas_port": 5000,
+  "pixera_api_root": "erwer",
   "pixera_ip": "192.168.1.31",
   "pixera_octo1_ip": "192.168.1.32",
   "pixera_octo2_ip": "192.168.1.33",
+  "pixera_octo_port": 4000,
+  "pixera_pjlink_module": "PJ_Link__16ch",
   "pixera_port": 1338,
+  "pixera_scheduler_module": "Projektil_EventScheduler_V21",
   "power_disp_ip": "192.168.1.5",
   "projector_count": 16,
   "projector_start": 101,
   "telegram": {
     "bot_token": "",
     "chat_id": "",
+    "critical_error_keywords": [
+      "sofortalarm",
+      "batteriebetrieb",
+      "panic",
+      "emergency",
+      "offline!"
+    ],
     "enabled": true
   },
   "ups_ip": "192.168.1.6"

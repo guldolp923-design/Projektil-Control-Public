@@ -6,7 +6,7 @@
   "pixera_octo_port": 4000,
   "pixera_api_root": "erwer",
   "pixera_pjlink_module": "PJ_Link__16ch",
-  "pixera_scheduler_module": "EventScheduler_Projektil_V17",
+  "pixera_scheduler_module": "Projektil_EventScheduler_V21",
   "d40_01_ip": "192.168.1.51",
   "d40_02_ip": "192.168.1.52",
   "d40_oca_port": 50014,

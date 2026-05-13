@@ -227,8 +227,9 @@ body.emergency-locked .sidebar-lock-indicator:hover{background:rgba(239,68,68,.1
 .schedule-list{max-height:178px;overflow:auto;padding-right:2px}
 .schedule-empty{font-size:11px;color:var(--muted);padding:8px 0}
 .stag{font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600}
-.stag-w{background:#431407;color:#fdba74}
-.stag-s{background:#14532d;color:#86efac}
+.stag-w{background:#4a2a00;color:#ffd9a3;border:1px solid #f59e0b}
+.stag-s{background:#113a2a;color:#bbf7d0;border:1px solid #22c55e}
+.stag-x{background:#4a0e12;color:#fecaca;border:1px solid #ef4444}
 .fired{opacity:.3;text-decoration:line-through}
 .em-card{background:#b91c1c;border-radius:10px;padding:32px;text-align:center}
 .em-title{font-size:20px;font-weight:700;margin-bottom:20px}
@@ -1148,6 +1149,12 @@ body.emergency-locked .btn-o{background:#9a3412}
 // TAURI BRIDGE
 // ============================================================
 const isTauri = typeof window.__TAURI_INTERNALS__ !== 'undefined';
+const DEFAULT_PIXERA_SCHEDULER_MODULE = 'Projektil_EventScheduler_V21';
+const FALLBACK_PIXERA_SCHEDULER_MODULES = [
+  DEFAULT_PIXERA_SCHEDULER_MODULE,
+  'EventScheduler_Projektil_V17'
+];
+let _schedulerModuleResolved = '';
 
 function buildDefaultConfig(){
   return {
@@ -1158,7 +1165,7 @@ function buildDefaultConfig(){
     pixera_octo2_ip:'192.168.1.33',
     pixera_api_root:'erwer',
     pixera_pjlink_module:'PJ_Link__16ch',
-    pixera_scheduler_module:'EventScheduler_Projektil_V17',
+    pixera_scheduler_module:DEFAULT_PIXERA_SCHEDULER_MODULE,
     d40_01_ip:'192.168.1.51',
     d40_02_ip:'192.168.1.52',
     d40_oca_port:50014,
@@ -1316,7 +1323,7 @@ let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
-const APP_VERSION_FALLBACK = '1.0.14-beta';
+const APP_VERSION_FALLBACK = '1.0.15-beta';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -1449,6 +1456,7 @@ const locales = {
     timeline_remaining_time: 'Timeline verbleibende Zeit',
     warmup_name: 'Warmup —',
     warmup_label: 'Warmup',
+    shutdown_label: 'Shutdown',
     show_name: 'Show —',
     show_label: 'Show',
     schedule_empty: 'Keine kommenden Events',
@@ -1683,6 +1691,7 @@ const locales = {
     timeline_remaining_time: 'Timeline remaining time',
     warmup_name: 'Warmup —',
     warmup_label: 'Warmup',
+    shutdown_label: 'Shutdown',
     show_name: 'Show —',
     show_label: 'Show',
     schedule_empty: 'No upcoming events',
@@ -2820,7 +2829,11 @@ async function init(){
   cfg=await loadConfigWithFallback();
   cfg.pixera_api_root = (cfg.pixera_api_root||'erwer').toString();
   cfg.pixera_pjlink_module = (cfg.pixera_pjlink_module||'PJ_Link__16ch').toString();
-  cfg.pixera_scheduler_module = (cfg.pixera_scheduler_module||'EventScheduler_Projektil_V17').toString();
+  cfg.pixera_scheduler_module = (cfg.pixera_scheduler_module||DEFAULT_PIXERA_SCHEDULER_MODULE).toString();
+  if(String(cfg.pixera_scheduler_module).trim().toLowerCase()==='eventscheduler_projektil_v17'){
+    cfg.pixera_scheduler_module = DEFAULT_PIXERA_SCHEDULER_MODULE;
+  }
+  _schedulerModuleResolved='';
   cfg.pixera_octo_port = Number(cfg.pixera_octo_port || 4000);
   cfg.poe_switch_ip = cfg.poe_switch_ip || DEFAULT_POE_IP;
   cfg.rutx50_ip = cfg.rutx50_ip || DEFAULT_RUTX50_IP;
@@ -4616,9 +4629,22 @@ function isPixeraExceptionResult(result){
   return first?._pixc?.type===125;
 }
 
+function isPixeraUnauthorizedResult(result){
+  const re=/action\s+'[^']+'\s+is\s+not\s+authorized\.?/i;
+  if(typeof result==='string') return re.test(result.trim());
+  if(Array.isArray(result) && result.length===1 && typeof result[0]==='string'){
+    return re.test(result[0].trim());
+  }
+  return false;
+}
+
 function normalizePixeraResult(result){
   if(isPixeraExceptionResult(result)){
     const msg=(Array.isArray(result) && result[2]) ? String(result[2]) : 'Pixera exception';
+    throw new Error(msg);
+  }
+  if(isPixeraUnauthorizedResult(result)){
+    const msg=Array.isArray(result) ? String(result[0]||'Pixera action not authorized') : String(result);
     throw new Error(msg);
   }
   if(Array.isArray(result) && result.length===1) return result[0];
@@ -4657,16 +4683,23 @@ function pixeraApiRequest(address, params=[], timeoutMs=3500, host=cfg.pixera_ip
   });
 }
 
-async function pixeraApiCall(paths, params=[], host=cfg.pixera_ip, port=cfg.pixera_port){
+async function pixeraApiCall(paths, params=[], host=cfg.pixera_ip, port=cfg.pixera_port, options={}){
   if(demoMode) return null;
+  const allowEmpty = options?.allowEmpty !== false;
   const candidates=Array.isArray(paths)?paths:[paths];
   const shouldTrackDirectorApi = host===cfg.pixera_ip && Number(port||1338)===Number(cfg.pixera_port||1338);
   let lastError=null;
   for(const path of candidates){
     try{
       const result=await pixeraApiRequest(path,params,3500,host,port);
+      const normalized=normalizePixeraResult(result);
+      const isEmpty = normalized == null || (typeof normalized === 'string' && normalized.trim() === '');
+      if(!allowEmpty && isEmpty){
+        lastError = new Error(`Pixera API empty result: ${path}`);
+        continue;
+      }
       if(shouldTrackDirectorApi) markPixeraApiSuccess();
-      return normalizePixeraResult(result);
+      return normalized;
     }catch(e){
       lastError=e;
     }
@@ -4794,9 +4827,49 @@ async function pjLinkCall(methodName, params=[]){
   return pixeraApiCall(modulePaths(moduleName, methodName), params);
 }
 
-async function schedulerCall(methodName, params=[]){
-  const moduleName=String(cfg.pixera_scheduler_module||'EventScheduler_Projektil_V17').trim();
-  return pixeraApiCall(modulePaths(moduleName, methodName), params);
+async function schedulerCall(methodName, params=[], options={}){
+  const allowEmpty = options?.allowEmpty !== false;
+  const candidates=[];
+  const pushCandidate=(name)=>{
+    const value=String(name||'').trim();
+    if(!value) return;
+    if(candidates.some(existing=>existing.toLowerCase()===value.toLowerCase())) return;
+    candidates.push(value);
+  };
+
+  // Always prefer V21 first; older module names are only fallback.
+  pushCandidate(DEFAULT_PIXERA_SCHEDULER_MODULE);
+  pushCandidate(_schedulerModuleResolved);
+  pushCandidate(cfg?.pixera_scheduler_module);
+  for(const fallback of FALLBACK_PIXERA_SCHEDULER_MODULES) pushCandidate(fallback);
+
+  let firstError=null;
+  for(const moduleName of candidates){
+    try{
+      const result=await pixeraApiCall(modulePaths(moduleName, methodName), params, cfg.pixera_ip, cfg.pixera_port, {allowEmpty});
+      if(_schedulerModuleResolved!==moduleName) _schedulerModuleResolved=moduleName;
+      if(cfg && cfg.pixera_scheduler_module!==moduleName) cfg.pixera_scheduler_module=moduleName;
+      return result;
+    }catch(e){
+      if(!firstError) firstError=e;
+    }
+  }
+  if(firstError) throw firstError;
+  throw new Error(`Scheduler call failed for ${methodName} on modules: ${candidates.join(', ')}`);
+}
+
+async function schedulerWarmupV21(){
+  try{ await schedulerCall('ref'); }catch{}
+  try{ await schedulerCall('init'); }catch{}
+  try{ await schedulerCall('Time'); }catch{}
+}
+
+async function schedulerReadWithWarmup(methodName, params=[]){
+  const first=await schedulerCall(methodName, params, {allowEmpty:false});
+  if(first!=null && `${first}`.trim()!=='') return first;
+
+  await schedulerWarmupV21();
+  return schedulerCall(methodName, params, {allowEmpty:false});
 }
 
 async function timelineHandleCall(handle, method){
@@ -4989,6 +5062,11 @@ function _median(values){
   return sorted.length%2===0?Math.round((sorted[mid-1]+sorted[mid])/2):sorted[mid];
 }
 
+function _isUnauthorizedActionError(error){
+  const msg=String(error?.message??error??'').toLowerCase();
+  return msg.includes('not authorized') || msg.includes('is not authorized');
+}
+
 function _syncNextEventCountdownFromServer(serverCountdown, eventName, latencyCompMs=0){
   const parsedSeconds=_parseCountdownToSeconds(serverCountdown);
   if(parsedSeconds==null){
@@ -5038,10 +5116,37 @@ function tickNextEventCountdown(){
 async function pollSchedulerNextEvent(){
   if(demoMode) return;
   try{
+    // V21-safe path: try upcoming payload first to avoid unauthorized NextEvent* actions.
+    const upcomingRaw=await schedulerReadWithWarmup('UpcomingEventsJson');
+    const upcomingEvents=_parseUpcomingEvents(upcomingRaw);
+    const firstEvent=Array.isArray(upcomingEvents)
+      ? upcomingEvents.find(ev=>ev && (ev.name!=null || ev.time!=null))
+      : null;
+    if(firstEvent){
+      const nextName=String(firstEvent.name??'').trim()||'—';
+      const inSec=Number(firstEvent.inSec);
+      let nextCountdown='--:--:--';
+      if(Number.isFinite(inSec) && inSec>=0){
+        nextCountdown=_formatCountdownSeconds(Math.max(0,Math.floor(inSec)));
+      }else{
+        const dt=_parsePixeraScheduleDateTime(firstEvent.time);
+        if(dt){
+          const sec=Math.max(0,Math.floor((dt.getTime()-Date.now())/1000));
+          nextCountdown=_formatCountdownSeconds(sec);
+        }
+      }
+      _registerLastTriggeredFromTransition(nextName);
+      const nameEl=document.getElementById('next-event-name');
+      if(nameEl) nameEl.textContent=nextName;
+      _syncNextEventCountdownFromServer(nextCountdown,nextName,0);
+      schedulerWarned=false;
+      return;
+    }
+
     const reqStartedAt=Date.now();
     const [nextName,nextCountdown]=await Promise.all([
-      schedulerCall('NextEventName'),
-      schedulerCall('NextEventCountdown')
+      schedulerReadWithWarmup('NextEventName'),
+      schedulerReadWithWarmup('NextEventCountdown')
     ]);
     const rttMs=Math.max(0,Date.now()-reqStartedAt);
     _nextEventRttSamples.push(rttMs);
@@ -5058,6 +5163,12 @@ async function pollSchedulerNextEvent(){
     }
     schedulerWarned=false;
   }catch(e){
+    if(_isUnauthorizedActionError(e)){
+      // Keep UI running without spamming the error log when Pixera ACL blocks this action.
+      _applyScheduleFallbackFromNextEvent();
+      schedulerWarned=true;
+      return;
+    }
     if(!schedulerWarned){
       addError(`[Pixera API] Scheduler-Abfrage fehlgeschlagen: ${e}`);
       schedulerWarned=true;
@@ -5120,19 +5231,19 @@ function _formatScheduleDetailLine(event, kind){
   const lang=(currentLang==='de')?'de-CH':'en-US';
   const kindLabel=kind==='warmup'
     ? (locales[currentLang]?.warmup_label||'Warmup')
-    : (locales[currentLang]?.show_label||'Show');
+    : kind==='shutdown'
+      ? (locales[currentLang]?.shutdown_label||'Shutdown')
+      : (locales[currentLang]?.show_label||'Show');
 
   const dt=_parsePixeraScheduleDateTime(event?.time);
   if(!dt){
-    const hhmm=String(_formatScheduleClock(event?.time)).replace(':','');
-    return `${kindLabel} ${dayRunLabel} ${hhmm}`.trim();
+    return `${kindLabel} ${dayRunLabel}`.trim();
   }
 
   const weekday=new Intl.DateTimeFormat(lang,{weekday:'long'}).format(dt);
   const day=new Intl.DateTimeFormat(lang,{day:'2-digit'}).format(dt);
   const month=new Intl.DateTimeFormat(lang,{month:'long'}).format(dt);
-  const hhmm=new Intl.DateTimeFormat(lang,{hour:'2-digit',minute:'2-digit',hour12:false}).format(dt).replace(':','');
-  return `${weekday} ${day}. ${month} ${hhmm} ${kindLabel} ${dayRunLabel}`;
+  return `${weekday} ${day}. ${month} ${kindLabel} ${dayRunLabel}`;
 }
 
 function _renderScheduleList(events){
@@ -5149,7 +5260,8 @@ function _renderScheduleList(events){
 
   if(emptyEl) emptyEl.style.display='none';
   for(const ev of items){
-    const kind=(String(ev?.kind||'show').toLowerCase()==='warmup')?'warmup':'show';
+    const rawKind=String(ev?.kind||'show').toLowerCase();
+    const kind=rawKind==='warmup' ? 'warmup' : rawKind==='shutdown' ? 'shutdown' : 'show';
     const row=document.createElement('div');
     row.className='srow';
 
@@ -5162,10 +5274,12 @@ function _renderScheduleList(events){
     detail.textContent=_formatScheduleDetailLine(ev,kind);
 
     const tag=document.createElement('div');
-    tag.className=`stag ${kind==='warmup'?'stag-w':'stag-s'}`;
+    tag.className=`stag ${kind==='warmup'?'stag-w':kind==='shutdown'?'stag-x':'stag-s'}`;
     tag.textContent=kind==='warmup'
       ? (locales[currentLang]?.warmup_label||'Warmup')
-      : (locales[currentLang]?.show_label||'Show');
+      : kind==='shutdown'
+        ? (locales[currentLang]?.shutdown_label||'Shutdown')
+        : (locales[currentLang]?.show_label||'Show');
 
     row.appendChild(time);
     row.appendChild(detail);
@@ -5197,8 +5311,13 @@ function _applyScheduleFallbackFromNextEvent(){
 async function pollSchedulerUpcoming(){
   if(demoMode) return;
   try{
-    const raw=await schedulerCall('UpcomingEventsJson');
-    const events=_parseUpcomingEvents(raw);
+    let raw=await schedulerReadWithWarmup('UpcomingEventsJson');
+    let events=_parseUpcomingEvents(raw);
+    if(!events.length){
+      try{ await schedulerCall('updateUpcomingEvents'); }catch{}
+      raw=await schedulerReadWithWarmup('UpcomingEventsJson');
+      events=_parseUpcomingEvents(raw);
+    }
     if(!events.length){
       _applyScheduleFallbackFromNextEvent();
       return;
