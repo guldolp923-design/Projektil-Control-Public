@@ -700,10 +700,36 @@ body.emergency-locked .btn-o{background:#9a3412}
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
                 </div>
               </div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Alarm-Ereignisse</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 10px;margin-bottom:12px;font-size:12px">
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-offline"> Offline</label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-ups"> UPS Batteriebetrieb</label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-trigger-missed"> Trigger nicht ausgeloest</label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-timeline"> Timeline-Fehler</label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-emergency"> Emergency</label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-panic"> Panic</label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-keyword"> Eigene Keywords</label>
+              </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveTelegramSettings()">Speichern</button>
                 <button class="btn btn-o" style="flex:1;min-width:100px" onclick="sendTelegramTest()">Test senden</button>
                 <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockTelegramSettings()">Sperren</button>
+              </div>
+              <div style="margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--card2)">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Alarm-Simulation (nutzt gespeicherte Telegram-Konfiguration)</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <select id="tg-alert-test-kind" style="flex:2;min-width:170px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:12px">
+                    <option value="trigger_missed">Trigger nicht ausgeloest</option>
+                    <option value="timeline_error">Timeline-Fehler</option>
+                    <option value="offline">Offline</option>
+                    <option value="ups_battery">UPS Batteriebetrieb</option>
+                    <option value="emergency">Emergency</option>
+                    <option value="panic">Panic</option>
+                    <option value="keyword_match">Keyword-Match</option>
+                  </select>
+                  <button class="btn btn-o" style="flex:1;min-width:130px" onclick="simulateTelegramAlertEvent()">Alarm simulieren</button>
+                  <button class="btn btn-o" style="flex:1;min-width:150px" onclick="simulateSelectedTelegramAlertEvents()">Auswahl testen</button>
+                </div>
               </div>
               <div id="tg-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
             </div>
@@ -1329,6 +1355,7 @@ const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
 const VIEW_MODE_PIN = '8048';
 const TELEGRAM_SETTINGS_PIN = '1215';
+const TELEGRAM_ALERT_EVENT_DEFAULTS = ['offline', 'ups_battery', 'trigger_missed', 'timeline_error', 'emergency', 'panic', 'keyword_match'];
 const CAMERA_MJPEG_BASE_URL = 'http://127.0.0.1:41777';
 const CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS = 1200;
 const CAMERA_PREVIEW_INTERVAL_STREAM_MS = 1000;
@@ -2217,6 +2244,51 @@ window.confirmViewModeUnlock=()=>{
 };
 
 // ── Telegram Settings PIN-protection ────────────────────────────────────────
+function normalizeTelegramAlertEvents(alertEvents){
+  if(!Array.isArray(alertEvents) || !alertEvents.length) return [...TELEGRAM_ALERT_EVENT_DEFAULTS];
+  const cleaned = [];
+  for(const item of alertEvents){
+    const v = String(item || '').trim().toLowerCase();
+    if(!v) continue;
+    if(!cleaned.includes(v)) cleaned.push(v);
+  }
+  return cleaned.length ? cleaned : [...TELEGRAM_ALERT_EVENT_DEFAULTS];
+}
+
+function applyTelegramAlertEventsToUI(alertEvents){
+  const selected = normalizeTelegramAlertEvents(alertEvents);
+  const eventMap = {
+    'tg-event-offline': 'offline',
+    'tg-event-ups': 'ups_battery',
+    'tg-event-trigger-missed': 'trigger_missed',
+    'tg-event-timeline': 'timeline_error',
+    'tg-event-emergency': 'emergency',
+    'tg-event-panic': 'panic',
+    'tg-event-keyword': 'keyword_match'
+  };
+  for(const [id, key] of Object.entries(eventMap)){
+    const el = document.getElementById(id);
+    if(el) el.checked = selected.includes(key);
+  }
+}
+
+function collectTelegramAlertEventsFromUI(){
+  const eventMap = {
+    'tg-event-offline': 'offline',
+    'tg-event-ups': 'ups_battery',
+    'tg-event-trigger-missed': 'trigger_missed',
+    'tg-event-timeline': 'timeline_error',
+    'tg-event-emergency': 'emergency',
+    'tg-event-panic': 'panic',
+    'tg-event-keyword': 'keyword_match'
+  };
+  const out = [];
+  for(const [id, key] of Object.entries(eventMap)){
+    if(document.getElementById(id)?.checked) out.push(key);
+  }
+  return out;
+}
+
 function openTelegramSettings(){
   const pin = String(document.getElementById('tg-pin-input')?.value || '').trim();
   const err = document.getElementById('tg-pin-error');
@@ -2233,6 +2305,9 @@ function openTelegramSettings(){
     document.getElementById('tg-enabled-toggle').checked = !!cfg.telegram.enabled;
     document.getElementById('tg-bot-token-input').value = cfg.telegram.bot_token || '';
     document.getElementById('tg-chat-id-input').value   = cfg.telegram.chat_id   || '';
+    applyTelegramAlertEventsToUI(cfg.telegram.alert_events);
+  } else {
+    applyTelegramAlertEventsToUI(null);
   }
 }
 window.openTelegramSettings = openTelegramSettings;
@@ -2250,15 +2325,17 @@ async function saveTelegramSettings(){
   const enabled  = document.getElementById('tg-enabled-toggle').checked;
   const token    = document.getElementById('tg-bot-token-input').value.trim();
   const chatId   = document.getElementById('tg-chat-id-input').value.trim();
+  const alertEvents = collectTelegramAlertEventsFromUI();
   if(statusEl) statusEl.textContent = '…';
   try {
-    await invoke('save_telegram_config', {enabled, botToken: token, chatId});
+    await invoke('save_telegram_config', {enabled, botToken: token, chatId, alertEvents});
     // Update local cfg cache
     if(!cfg) cfg = {};
     if(!cfg.telegram) cfg.telegram = {};
     cfg.telegram.enabled   = enabled;
     cfg.telegram.bot_token = token;
     cfg.telegram.chat_id   = chatId;
+    cfg.telegram.alert_events = alertEvents;
     if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Gespeichert.'; }
   } catch(e){
     if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
@@ -2283,6 +2360,56 @@ async function sendTelegramTest(){
   }
 }
 window.sendTelegramTest = sendTelegramTest;
+
+function telegramAlertSampleMessage(kind){
+  const samples = {
+    trigger_missed: 'MISSED EVENT: Trigger not fired for cue 12',
+    timeline_error: 'Timeline error: OnTimelineError while executing show block',
+    offline: 'NAS ist offline!',
+    ups_battery: 'UPS hat auf Batteriebetrieb gewechselt - Runtime: 00:12:34',
+    emergency: 'Emergency stop ausgelost',
+    panic: 'PANIC: watchdog timeout',
+    keyword_match: 'Netzproblem erkannt: ueberfrequenz auf Phase L1'
+  };
+  return samples[kind] || samples.trigger_missed;
+}
+
+async function simulateTelegramAlertEvent(){
+  const statusEl = document.getElementById('tg-save-status');
+  const kind = String(document.getElementById('tg-alert-test-kind')?.value || 'trigger_missed');
+  const message = telegramAlertSampleMessage(kind);
+
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Simuliere Alarm…'; }
+  try {
+    await invoke('append_app_log', {level: 'error', message, timestampMs: Date.now()});
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Alarm simuliert: '+kind; }
+  } catch(e){
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+  }
+}
+window.simulateTelegramAlertEvent = simulateTelegramAlertEvent;
+
+async function simulateSelectedTelegramAlertEvents(){
+  const statusEl = document.getElementById('tg-save-status');
+  const selected = collectTelegramAlertEventsFromUI();
+  if(!selected.length){
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Keine Alarm-Ereignisse ausgewaehlt.'; }
+    return;
+  }
+
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Simuliere '+selected.length+' Ereignisse…'; }
+  try {
+    for(let i = 0; i < selected.length; i++){
+      const kind = selected[i];
+      const message = telegramAlertSampleMessage(kind);
+      await invoke('append_app_log', {level: 'error', message, timestampMs: Date.now() + i});
+    }
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Auswahl simuliert ('+selected.length+' Ereignisse).'; }
+  } catch(e){
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+  }
+}
+window.simulateSelectedTelegramAlertEvents = simulateSelectedTelegramAlertEvents;
 
 // ── AnyDesk Settings PIN-protection (PIN 8048) ─────────────────────────────
 function openAnyDeskSettings(){

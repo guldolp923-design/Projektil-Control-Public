@@ -366,11 +366,70 @@ fn contains_critical_keyword(message: &str, cfg: &serde_json::Value) -> bool {
         .unwrap_or(false)
 }
 
+fn telegram_event_enabled(cfg: &serde_json::Value, event_key: &str) -> bool {
+    cfg["telegram"]["alert_events"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.trim().to_ascii_lowercase())
+                .any(|v| v == event_key)
+        })
+        .unwrap_or(true)
+}
+
+fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<String> {
+    let m = normalize_text(message);
+    let mut out: Vec<String> = Vec::new();
+
+    let mut push = |key: &str| {
+        if !out.iter().any(|k| k == key) {
+            out.push(key.to_string());
+        }
+    };
+
+    if m.contains("missed event")
+        || m.contains("not fired")
+        || m.contains("nicht ausgeloest")
+        || m.contains("nicht ausgelost")
+    {
+        push("trigger_missed");
+    }
+
+    if m.contains("timeline error") || m.contains("ontimelineerror") {
+        push("timeline_error");
+    }
+
+    if m.contains("offline!") || m.contains(" ist offline") {
+        push("offline");
+    }
+
+    if m.contains("batteriebetrieb") || m.contains("battery mode") || m.contains("akku warnung") {
+        push("ups_battery");
+    }
+
+    if m.contains("emergency") || m.contains("sofortalarm") {
+        push("emergency");
+    }
+
+    if m.contains("panic:") {
+        push("panic");
+    }
+
+    if contains_critical_keyword(message, cfg) {
+        push("keyword_match");
+    }
+
+    out
+}
+
 fn should_send_telegram_for_error(level: &str, message: &str, cfg: &serde_json::Value) -> bool {
     if !level.eq_ignore_ascii_case("error") {
         return false;
     }
-    contains_critical_keyword(message, cfg)
+    detect_telegram_alert_events(message, cfg)
+        .iter()
+        .any(|k| telegram_event_enabled(cfg, k))
 }
 
 fn telegram_rate_limited(fingerprint: &str, timestamp_ms: u64) -> bool {
@@ -501,6 +560,9 @@ fn maybe_send_critical_telegram(level: &str, message: &str, timestamp_ms: u64) {
     if is_resolution_message(message) && level.eq_ignore_ascii_case("info") {
         let resolved = strip_resolution_prefix(message);
         if classify_error_category(&resolved) != "ups" {
+            return;
+        }
+        if !telegram_event_enabled(&cfg, "ups_battery") {
             return;
         }
         let fingerprint = format!("resolved:{}", resolved);
@@ -2348,6 +2410,15 @@ fn default_config_json() -> serde_json::Value {
             "enabled": false,
             "bot_token": "",
             "chat_id": "",
+            "alert_events": [
+                "offline",
+                "ups_battery",
+                "trigger_missed",
+                "timeline_error",
+                "emergency",
+                "panic",
+                "keyword_match"
+            ],
             "critical_error_keywords": [
                 "sofortalarm",
                 "batteriebetrieb",
@@ -2403,6 +2474,20 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
         }
         if !t.contains_key("chat_id") {
             t.insert("chat_id".to_string(), serde_json::json!(""));
+        }
+        if !t.contains_key("alert_events") {
+            t.insert(
+                "alert_events".to_string(),
+                serde_json::json!([
+                    "offline",
+                    "ups_battery",
+                    "trigger_missed",
+                    "timeline_error",
+                    "emergency",
+                    "panic",
+                    "keyword_match"
+                ]),
+            );
         }
         if !t.contains_key("critical_error_keywords") {
             t.insert(
@@ -2508,7 +2593,7 @@ fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<
 }
 
 #[tauri::command]
-fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String) -> Result<bool, String> {
+fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, alert_events: Option<Vec<String>>) -> Result<bool, String> {
     let mut cfg = read_config_json_from_disk()
         .map(|(_, json)| json)
         .unwrap_or_else(default_config_json);
@@ -2520,6 +2605,19 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String) -> Re
             t.insert("enabled".to_string(), serde_json::json!(enabled));
             t.insert("bot_token".to_string(), serde_json::json!(bot_token.trim()));
             t.insert("chat_id".to_string(), serde_json::json!(chat_id.trim()));
+            if let Some(events) = alert_events {
+                let mut cleaned: Vec<String> = Vec::new();
+                for event in events {
+                    let v = event.trim().to_ascii_lowercase();
+                    if v.is_empty() {
+                        continue;
+                    }
+                    if !cleaned.iter().any(|e| e == &v) {
+                        cleaned.push(v);
+                    }
+                }
+                t.insert("alert_events".to_string(), serde_json::json!(cleaned));
+            }
         }
     }
 
