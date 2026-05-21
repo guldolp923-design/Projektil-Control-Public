@@ -1260,7 +1260,7 @@ fn check_ups_anomalies(data: &serde_json::Map<String, serde_json::Value>, cfg: &
         warnings.push("bat_ok = 0 (Batterie nicht OK)".to_string());
     }
 
-    let load_pct = output_load / 10;
+    let load_pct = normalize_ups_load_percent(output_load);
     if load_pct >= ups_load_warn {
         warnings.push(format!("UPS LAST {}% (Warnschwelle {}%)", load_pct, ups_load_warn));
     }
@@ -1290,6 +1290,22 @@ fn check_ups_anomalies(data: &serde_json::Map<String, serde_json::Value>, cfg: &
     }
 
     warnings
+}
+
+fn normalize_ups_load_percent(raw: i64) -> i64 {
+    if raw <= 0 {
+        return 0;
+    }
+    if raw <= 100 {
+        return raw;
+    }
+    if raw <= 1000 {
+        return raw / 10;
+    }
+    if raw <= 10000 {
+        return raw / 100;
+    }
+    raw / 10
 }
 
 // ============================================================
@@ -1524,11 +1540,11 @@ async fn camera_stream_frame(ip: String, stream: Option<u8>) -> Result<String, S
 
 
 // ============================================================
-// APC UPS — SNMPv1 UDP Port 161, Community: "Projektil"
+// APC UPS — SNMPv1 UDP Port 161, Community: "projektil"
 // ============================================================
 #[tauri::command]
 async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
-    let community = "Projektil";
+    let community = "projektil";
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
     socket.set_read_timeout(Some(Duration::from_millis(450))).ok();
     socket.connect(format!("{}:161", ip)).map_err(|e| e.to_string())?;
@@ -1556,7 +1572,15 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
         ("input_voltage",   vec![1,3,6,1,4,1,318,1,1,1,3,2,1,0]),
         ("input_freq",    vec![1,3,6,1,4,1,318,1,1,1,3,2,4,0]),
         ("output_v",      vec![1,3,6,1,4,1,318,1,1,1,3,3,1,0]),
-        ("output_load",   vec![1,3,6,1,4,1,318,1,1,1,3,3,4,0]),
+        ("output_load_mib", vec![1,3,6,1,4,1,318,1,1,1,3,3,3,0]),
+        ("hp_output_load", vec![1,3,6,1,4,1,318,1,1,1,4,3,3,0]),
+        ("rfc_output_percent_load_0", vec![1,3,6,1,2,1,33,1,4,4,1,5,0]),
+        ("rfc_output_percent_load_1", vec![1,3,6,1,2,1,33,1,4,4,1,5,1]),
+        ("apc_output_load_1", vec![1,3,6,1,4,1,318,1,1,1,4,2,4,0]),
+        ("apc_output_load_2", vec![1,3,6,1,4,1,318,1,1,1,4,2,5,0]),
+        ("apc_output_load_3", vec![1,3,6,1,4,1,318,1,1,1,4,2,6,0]),
+        ("hp_output_current", vec![1,3,6,1,4,1,318,1,1,1,4,3,4,0]),
+        ("output_current", vec![1,3,6,1,4,1,318,1,1,1,3,3,4,0]),
         ("output_status", vec![1,3,6,1,4,1,318,1,1,1,4,1,1,0]),
         ("output_online", vec![1,3,6,1,4,1,318,1,1,1,4,1,2,0]),
     ];
@@ -1582,6 +1606,34 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
             }
         }
     }
+
+    // Always calculate display load from current and voltage for this UPS model.
+    // Do not use APC/RFC load OIDs directly in status output.
+    let current_raw = result
+        .get("hp_output_current").and_then(|v| v.as_i64())
+        .or_else(|| result.get("output_current").and_then(|v| v.as_i64()))
+        .unwrap_or(0);
+
+    let current_a = (current_raw as f64) / 10.0;
+    let output_v_raw = result.get("output_v").and_then(|v| v.as_i64()).unwrap_or(0);
+    let input_v_raw = result.get("input_voltage").and_then(|v| v.as_i64()).unwrap_or(0);
+
+    let volts = if output_v_raw >= 1000 {
+        (output_v_raw as f64) / 10.0
+    } else if (100..=300).contains(&output_v_raw) {
+        output_v_raw as f64
+    } else if (100..=300).contains(&input_v_raw) {
+        input_v_raw as f64
+    } else {
+        230.0
+    };
+
+    let rated_watts = 1800.0;
+    let watts = (current_a * volts).round() as i64;
+    let load_pct = (((watts as f64) / rated_watts) * 100.0).round().clamp(0.0, 100.0) as i64;
+    result.insert("output_load".to_string(), serde_json::json!(load_pct));
+    result.insert("output_load_estimated_watts".to_string(), serde_json::json!(watts));
+    result.insert("output_load_source".to_string(), serde_json::json!("calculated_from_current_voltage"));
     
     // Fallback für Kapazität und Temperatur, falls HighPrec 0 liefert oder fehlt
     // Wir skalieren Nicht-HighPrec Werte mit 10, damit das Frontend (das /10 macht) korrekt rechnet.
@@ -1657,7 +1709,7 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 async fn ups_get_power_mode(ip: String) -> Result<serde_json::Value, String> {
-    let community = "Projektil";
+    let community = "projektil";
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
     socket.set_read_timeout(Some(Duration::from_millis(250))).ok();
     socket.connect(format!("{}:161", ip)).map_err(|e| e.to_string())?;
@@ -1693,6 +1745,107 @@ async fn ups_get_power_mode(ip: String) -> Result<serde_json::Value, String> {
         "output_status": output_status,
         "output_online": output_online
     }))
+}
+
+#[tauri::command]
+async fn ups_get_diagnostics(ip: String) -> Result<serde_json::Value, String> {
+    let community = "projektil";
+    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+    socket.set_read_timeout(Some(Duration::from_millis(450))).ok();
+    socket.connect(format!("{}:161", ip)).map_err(|e| e.to_string())?;
+
+    let probes: Vec<(&str, Vec<u32>)> = vec![
+        ("bat_status", vec![1,3,6,1,4,1,318,1,1,1,2,1,1,0]),
+        ("runtime_ticks", vec![1,3,6,1,4,1,318,1,1,1,2,2,3,0]),
+        ("bat_capacity", vec![1,3,6,1,4,1,318,1,1,1,2,3,1,0]),
+        ("bat_temp", vec![1,3,6,1,4,1,318,1,1,1,2,3,2,0]),
+        ("bat_temp_adv", vec![1,3,6,1,4,1,318,1,1,1,2,2,2,0]),
+        ("bat_temp_basic", vec![1,3,6,1,4,1,318,1,1,1,2,1,2,0]),
+        ("bat_temp_internal", vec![1,3,6,1,4,1,318,1,1,1,4,1,4,0]),
+        ("replace_bat", vec![1,3,6,1,4,1,318,1,1,1,2,2,4,0]),
+        ("bat_ok", vec![1,3,6,1,4,1,318,1,1,1,2,2,5,0]),
+        ("input_voltage", vec![1,3,6,1,4,1,318,1,1,1,3,2,1,0]),
+        ("input_freq", vec![1,3,6,1,4,1,318,1,1,1,3,2,4,0]),
+        ("output_v", vec![1,3,6,1,4,1,318,1,1,1,3,3,1,0]),
+        ("output_current_legacy", vec![1,3,6,1,4,1,318,1,1,1,3,3,4,0]),
+        ("output_status", vec![1,3,6,1,4,1,318,1,1,1,4,1,1,0]),
+        ("output_online", vec![1,3,6,1,4,1,318,1,1,1,4,1,2,0]),
+        ("adv_output_load", vec![1,3,6,1,4,1,318,1,1,1,3,3,3,0]),
+        ("adv_output_current", vec![1,3,6,1,4,1,318,1,1,1,3,3,4,0]),
+        ("adv_output_active_power", vec![1,3,6,1,4,1,318,1,1,1,3,3,8,0]),
+        ("adv_output_apparent_power", vec![1,3,6,1,4,1,318,1,1,1,3,3,9,0]),
+        ("hp_output_load", vec![1,3,6,1,4,1,318,1,1,1,4,3,3,0]),
+        ("hp_output_current", vec![1,3,6,1,4,1,318,1,1,1,4,3,4,0]),
+        ("hp_output_efficiency", vec![1,3,6,1,4,1,318,1,1,1,4,3,5,0]),
+        ("hp_output_energy_usage", vec![1,3,6,1,4,1,318,1,1,1,4,3,6,0]),
+        ("rfc_output_current_0", vec![1,3,6,1,2,1,33,1,4,4,1,4,0]),
+        ("rfc_output_current_1", vec![1,3,6,1,2,1,33,1,4,4,1,4,1]),
+        ("rfc_output_percent_load_0", vec![1,3,6,1,2,1,33,1,4,4,1,5,0]),
+        ("rfc_output_percent_load_1", vec![1,3,6,1,2,1,33,1,4,4,1,5,1]),
+        ("rfc_output_percent_capacity_0", vec![1,3,6,1,2,1,33,1,4,4,1,6,0]),
+        ("rfc_output_percent_capacity_1", vec![1,3,6,1,2,1,33,1,4,4,1,6,1]),
+        ("apc_output_current_1", vec![1,3,6,1,4,1,318,1,1,1,4,2,1,0]),
+        ("apc_output_current_2", vec![1,3,6,1,4,1,318,1,1,1,4,2,2,0]),
+        ("apc_output_current_3", vec![1,3,6,1,4,1,318,1,1,1,4,2,3,0]),
+        ("apc_output_load_1", vec![1,3,6,1,4,1,318,1,1,1,4,2,4,0]),
+        ("apc_output_load_2", vec![1,3,6,1,4,1,318,1,1,1,4,2,5,0]),
+        ("apc_output_load_3", vec![1,3,6,1,4,1,318,1,1,1,4,2,6,0]),
+        ("ups_output_percent_load_1", vec![1,3,6,1,2,1,33,1,4,4,1,5,1]),
+        ("ups_output_percent_load_2", vec![1,3,6,1,2,1,33,1,4,4,1,5,2]),
+        ("ups_output_percent_load_3", vec![1,3,6,1,2,1,33,1,4,4,1,5,3]),
+    ];
+
+    let mut results = Vec::<serde_json::Value>::new();
+    for (name, oid) in probes {
+        let mut entry = serde_json::Map::new();
+        entry.insert("name".to_string(), serde_json::json!(name));
+        entry.insert("oid".to_string(), serde_json::json!(oid_to_string(&oid)));
+        let packet = snmp_get_packet(community, &oid);
+        if socket.send(&packet).is_err() {
+            entry.insert("error".to_string(), serde_json::json!("send failed"));
+            results.push(serde_json::Value::Object(entry));
+            continue;
+        }
+
+        let mut buf = [0u8; 512];
+        match socket.recv(&mut buf) {
+            Ok(n) => {
+                let raw = &buf[..n];
+                entry.insert("bytes".to_string(), serde_json::json!(n));
+                entry.insert("raw_hex".to_string(), serde_json::json!(bytes_to_hex_string(raw)));
+                if let Some(val) = extract_snmp_value(raw) {
+                    entry.insert("value".to_string(), serde_json::json!(val));
+                    entry.insert("decoded_kind".to_string(), serde_json::json!("integer-like"));
+                    if name.contains("load") || name.contains("percent_load") {
+                        entry.insert("load_pct_guess".to_string(), serde_json::json!(normalize_ups_load_percent(val)));
+                    }
+                } else if let Some(txt) = extract_snmp_octet_string(raw) {
+                    entry.insert("value".to_string(), serde_json::json!(txt));
+                    entry.insert("decoded_kind".to_string(), serde_json::json!("octet-string"));
+                } else {
+                    entry.insert("error".to_string(), serde_json::json!("decode failed"));
+                }
+            }
+            Err(_) => {
+                entry.insert("error".to_string(), serde_json::json!("timeout/no response"));
+            }
+        }
+        results.push(serde_json::Value::Object(entry));
+    }
+
+    Ok(serde_json::json!({
+        "ip": ip,
+        "community": community,
+        "results": results
+    }))
+}
+
+fn oid_to_string(oid: &[u32]) -> String {
+    oid.iter().map(|part| part.to_string()).collect::<Vec<_>>().join(".")
+}
+
+fn bytes_to_hex_string(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{:02X}", byte)).collect::<Vec<_>>().join(" ")
 }
 
 fn decode_asn1_length(data: &[u8], offset: usize) -> Option<(usize, usize)> {
@@ -1977,13 +2130,7 @@ async fn poe_switch_get_status(ip: String, community: Option<String>, port: Opti
         .connect(format!("{}:{}", ip, port))
         .map_err(|e| e.to_string())?;
 
-    let mut communities = vec![community.clone()];
-    for fallback in ["public", "private", "projektil"] {
-        let fb = fallback.to_string();
-        if !communities.contains(&fb) {
-            communities.push(fb);
-        }
-    }
+    let communities = vec![community.clone()];
 
     let sys_descr_oid = [1, 3, 6, 1, 2, 1, 1, 1, 0];
     let sys_name_oid = [1, 3, 6, 1, 2, 1, 1, 5, 0];
@@ -2084,7 +2231,7 @@ async fn poe_switch_get_status(ip: String, community: Option<String>, port: Opti
 
 #[tauri::command]
 async fn rutx50_get_status(ip: String, community: Option<String>, port: Option<u16>) -> Result<serde_json::Value, String> {
-    let community = community.unwrap_or_else(|| "public".to_string());
+    let community = community.unwrap_or_else(|| "projektil".to_string());
     let port = port.unwrap_or(161);
 
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
@@ -3141,7 +3288,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             d40_command, d40_ping, d40_status, d40_set_gain, http_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
             system_get_battery_status,
-            ups_get_status, ups_get_power_mode, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
+            ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, append_app_log, load_app_logs, get_config,
