@@ -2550,7 +2550,7 @@ fn default_config_json() -> serde_json::Value {
         "ups_ip": "192.168.1.6", "power_disp_ip": "192.168.1.5",
         "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
         "projector_start": 101, "projector_count": 16,
-        "hotline": "+41 XX XXX XX XX",
+        "hotline": "+41 44 492 51 69",
         "location_name": "",
         "anydesk_address": "",
         "telegram": {

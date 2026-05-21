@@ -29,7 +29,7 @@
   "cam_02_ip": "192.168.1.23",
   "projector_start": 101,
   "projector_count": 16,
-  "hotline": "+41 XX XXX XX XX",
+  "hotline": "+41 44 492 51 69",
   "telegram": {
     "enabled": true,
     "bot_token": "",

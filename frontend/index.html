@@ -415,7 +415,7 @@ body.emergency-locked .btn-o{background:#9a3412}
 </div>
 <div class="emergency-lock-banner" id="emergency-lock-banner">
   <span data-l10n-key="emergency_hotline_lock_title">Bitte Hotline kontaktieren</span>
-  <strong id="emergency-lock-hotline">+41 XX XXX XX XX</strong>
+  <strong id="emergency-lock-hotline">+41 44 492 51 69</strong>
 </div>
 <!-- VIEW MODE BANNER -->
 <div class="view-mode-banner" id="view-mode-banner">
@@ -560,7 +560,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         </div>
       </div>
       <div style="text-align:center;margin-top:16px;color:var(--muted);font-style:italic;font-size:12px">
-        <span data-l10n-key="technical_hotline_label">Technical Hotline</span> <strong style="color:#c4bfff;font-size:14px;display:block;margin-top:3px" id="hotline-nr">+41 XX XXX XX XX</strong>
+        <span data-l10n-key="technical_hotline_label">Technical Hotline</span> <strong style="color:#c4bfff;font-size:14px;display:block;margin-top:3px" id="hotline-nr">+41 44 492 51 69</strong>
       </div>
     </div>
 
@@ -568,23 +568,23 @@ body.emergency-locked .btn-o{background:#9a3412}
     <div class="tab-panel" id="tab-projectors">
       <div class="proj-toolbar">
         <div class="proj-select-wrap">
-          <button class="btn proj-select-toggle" id="projector-select-toggle" onclick="toggleProjectorSelectionMode()">Auswählen</button>
+          <button class="btn proj-select-toggle" id="projector-select-toggle" onclick="toggleProjectorSelectionMode()" data-l10n-key="projector_select_toggle">Auswählen</button>
           <div class="proj-select-menu hidden" id="projector-selected-actions">
             <div class="proj-selection-summary" id="projector-selection-summary">0/0 ausgewählt</div>
             <div class="proj-toolbar-buttons">
-              <button class="btn" id="projector-select-all-btn" style="padding:8px 14px;font-size:12px;background:#1f2937;border:1px solid #4b5563;color:#e5e7eb" onclick="selectAllProjectors()">Alle anwählen</button>
-              <button class="btn btn-g" style="padding:8px 14px;font-size:12px" onclick="projSelectedOn()">Ein</button>
-              <button class="btn btn-o" style="padding:8px 14px;font-size:12px" onclick="projSelectedOff()">Off</button>
-              <button class="btn proj-shutter-btn" id="proj-selected-shutter-btn" style="padding:8px 14px;font-size:12px" onclick="projSelectedShutterToggle()">Shutter</button>
+              <button class="btn" id="projector-select-all-btn" style="padding:8px 14px;font-size:12px;background:#1f2937;border:1px solid #4b5563;color:#e5e7eb" onclick="selectAllProjectors()" data-l10n-key="projector_select_all">Alle anwählen</button>
+              <button class="btn btn-g" style="padding:8px 14px;font-size:12px" onclick="projSelectedOn()" data-l10n-key="projector_select_on">Ein</button>
+              <button class="btn btn-o" style="padding:8px 14px;font-size:12px" onclick="projSelectedOff()" data-l10n-key="projector_select_off">Off</button>
+              <button class="btn proj-shutter-btn" id="proj-selected-shutter-btn" style="padding:8px 14px;font-size:12px" onclick="projSelectedShutterToggle()" data-l10n-key="projector_select_shutter">Shutter</button>
             </div>
           </div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="proj-grid"></div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-g" style="padding:10px 20px;font-size:13px" onclick="allProjOn()">Alle EIN</button>
-        <button class="btn btn-o" style="padding:10px 20px;font-size:13px" onclick="allProjOff()">Alle OFF</button>
-        <button class="btn proj-shutter-btn" id="all-proj-shutter-btn" style="padding:10px 20px;font-size:13px;color:#fff" onclick="allProjShutterToggle()">Alle Shutter</button>
+        <button class="btn btn-g" style="padding:10px 20px;font-size:13px" onclick="allProjOn()" data-l10n-key="all_on">Alle EIN</button>
+        <button class="btn btn-o" style="padding:10px 20px;font-size:13px" onclick="allProjOff()" data-l10n-key="all_off">Alle OFF</button>
+        <button class="btn proj-shutter-btn" id="all-proj-shutter-btn" style="padding:10px 20px;font-size:13px;color:#fff" onclick="allProjShutterToggle()" data-l10n-key="projector_all_shutter">Alle Shutter</button>
       </div>
     </div>
 
@@ -594,13 +594,13 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="card-title" data-l10n-key="settings_title">Einstellungen</div>
         <div class="settings-stack" style="margin-top:12px">
           <div class="setting-block">
-            <div class="setting-label">Standort / Venue</div>
-            <div class="setting-hint">Wird im Show-Tab oben angezeigt. Z.B. "KKL Luzern – Saal 1".</div>
+            <div class="setting-label" data-l10n-key="settings_venue_label">Standort / Venue</div>
+            <div class="setting-hint" data-l10n-key="settings_venue_hint">Wird im Show-Tab oben angezeigt. Z.B. "KKL Luzern - Saal 1".</div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-              <input id="venue-name-input" type="text" maxlength="80" placeholder="Standortname eingeben…"
+              <input id="venue-name-input" type="text" maxlength="80" placeholder="Standortname eingeben..." data-l10n-placeholder-key="settings_venue_placeholder"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();saveVenueName()}"
                 style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:13px" />
-              <button class="btn btn-g" onclick="saveVenueName()">OK</button>
+              <button class="btn btn-g" onclick="saveVenueName()" data-l10n-key="settings_ok">OK</button>
             </div>
           </div>
           <div class="setting-block">
@@ -608,7 +608,7 @@ body.emergency-locked .btn-o{background:#9a3412}
             <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
               <input id="projector-count-input" type="number" min="1" max="16" step="1" onchange="commitProjectorCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitProjectorCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
-              <button class="btn btn-g" onclick="commitProjectorCountFromInput()">OK</button>
+              <button class="btn btn-g" onclick="commitProjectorCountFromInput()" data-l10n-key="settings_ok">OK</button>
             </div>
           </div>
           <div class="setting-block">
@@ -661,31 +661,31 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="setting-block">
             <div class="toggle-row" style="margin-bottom:0">
               <div>
-                <div class="setting-label">AnyDesk Adresse</div>
-                <div class="setting-hint">Wird in Telegram-Alarmen angehaengt.</div>
+                <div class="setting-label" data-l10n-key="anydesk_address_title">AnyDesk Adresse</div>
+                <div class="setting-hint" data-l10n-key="anydesk_address_hint">Wird in Telegram-Alarmen angehaengt.</div>
               </div>
             </div>
             <div id="ad-pin-gate" style="margin-top:12px">
               <div style="display:flex;gap:8px;align-items:center">
                 <input type="password" inputmode="numeric" maxlength="4" id="ad-pin-input"
                   style="width:110px;padding:8px 12px;font-size:18px;letter-spacing:10px;text-align:center;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;outline:none"
-                  autocomplete="off" placeholder="••••"
+                  autocomplete="off" placeholder="••••" data-l10n-placeholder-key="pin_placeholder"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();openAnyDeskSettings()}" />
-                <button class="btn btn-g" onclick="openAnyDeskSettings()">Entsperren</button>
+                <button class="btn btn-g" onclick="openAnyDeskSettings()" data-l10n-key="unlock">Entsperren</button>
               </div>
               <div id="ad-pin-error" style="min-height:16px;font-size:11px;color:#fca5a5;margin-top:4px"></div>
             </div>
             <div id="ad-settings-panel" style="display:none;margin-top:14px">
               <div style="display:grid;gap:8px;margin-bottom:12px">
                 <div>
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">AnyDesk-Adresse</div>
-                  <input id="ad-address-input" type="text" autocomplete="off" placeholder="123456789"
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="anydesk_address_field_label">AnyDesk-Adresse</div>
+                  <input id="ad-address-input" type="text" autocomplete="off" placeholder="123456789" data-l10n-placeholder-key="anydesk_address_placeholder"
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
                 </div>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveAnyDeskSettings()">Speichern</button>
-                <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockAnyDeskSettings()">Sperren</button>
+                <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveAnyDeskSettings()" data-l10n-key="save">Speichern</button>
+                <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockAnyDeskSettings()" data-l10n-key="lock">Sperren</button>
               </div>
               <div id="ad-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
             </div>
@@ -698,8 +698,8 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="setting-block">
             <div class="toggle-row" style="margin-bottom:0">
               <div>
-                <div class="setting-label">Telegram Benachrichtigungen</div>
-                <div class="setting-hint">Bot-Token und Chat-ID konfigurieren. Kritische Fehler werden automatisch gesendet.</div>
+                <div class="setting-label" data-l10n-key="telegram_notifications_title">Telegram Benachrichtigungen</div>
+                <div class="setting-hint" data-l10n-key="telegram_notifications_hint">Bot-Token und Chat-ID konfigurieren. Kritische Fehler werden automatisch gesendet.</div>
               </div>
             </div>
             <!-- PIN gate -->
@@ -707,9 +707,9 @@ body.emergency-locked .btn-o{background:#9a3412}
               <div style="display:flex;gap:8px;align-items:center">
                 <input type="password" inputmode="numeric" maxlength="4" id="tg-pin-input"
                   style="width:110px;padding:8px 12px;font-size:18px;letter-spacing:10px;text-align:center;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;outline:none"
-                  autocomplete="off" placeholder="••••"
+                  autocomplete="off" placeholder="••••" data-l10n-placeholder-key="pin_placeholder"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();openTelegramSettings()}" />
-                <button class="btn btn-g" onclick="openTelegramSettings()">Entsperren</button>
+                <button class="btn btn-g" onclick="openTelegramSettings()" data-l10n-key="unlock">Entsperren</button>
               </div>
               <div id="tg-pin-error" style="min-height:16px;font-size:11px;color:#fca5a5;margin-top:4px"></div>
             </div>
@@ -720,49 +720,49 @@ body.emergency-locked .btn-o{background:#9a3412}
                   <input type="checkbox" id="tg-enabled-toggle">
                   <span class="switch-slider"></span>
                 </label>
-                <span style="font-size:12px;color:var(--muted)">Benachrichtigungen aktiviert</span>
+                <span style="font-size:12px;color:var(--muted)" data-l10n-key="telegram_enabled_label">Benachrichtigungen aktiviert</span>
               </div>
               <div style="display:grid;gap:8px;margin-bottom:12px">
                 <div>
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Bot-Token</div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="telegram_bot_token_label">Bot-Token</div>
                   <input id="tg-bot-token-input" type="password" autocomplete="off" placeholder="1234567890:AAH..."
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
                 </div>
                 <div>
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Chat-ID</div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="telegram_chat_id_label">Chat-ID</div>
                   <input id="tg-chat-id-input" type="text" autocomplete="off" placeholder="-100xxxxxxxxxx"
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
                 </div>
               </div>
-              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Alarm-Ereignisse</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-l10n-key="telegram_alert_events_label">Alarm-Ereignisse</div>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 10px;margin-bottom:12px;font-size:12px">
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-offline"> Offline</label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-ups"> UPS Batteriebetrieb</label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-trigger-missed"> Trigger nicht ausgeloest</label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-timeline"> Timeline-Fehler</label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-emergency"> Emergency</label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-panic"> Panic</label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-keyword"> Eigene Keywords</label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-offline"> <span data-l10n-key="telegram_event_offline">Offline</span></label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-ups"> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span></label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-trigger-missed"> <span data-l10n-key="telegram_event_trigger_missed">Trigger nicht ausgeloest</span></label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-timeline"> <span data-l10n-key="telegram_event_timeline_error">Timeline-Fehler</span></label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-emergency"> <span data-l10n-key="telegram_event_emergency">Emergency</span></label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-panic"> <span data-l10n-key="telegram_event_panic">Panic</span></label>
+                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-keyword"> <span data-l10n-key="telegram_event_keyword">Eigene Keywords</span></label>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveTelegramSettings()">Speichern</button>
-                <button class="btn btn-o" style="flex:1;min-width:100px" onclick="sendTelegramTest()">Test senden</button>
-                <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockTelegramSettings()">Sperren</button>
+                <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveTelegramSettings()" data-l10n-key="save">Speichern</button>
+                <button class="btn btn-o" style="flex:1;min-width:100px" onclick="sendTelegramTest()" data-l10n-key="telegram_send_test_button">Test senden</button>
+                <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockTelegramSettings()" data-l10n-key="lock">Sperren</button>
               </div>
               <div style="margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--card2)">
-                <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Alarm-Simulation (nutzt gespeicherte Telegram-Konfiguration)</div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-l10n-key="telegram_simulation_title">Alarm-Simulation (nutzt gespeicherte Telegram-Konfiguration)</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <select id="tg-alert-test-kind" style="flex:2;min-width:170px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:12px">
-                    <option value="trigger_missed">Trigger nicht ausgeloest</option>
-                    <option value="timeline_error">Timeline-Fehler</option>
-                    <option value="offline">Offline</option>
-                    <option value="ups_battery">UPS Batteriebetrieb</option>
-                    <option value="emergency">Emergency</option>
-                    <option value="panic">Panic</option>
-                    <option value="keyword_match">Keyword-Match</option>
+                    <option value="trigger_missed" data-l10n-key="telegram_option_trigger_missed">Trigger nicht ausgeloest</option>
+                    <option value="timeline_error" data-l10n-key="telegram_option_timeline_error">Timeline-Fehler</option>
+                    <option value="offline" data-l10n-key="telegram_option_offline">Offline</option>
+                    <option value="ups_battery" data-l10n-key="telegram_option_ups_battery">UPS Batteriebetrieb</option>
+                    <option value="emergency" data-l10n-key="telegram_option_emergency">Emergency</option>
+                    <option value="panic" data-l10n-key="telegram_option_panic">Panic</option>
+                    <option value="keyword_match" data-l10n-key="telegram_option_keyword_match">Keyword-Match</option>
                   </select>
-                  <button class="btn btn-o" style="flex:1;min-width:130px" onclick="simulateTelegramAlertEvent()">Alarm simulieren</button>
-                  <button class="btn btn-o" style="flex:1;min-width:150px" onclick="simulateSelectedTelegramAlertEvents()">Auswahl testen</button>
+                  <button class="btn btn-o" style="flex:1;min-width:130px" onclick="simulateTelegramAlertEvent()" data-l10n-key="telegram_simulate_alarm_button">Alarm simulieren</button>
+                  <button class="btn btn-o" style="flex:1;min-width:150px" onclick="simulateSelectedTelegramAlertEvents()" data-l10n-key="telegram_test_selection_button">Auswahl testen</button>
                 </div>
               </div>
               <div id="tg-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
@@ -1175,7 +1175,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="em-line" data-l10n-key="emergency_line_no_restart">Restarting the show is not possible!</div>
         <div class="em-line" data-l10n-key="emergency_line_projectors_white">Projectors will switch to white output!</div>
         <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:12px" data-l10n-key="emergency_hotline_note">&#9888; The hotline must be contacted &#9888;</div>
-        <div style="font-size:16px;font-weight:700;color:#fff;margin-top:4px" id="em-hotline">+41 XX XXX XX XX</div>
+        <div style="font-size:16px;font-weight:700;color:#fff;margin-top:4px" id="em-hotline">+41 44 492 51 69</div>
         <div class="em-btns">
           <button class="em-btn" data-view-allow onclick="switchTab('show',document.querySelector('.ni'))" data-l10n-key="cancel">Abbrechen</button>
           <button class="em-btn" data-view-allow style="background:rgba(255,255,255,.15)" onclick="confirmEmergency()" data-l10n-key="confirm">Bestätigen</button>
@@ -1250,7 +1250,7 @@ function buildDefaultConfig(){
     cam_02_ip:'192.168.1.23',
     projector_start:101,
     projector_count:16,
-    hotline:'+41 XX XXX XX XX'
+    hotline:'+41 44 492 51 69'
   };
 }
 
@@ -1531,7 +1531,10 @@ function markProtocolValueReceived(key){
   protocolLastValueAt[key]=Date.now();
   if(protocolStaleAlertActive[key]){
     protocolStaleAlertActive[key]=false;
-    addLog('info',`[RESOLVED] ${protocolTypeForKey(key)}-Werte von ${protocolDeviceLabel(key)} werden wieder empfangen.`);
+    addLogT('info','protocol_values_resolved',{
+      protocol: protocolTypeForKey(key),
+      device: protocolDeviceLabel(key)
+    });
   }
 }
 
@@ -1548,7 +1551,11 @@ function enforceProtocolFreshnessTimeouts(){
     if(protocolStaleAlertActive[key]) continue;
     protocolStaleAlertActive[key]=true;
     const protocol=protocolTypeForKey(key);
-    addError(`[${protocol}] Keine ${protocol}-Werte von ${protocolDeviceLabel(key)} seit ${Math.round(staleTimeoutMs/1000)}s empfangen.`);
+    addError(t('protocol_values_missing',{
+      protocol,
+      device: protocolDeviceLabel(key),
+      seconds: Math.round(staleTimeoutMs/1000)
+    }));
   }
 }
 
@@ -1577,7 +1584,43 @@ const locales = {
     nav_emergency: 'Emergency',
     nav_hint: '1–9 Tabs · E Emergency',
     settings_title: 'Einstellungen',
+    settings_venue_label: 'Standort / Venue',
+    settings_venue_hint: 'Wird im Show-Tab oben angezeigt. Z.B. "KKL Luzern - Saal 1".',
+    settings_venue_placeholder: 'Standortname eingeben...',
+    settings_ok: 'OK',
+    save: 'Speichern',
+    lock: 'Sperren',
+    unlock: 'Entsperren',
+    pin_placeholder: '••••',
     language_selection_label: 'Sprache',
+    anydesk_address_title: 'AnyDesk Adresse',
+    anydesk_address_hint: 'Wird in Telegram-Alarmen angehaengt.',
+    anydesk_address_field_label: 'AnyDesk-Adresse',
+    anydesk_address_placeholder: '123456789',
+    telegram_notifications_title: 'Telegram Benachrichtigungen',
+    telegram_notifications_hint: 'Bot-Token und Chat-ID konfigurieren. Kritische Fehler werden automatisch gesendet.',
+    telegram_enabled_label: 'Benachrichtigungen aktiviert',
+    telegram_bot_token_label: 'Bot-Token',
+    telegram_chat_id_label: 'Chat-ID',
+    telegram_alert_events_label: 'Alarm-Ereignisse',
+    telegram_event_offline: 'Offline',
+    telegram_event_ups_battery: 'UPS Batteriebetrieb',
+    telegram_event_trigger_missed: 'Trigger nicht ausgeloest',
+    telegram_event_timeline_error: 'Timeline-Fehler',
+    telegram_event_emergency: 'Emergency',
+    telegram_event_panic: 'Panic',
+    telegram_event_keyword: 'Eigene Keywords',
+    telegram_send_test_button: 'Test senden',
+    telegram_simulation_title: 'Alarm-Simulation (nutzt gespeicherte Telegram-Konfiguration)',
+    telegram_option_trigger_missed: 'Trigger nicht ausgeloest',
+    telegram_option_timeline_error: 'Timeline-Fehler',
+    telegram_option_offline: 'Offline',
+    telegram_option_ups_battery: 'UPS Batteriebetrieb',
+    telegram_option_emergency: 'Emergency',
+    telegram_option_panic: 'Panic',
+    telegram_option_keyword_match: 'Keyword-Match',
+    telegram_simulate_alarm_button: 'Alarm simulieren',
+    telegram_test_selection_button: 'Auswahl testen',
     software_version_title: 'Software-Version',
     update_title: 'Update',
     update_hint: 'Prüft, ob eine neuere Version verfügbar ist.',
@@ -1751,6 +1794,86 @@ const locales = {
     app_started: 'PROJEKTIL Control gestartet',
     network_polling: 'Netzwerk: 192.168.1.x — SNMP Polling alle 10s',
     supply_switched: 'Zuleitung auf {limit}A umgestellt — Schwellwerte angepasst',
+    projector_select_toggle: 'Auswählen',
+    projector_select_all: 'Alle anwählen',
+    projector_select_all_with_count: 'Alle anwählen ({total})',
+    projector_select_on: 'Ein',
+    projector_select_off: 'Off',
+    projector_select_shutter: 'Shutter',
+    projector_all_shutter: 'Alle Shutter',
+    projector_selected_summary: '{selected}/{total} ausgewählt',
+    projector_available_summary: '{total} Projektoren verfügbar',
+    projector_no_selection_for_action: '[Pixera API] Keine Projektoren ausgewählt für {label}',
+    projector_no_config_for_action: '[Pixera API] Keine Projektoren konfiguriert für {label}',
+    projector_action_sent_count: '[Pixera API] {label} an {count} Projektoren gesendet',
+    projector_no_ip_configured: '[Pixera API] Projector {index}: Keine IP konfiguriert',
+    projector_power_on_failed: '[Pixera API] PJ-Link projector {index} ON fehlgeschlagen: {error}',
+    projector_power_off_failed: '[Pixera API] PJ-Link projector {index} OFF fehlgeschlagen: {error}',
+    projector_shutter_failed: '[Pixera API] PJ-Link projector {index} Shutter fehlgeschlagen: {error}',
+    projector_no_ip_error: 'Keine IP konfiguriert',
+    protocol_values_resolved: '[RESOLVED] {protocol}-Werte von {device} werden wieder empfangen.',
+    protocol_values_missing: '[{protocol}] Keine {protocol}-Werte von {device} seit {seconds}s empfangen.',
+    status_working: '…',
+    status_saving: 'Speichere…',
+    status_saved_ok: '✓ Gespeichert.',
+    status_save_failed: 'Fehler beim Speichern.',
+    status_error_with_detail: 'Fehler: {error}',
+    telegram_enter_token_chat: 'Bot-Token und Chat-ID eingeben.',
+    telegram_sending_test: 'Sende Test…',
+    telegram_simulating_alarm: 'Simuliere Alarm…',
+    telegram_alarm_simulated: '✓ Alarm simuliert: {kind}',
+    telegram_simulating_events: 'Simuliere {count} Ereignisse…',
+    telegram_events_simulated: '✓ Auswahl simuliert ({count} Ereignisse).',
+    telegram_no_events_selected: 'Keine Alarm-Ereignisse ausgewählt.',
+    camera_invalid_frame_backend: 'kein gueltiger Frame vom Backend erhalten',
+    unknown_error: 'unbekannter Fehler',
+    camera_stream_diagnosis_error: 'CAM 0{cam} {context}: {detail}',
+    startup_connection_offline: '[Startup] {name} ({host}:{port}) OFFLINE | Grund: {reason} | Dauer: {durationMs}ms',
+    projector_transition_timeout: '[Pixera API] PJ-Link projector {index} Timeout ({seconds}s) waiting for {target}',
+    emergency_amp_mute_all_log: 'EMERGENCY: AMP 0{ampNo} mute_all',
+    emergency_amp_mute_all_failed: 'EMERGENCY: AMP 0{ampNo} mute_all fehlgeschlagen: {error}',
+    scheduler_powerall_executed: '[Pixera API] Scheduler PowerAll ausgefuehrt',
+    scheduler_powerall_failed: '[Pixera API] Scheduler PowerAll fehlgeschlagen: {error}',
+    scheduler_poweroff_executed: '[Pixera API] Scheduler PowerOff ausgefuehrt',
+    scheduler_poweroff_failed: '[Pixera API] Scheduler PowerOff fehlgeschlagen: {error}',
+    camera_remote_error: 'CAM 0{cam} Remote Fehler: {error}',
+    camera_stream_reload_manual: 'CAM 0{cam}: Stream Reload manuell ausgeloest',
+    camera_ptz_error: 'CAM 0{cam} PTZ Fehler: {error}',
+    camera_no_signal_retry: 'Kein Signal - versuche erneut...',
+    camera_no_stream_signal: 'Kein Stream-Signal',
+    camera_stream_unavailable: 'Stream nicht verfuegbar',
+    camera_stream_timeout: 'Stream Timeout',
+    camera_preview_unavailable: 'Preview nicht verfuegbar',
+    camera_preview_unavailable_invalid: 'CAM 0{cam} Preview nicht verfuegbar (kein gueltiges Bild).',
+    camera_preview_error: 'CAM 0{cam} Preview Fehler: {error}',
+    pjlink_model_detect_startup_failed: '[PJLink] Modell-Erkennung beim Start fehlgeschlagen: {error}',
+    scheduler_query_failed: '[Pixera API] Scheduler-Abfrage fehlgeschlagen: {error}',
+    pixera_restart_not_implemented: '[Pixera API] Restart fuer {server} ist im Standard-API-Flow noch nicht hinterlegt.',
+    pixera_play_sent: '[Pixera API] startFirstTimeline gesendet',
+    pixera_pause_sent: '[Pixera API] pauseFirstTimeline gesendet',
+    pixera_stop_sent: '[Pixera API] stopFirstTimeline gesendet',
+    pixera_play_failed: '[Pixera API] Play fehlgeschlagen: {error}',
+    pixera_pause_failed: '[Pixera API] Pause fehlgeschlagen: {error}',
+    pixera_stop_failed: '[Pixera API] Stop fehlgeschlagen: {error}',
+    js_error_with_detail: 'JS Error: {message} ({file}:{line})',
+    unhandled_promise_rejection: 'Unhandled Promise Rejection: {reason}',
+    unknown_init_error: 'Unbekannter Initialisierungsfehler',
+    init_error: '[Init] {reason}',
+    janitza_error_with_detail: '[Janitza] FEHLER: {error}',
+    ups_switched_to_battery_alarm: '[UPS] SOFORTALARM: UPS hat auf Batteriebetrieb gewechselt!{runtime}',
+    ups_error_with_detail: '[UPS] FEHLER: {error}',
+    ups_back_to_mains_resolved: '[RESOLVED] UPS wieder im Netzbetrieb (Batteriemodus beendet).',
+    ups_battery_watch_error: '[UPS] Battery-Watch FEHLER: {error}',
+    system_battery_low_warning: '[SYSTEM] AKKU WARNUNG: Akkustand unter {threshold}% (aktuell {pct}%).',
+    snmp_unreachable: 'SNMP nicht erreichbar',
+    error_resolved_many: '[RESOLVED] Error {index}/{total} gelöst: {message}',
+    error_resolved_one: '[RESOLVED] Error 1/1 gelöst: {message}',
+    device_state_now: '{icon} {label} ist jetzt {state}',
+    device_offline_alert: '{label} ist OFFLINE!',
+    venue_saved_with_value: 'Standort gespeichert: {value}',
+    empty_value_label: '(leer)',
+    janitza_warning: '[Janitza] {warning}',
+    ups_warning: '[UPS] {warning}',
     powerall_triggered: 'PowerAll ausgelöst',
     projector_ping_label: 'Ping',
     projector_link_label: 'PJ-Link',
@@ -1813,7 +1936,43 @@ const locales = {
     nav_emergency: 'Emergency',
     nav_hint: '1–9 Tabs · E Emergency',
     settings_title: 'Settings',
+    settings_venue_label: 'Location / Venue',
+    settings_venue_hint: 'Shown at the top of the Show tab. Example: "KKL Lucerne - Hall 1".',
+    settings_venue_placeholder: 'Enter location name...',
+    settings_ok: 'OK',
+    save: 'Save',
+    lock: 'Lock',
+    unlock: 'Unlock',
+    pin_placeholder: '••••',
     language_selection_label: 'Language',
+    anydesk_address_title: 'AnyDesk address',
+    anydesk_address_hint: 'Included in Telegram alerts.',
+    anydesk_address_field_label: 'AnyDesk address',
+    anydesk_address_placeholder: '123456789',
+    telegram_notifications_title: 'Telegram notifications',
+    telegram_notifications_hint: 'Configure bot token and chat ID. Critical errors are sent automatically.',
+    telegram_enabled_label: 'Notifications enabled',
+    telegram_bot_token_label: 'Bot token',
+    telegram_chat_id_label: 'Chat ID',
+    telegram_alert_events_label: 'Alert events',
+    telegram_event_offline: 'Offline',
+    telegram_event_ups_battery: 'UPS battery mode',
+    telegram_event_trigger_missed: 'Trigger missed',
+    telegram_event_timeline_error: 'Timeline error',
+    telegram_event_emergency: 'Emergency',
+    telegram_event_panic: 'Panic',
+    telegram_event_keyword: 'Custom keywords',
+    telegram_send_test_button: 'Send test',
+    telegram_simulation_title: 'Alert simulation (uses saved Telegram configuration)',
+    telegram_option_trigger_missed: 'Trigger missed',
+    telegram_option_timeline_error: 'Timeline error',
+    telegram_option_offline: 'Offline',
+    telegram_option_ups_battery: 'UPS battery mode',
+    telegram_option_emergency: 'Emergency',
+    telegram_option_panic: 'Panic',
+    telegram_option_keyword_match: 'Keyword match',
+    telegram_simulate_alarm_button: 'Simulate alert',
+    telegram_test_selection_button: 'Test selection',
     software_version_title: 'Software version',
     update_title: 'Update',
     update_hint: 'Checks whether a newer version is available.',
@@ -1987,6 +2146,86 @@ const locales = {
     app_started: 'PROJEKTIL Control started',
     network_polling: 'Network: 192.168.1.x — SNMP polling every 10s',
     supply_switched: 'Supply switched to {limit}A — thresholds adjusted',
+    projector_select_toggle: 'Select',
+    projector_select_all: 'Select all',
+    projector_select_all_with_count: 'Select all ({total})',
+    projector_select_on: 'On',
+    projector_select_off: 'Off',
+    projector_select_shutter: 'Shutter',
+    projector_all_shutter: 'All Shutter',
+    projector_selected_summary: '{selected}/{total} selected',
+    projector_available_summary: '{total} projectors available',
+    projector_no_selection_for_action: '[Pixera API] No projectors selected for {label}',
+    projector_no_config_for_action: '[Pixera API] No projectors configured for {label}',
+    projector_action_sent_count: '[Pixera API] {label} sent to {count} projectors',
+    projector_no_ip_configured: '[Pixera API] Projector {index}: no IP configured',
+    projector_power_on_failed: '[Pixera API] PJ-Link projector {index} ON failed: {error}',
+    projector_power_off_failed: '[Pixera API] PJ-Link projector {index} OFF failed: {error}',
+    projector_shutter_failed: '[Pixera API] PJ-Link projector {index} shutter failed: {error}',
+    projector_no_ip_error: 'No IP configured',
+    protocol_values_resolved: '[RESOLVED] {protocol} values from {device} are being received again.',
+    protocol_values_missing: '[{protocol}] No {protocol} values received from {device} for {seconds}s.',
+    status_working: '…',
+    status_saving: 'Saving…',
+    status_saved_ok: '✓ Saved.',
+    status_save_failed: 'Saving failed.',
+    status_error_with_detail: 'Error: {error}',
+    telegram_enter_token_chat: 'Enter bot token and chat ID.',
+    telegram_sending_test: 'Sending test…',
+    telegram_simulating_alarm: 'Simulating alarm…',
+    telegram_alarm_simulated: '✓ Alarm simulated: {kind}',
+    telegram_simulating_events: 'Simulating {count} events…',
+    telegram_events_simulated: '✓ Selection simulated ({count} events).',
+    telegram_no_events_selected: 'No alert events selected.',
+    camera_invalid_frame_backend: 'no valid frame received from backend',
+    unknown_error: 'unknown error',
+    camera_stream_diagnosis_error: 'CAM 0{cam} {context}: {detail}',
+    startup_connection_offline: '[Startup] {name} ({host}:{port}) OFFLINE | Reason: {reason} | Duration: {durationMs}ms',
+    projector_transition_timeout: '[Pixera API] PJ-Link projector {index} timeout ({seconds}s) waiting for {target}',
+    emergency_amp_mute_all_log: 'EMERGENCY: AMP 0{ampNo} mute_all',
+    emergency_amp_mute_all_failed: 'EMERGENCY: AMP 0{ampNo} mute_all failed: {error}',
+    scheduler_powerall_executed: '[Pixera API] Scheduler PowerAll executed',
+    scheduler_powerall_failed: '[Pixera API] Scheduler PowerAll failed: {error}',
+    scheduler_poweroff_executed: '[Pixera API] Scheduler PowerOff executed',
+    scheduler_poweroff_failed: '[Pixera API] Scheduler PowerOff failed: {error}',
+    camera_remote_error: 'CAM 0{cam} remote error: {error}',
+    camera_stream_reload_manual: 'CAM 0{cam}: stream reload triggered manually',
+    camera_ptz_error: 'CAM 0{cam} PTZ error: {error}',
+    camera_no_signal_retry: 'No signal - retrying...',
+    camera_no_stream_signal: 'No stream signal',
+    camera_stream_unavailable: 'stream unavailable',
+    camera_stream_timeout: 'stream timeout',
+    camera_preview_unavailable: 'Preview unavailable',
+    camera_preview_unavailable_invalid: 'CAM 0{cam} preview unavailable (no valid image).',
+    camera_preview_error: 'CAM 0{cam} preview error: {error}',
+    pjlink_model_detect_startup_failed: '[PJLink] Model detection on startup failed: {error}',
+    scheduler_query_failed: '[Pixera API] Scheduler query failed: {error}',
+    pixera_restart_not_implemented: '[Pixera API] Restart for {server} is not implemented in the default API flow yet.',
+    pixera_play_sent: '[Pixera API] startFirstTimeline sent',
+    pixera_pause_sent: '[Pixera API] pauseFirstTimeline sent',
+    pixera_stop_sent: '[Pixera API] stopFirstTimeline sent',
+    pixera_play_failed: '[Pixera API] Play failed: {error}',
+    pixera_pause_failed: '[Pixera API] Pause failed: {error}',
+    pixera_stop_failed: '[Pixera API] Stop failed: {error}',
+    js_error_with_detail: 'JS Error: {message} ({file}:{line})',
+    unhandled_promise_rejection: 'Unhandled Promise Rejection: {reason}',
+    unknown_init_error: 'Unknown initialization error',
+    init_error: '[Init] {reason}',
+    janitza_error_with_detail: '[Janitza] ERROR: {error}',
+    ups_switched_to_battery_alarm: '[UPS] IMMEDIATE ALERT: UPS switched to battery mode!{runtime}',
+    ups_error_with_detail: '[UPS] ERROR: {error}',
+    ups_back_to_mains_resolved: '[RESOLVED] UPS back on mains power (battery mode ended).',
+    ups_battery_watch_error: '[UPS] Battery watch ERROR: {error}',
+    system_battery_low_warning: '[SYSTEM] BATTERY WARNING: charge below {threshold}% (currently {pct}%).',
+    snmp_unreachable: 'SNMP unreachable',
+    error_resolved_many: '[RESOLVED] Error {index}/{total} resolved: {message}',
+    error_resolved_one: '[RESOLVED] Error 1/1 resolved: {message}',
+    device_state_now: '{icon} {label} is now {state}',
+    device_offline_alert: '{label} is OFFLINE!',
+    venue_saved_with_value: 'Location saved: {value}',
+    empty_value_label: '(empty)',
+    janitza_warning: '[Janitza] {warning}',
+    ups_warning: '[UPS] {warning}',
     powerall_triggered: 'PowerAll triggered',
     projector_ping_label: 'Ping',
     projector_link_label: 'PJ-Link',
@@ -2046,6 +2285,22 @@ function translatePage(){
       el.textContent = text;
     }
   });
+  document.querySelectorAll('[data-l10n-placeholder-key]').forEach(el=>{
+    const key = el.dataset.l10nPlaceholderKey;
+    if(!key) return;
+    const text = locales[currentLang]?.[key];
+    if(text !== undefined){
+      el.setAttribute('placeholder', text);
+    }
+  });
+  document.querySelectorAll('[data-l10n-title-key]').forEach(el=>{
+    const key = el.dataset.l10nTitleKey;
+    if(!key) return;
+    const text = locales[currentLang]?.[key];
+    if(text !== undefined){
+      el.setAttribute('title', text);
+    }
+  });
   // Also update the language buttons specifically
   const deBtn = document.getElementById('lang-option-de');
   const enBtn = document.getElementById('lang-option-en');
@@ -2091,12 +2346,27 @@ function translatePage(){
 
 function setLanguage(lang){
   if(!locales[lang]) return;
+  if(currentLang===lang){
+    updateLanguageSettingsUI();
+    return;
+  }
   currentLang = lang;
   localStorage.setItem('lang', currentLang);
   localStorage.setItem('activeTab', currentTab || 'settings');
   translatePage();
   updateLanguageSettingsUI();
-  location.reload();
+
+  // Keep the settings language switch instant without full app reload.
+  const updateStatus=document.getElementById('update-status');
+  if(updateStatus){
+    delete updateStatus.dataset.manual;
+  }
+  if(typeof updateUpdateUI === 'function') updateUpdateUI();
+  if(typeof buildProjGrid === 'function') buildProjGrid();
+  if(typeof buildMonProjGrid === 'function') buildMonProjGrid(true);
+  if(typeof updateProjectorSelectionSummary === 'function') updateProjectorSelectionSummary();
+  if(typeof renderLog === 'function') renderLog();
+  if(typeof renderErrors === 'function') renderErrors();
 }
 
 window.setLanguage = setLanguage;
@@ -2255,7 +2525,7 @@ function setStartupMode(mode){
   startupMode = mode;
   localStorage.setItem('startupMode', startupMode);
   updateStartupModeSettingsUI();
-  addLog('info', startupMode === 'viewer' ? locales[currentLang].startup_mode_saved_viewer : locales[currentLang].startup_mode_saved_admin);
+  addLogT('info', startupMode === 'viewer' ? 'startup_mode_saved_viewer' : 'startup_mode_saved_admin');
 }
 
 window.setStartupMode = setStartupMode;
@@ -2275,7 +2545,7 @@ function updateEmergencyLockUI(){
   document.body.classList.toggle('emergency-locked', emergencyLockActive);
   const banner=document.getElementById('emergency-lock-banner');
   const bannerHotline=document.getElementById('emergency-lock-hotline');
-  const hotline=cfg?.hotline || document.getElementById('em-hotline')?.textContent || '+41 XX XXX XX XX';
+  const hotline=cfg?.hotline || document.getElementById('em-hotline')?.textContent || '+41 44 492 51 69';
   if(bannerHotline) bannerHotline.textContent=hotline;
   if(banner) banner.classList.toggle('show', emergencyLockActive);
   // Auto-show full lockscreen in emergency mode only
@@ -2366,7 +2636,7 @@ function enableViewMode(){
   closeGainDialog();
   document.activeElement?.blur?.();
   updateViewModeUI();
-  addLog('info', locales[currentLang].view_mode_enabled_log);
+  addLogT('info', 'view_mode_enabled_log');
 }
 
 function activateEmergencyLock(){
@@ -2376,7 +2646,7 @@ function activateEmergencyLock(){
   if(!viewModeLocked){
     viewModeLocked = true;
     localStorage.setItem('viewModeLocked', '1');
-    addLog('info', locales[currentLang].view_mode_enabled_log);
+    addLogT('info', 'view_mode_enabled_log');
   }
   if(!wasEmergencyActive){
     void muteAllD40ForEmergency();
@@ -2394,7 +2664,7 @@ function disableViewMode(){
   document.getElementById('view-unlock-small-backdrop')?.classList.remove('show');
   updateViewModeUI();
   updateEmergencyLockUI();
-  addLog('info', locales[currentLang].view_mode_disabled_log);
+  addLogT('info', 'view_mode_disabled_log');
 }
 
 window.toggleViewMode=()=>{
@@ -2470,7 +2740,7 @@ function openTelegramSettings(){
   const pin = String(document.getElementById('tg-pin-input')?.value || '').trim();
   const err = document.getElementById('tg-pin-error');
   if(pin !== TELEGRAM_SETTINGS_PIN){
-    if(err) err.textContent = 'Falscher Code.';
+    if(err) err.textContent = locales[currentLang].view_mode_wrong_code;
     document.getElementById('tg-pin-input')?.focus();
     return;
   }
@@ -2503,7 +2773,7 @@ async function saveTelegramSettings(){
   const token    = document.getElementById('tg-bot-token-input').value.trim();
   const chatId   = document.getElementById('tg-chat-id-input').value.trim();
   const alertEvents = collectTelegramAlertEventsFromUI();
-  if(statusEl) statusEl.textContent = '…';
+  if(statusEl) statusEl.textContent = locales[currentLang].status_working;
   try {
     await invoke('save_telegram_config', {enabled, botToken: token, chatId, alertEvents});
     // Update local cfg cache
@@ -2513,9 +2783,9 @@ async function saveTelegramSettings(){
     cfg.telegram.bot_token = token;
     cfg.telegram.chat_id   = chatId;
     cfg.telegram.alert_events = alertEvents;
-    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Gespeichert.'; }
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent=locales[currentLang].status_saved_ok; }
   } catch(e){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=t('status_error_with_detail',{error:e}); }
   }
 }
 window.saveTelegramSettings = saveTelegramSettings;
@@ -2525,15 +2795,15 @@ async function sendTelegramTest(){
   const token    = document.getElementById('tg-bot-token-input').value.trim();
   const chatId   = document.getElementById('tg-chat-id-input').value.trim();
   if(!token || !chatId){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Bot-Token und Chat-ID eingeben.'; }
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=locales[currentLang].telegram_enter_token_chat; }
     return;
   }
-  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Sende Test…'; }
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent=locales[currentLang].telegram_sending_test; }
   try {
     const result = await invoke('telegram_send_test', {botToken: token, chatId});
     if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ '+result; }
   } catch(e){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=t('status_error_with_detail',{error:e}); }
   }
 }
 window.sendTelegramTest = sendTelegramTest;
@@ -2556,12 +2826,12 @@ async function simulateTelegramAlertEvent(){
   const kind = String(document.getElementById('tg-alert-test-kind')?.value || 'trigger_missed');
   const message = telegramAlertSampleMessage(kind);
 
-  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Simuliere Alarm…'; }
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent=locales[currentLang].telegram_simulating_alarm; }
   try {
     await invoke('append_app_log', {level: 'error', message, timestampMs: Date.now()});
-    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Alarm simuliert: '+kind; }
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent=t('telegram_alarm_simulated',{kind}); }
   } catch(e){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=t('status_error_with_detail',{error:e}); }
   }
 }
 window.simulateTelegramAlertEvent = simulateTelegramAlertEvent;
@@ -2570,20 +2840,20 @@ async function simulateSelectedTelegramAlertEvents(){
   const statusEl = document.getElementById('tg-save-status');
   const selected = collectTelegramAlertEventsFromUI();
   if(!selected.length){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Keine Alarm-Ereignisse ausgewaehlt.'; }
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=locales[currentLang].telegram_no_events_selected; }
     return;
   }
 
-  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Simuliere '+selected.length+' Ereignisse…'; }
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent=t('telegram_simulating_events',{count:selected.length}); }
   try {
     for(let i = 0; i < selected.length; i++){
       const kind = selected[i];
       const message = telegramAlertSampleMessage(kind);
       await invoke('append_app_log', {level: 'error', message, timestampMs: Date.now() + i});
     }
-    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent='✓ Auswahl simuliert ('+selected.length+' Ereignisse).'; }
+    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent=t('telegram_events_simulated',{count:selected.length}); }
   } catch(e){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent='Fehler: '+e; }
+    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=t('status_error_with_detail',{error:e}); }
   }
 }
 window.simulateSelectedTelegramAlertEvents = simulateSelectedTelegramAlertEvents;
@@ -2593,7 +2863,7 @@ function openAnyDeskSettings(){
   const pin = String(document.getElementById('ad-pin-input')?.value || '').trim();
   const err = document.getElementById('ad-pin-error');
   if(pin !== VIEW_MODE_PIN){
-    if(err) err.textContent = 'Falscher Code.';
+    if(err) err.textContent = locales[currentLang].view_mode_wrong_code;
     document.getElementById('ad-pin-input')?.focus();
     return;
   }
@@ -2616,13 +2886,13 @@ async function saveAnyDeskSettings(){
   const statusEl = document.getElementById('ad-save-status');
   const anydeskAddress = (document.getElementById('ad-address-input')?.value || '').trim();
   const locationName = String(localStorage.getItem('venue_name') || cfg?.location_name || '').trim();
-  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent='Speichere…'; }
+  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent=locales[currentLang].status_saving; }
   const ok = await persistSiteMetadata(locationName, anydeskAddress);
   if(!cfg) cfg = {};
   cfg.anydesk_address = anydeskAddress;
   if(statusEl){
     statusEl.style.color = ok ? '#4ade80' : '#fca5a5';
-    statusEl.textContent = ok ? '✓ Gespeichert.' : 'Fehler beim Speichern.';
+    statusEl.textContent = ok ? locales[currentLang].status_saved_ok : locales[currentLang].status_save_failed;
   }
 }
 window.saveAnyDeskSettings = saveAnyDeskSettings;
@@ -2631,6 +2901,37 @@ window.saveAnyDeskSettings = saveAnyDeskSettings;
 function t(key, vars={}){
   const template = locales[currentLang]?.[key] ?? key;
   return template.replace(/\{(\w+)\}/g, (_, token) => vars[token] ?? `{${token}}`);
+}
+
+const LOG_I18N_PREFIX='__i18n__:';
+
+function encodeLogMessage(msg, opts={}){
+  if(opts.i18nKey){
+    return `${LOG_I18N_PREFIX}${JSON.stringify({key:opts.i18nKey,vars:opts.i18nVars||{}})}`;
+  }
+  return String(msg ?? '');
+}
+
+function parseEncodedLogMessage(raw){
+  const text=String(raw ?? '');
+  if(!text.startsWith(LOG_I18N_PREFIX)) return null;
+  try{
+    return JSON.parse(text.slice(LOG_I18N_PREFIX.length));
+  }catch(_e){
+    return null;
+  }
+}
+
+function localizeLogMessage(raw){
+  const parsed=parseEncodedLogMessage(raw);
+  if(parsed?.key){
+    return t(parsed.key, parsed.vars || {});
+  }
+  return String(raw ?? '');
+}
+
+function addLogT(type,key,vars={},opts={}){
+  addLog(type,'',{...opts,i18nKey:key,i18nVars:vars});
 }
 
 function applyDemoMode(){
@@ -2761,7 +3062,7 @@ function setDemoMode(enabled){
   demoMode = enabled;
   localStorage.setItem('demoMode', demoMode ? '1' : '0');
   updateDemoSettingsUI();
-  addLog('info', demoMode ? locales[currentLang].demo_mode_enabled_log : locales[currentLang].demo_mode_disabled_log);
+  addLogT('info', demoMode ? 'demo_mode_enabled_log' : 'demo_mode_disabled_log');
   if(demoMode){
     if(!wasDemoMode) seedDemoAudioState();
     stopCameraPreviewStream();
@@ -2808,13 +3109,13 @@ async function diagnoseCameraStream(cam,ip,contextLabel){
   try{
     const frame=await invokeStrict('camera_stream_frame',{ip,stream:getCameraPreviewStreamId()});
     if(!(typeof frame==='string' && frame.startsWith('data:image/'))){
-      throw new Error('kein gueltiger Frame vom Backend erhalten');
+      throw new Error(locales[currentLang].camera_invalid_frame_backend);
     }
   }catch(e){
     if(!window.__camPreviewWarned) window.__camPreviewWarned={1:false,2:false};
     if(!window.__camPreviewWarned[cam]){
-      const detail=(e && e.message) ? e.message : String(e||'unbekannter Fehler');
-      addError(`CAM 0${cam} ${contextLabel}: ${detail}`);
+      const detail=(e && e.message) ? e.message : String(e||locales[currentLang].unknown_error);
+      addError(t('camera_stream_diagnosis_error',{cam,context:contextLabel,detail}));
       window.__camPreviewWarned[cam]=true;
     }
   }finally{
@@ -2903,7 +3204,7 @@ window.saveVenueName=async function(){
   cfg.location_name = val;
   await persistSiteMetadata(val, cfg.anydesk_address || '');
   applyVenueName();
-  addLog('info', 'Standort gespeichert: ' + (val || '(leer)'));
+  addLogT('info', 'venue_saved_with_value',{value:val || locales[currentLang].empty_value_label});
 };
 
 function applyVenueName(){
@@ -3149,7 +3450,7 @@ window.setProjectorCount=(value)=>{
   applyProjectorIpConfig();
   buildProjGrid();
   buildMonProjGrid(true);
-  addLog('info', t('projector_count_saved',{count:num}));
+  addLogT('info', 'projector_count_saved',{count:num});
 };
 
 // ============================================================
@@ -3196,8 +3497,8 @@ async function init(){
   const rutxIpEl=document.getElementById('overlay-rutx-ip');
   if(rutxIpEl) rutxIpEl.textContent=`IP: ${cfg.rutx50_ip} · SNMP ${cfg.rutx50_snmp_port||161}`;
   buildProjGrid(); buildMonProjGrid(); buildAmpChannels(1); buildAmpChannels(2);
-  addLog('info',locales[currentLang].app_started);
-  addLog('info',locales[currentLang].network_polling);
+  addLogT('info','app_started');
+  addLogT('info','network_polling');
   updateCameraModeUI();
   if(cameraViewMode==='stream') setTimeout(()=>{ prewarmCameraStreams(); }, 250);
   startClock();
@@ -3210,7 +3511,13 @@ async function init(){
     showStartupOverlay();
     startupFailedConnections=await runStartupConnectivityChecks();
     startupFailedConnections.forEach(item=>{
-      addError(`[Startup] ${item.name} (${item.host}:${item.port}) OFFLINE | Grund: ${item.reason} | Dauer: ${item.durationMs}ms`,{showBanner:false});
+      addError(t('startup_connection_offline',{
+        name:item.name,
+        host:item.host,
+        port:item.port,
+        reason:item.reason,
+        durationMs:item.durationMs
+      }),{showBanner:false});
     });
     await syncProjectorsFromPjLink();
     await detectProjectorModelsOnStartup();
@@ -3447,7 +3754,11 @@ function startProjectorTransition(index, turnOn){
   projectorTransitionTimers[index]=setTimeout(()=>{
     if(projectorTransitionTargets[index]===targetState){
       projectorControlStates[index]='error';
-      addError(`[Pixera API] PJ-Link projector ${index+1} Timeout (${PROJECTOR_TRANSITION_TIMEOUT_MS/1000}s) waiting for ${targetState.toUpperCase()}`);
+      addError(t('projector_transition_timeout',{
+        index:index+1,
+        seconds:PROJECTOR_TRANSITION_TIMEOUT_MS/1000,
+        target:targetState.toUpperCase()
+      }));
       buildProjGrid();
       buildMonProjGrid(true);
     }
@@ -3487,7 +3798,7 @@ window.setSupply = (limit) => {
   currentLimit = limit;
   document.getElementById('btn-32a').classList.toggle('active', limit === 32);
   document.getElementById('btn-63a').classList.toggle('active', limit === 63);
-  addLog('info', t('supply_switched',{limit}));
+  addLogT('info', 'supply_switched',{limit});
   if(demoMode){
     applyDemoMode();
     return;
@@ -3612,7 +3923,7 @@ async function pollJanitzaData(){
       const box=document.getElementById('janitza-anomaly-box');if(box)box.classList.add('show');
       const list=document.getElementById('janitza-anomaly-list');
       if(list)list.innerHTML=d.warnings.map(w=>`<div class="anomaly-item">⚠ ${w}<span class="anomaly-ts">${ts}</span></div>`).join('');
-      d.warnings.forEach(w=>addError(`[Janitza] ${w}`));
+      d.warnings.forEach(w=>addError(t('janitza_warning',{warning:w})));
       const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--orange)';
     } else {
       const box=document.getElementById('janitza-anomaly-box');if(box)box.classList.remove('show');
@@ -3621,7 +3932,7 @@ async function pollJanitzaData(){
     markProtocolValueReceived('janitza');
   }catch(e){
     console.error('[Janitza]',e);
-    addError(`[Janitza] FEHLER: ${e}`);
+    addError(t('janitza_error_with_detail',{error:e}));
     const box=document.getElementById('janitza-anomaly-box');if(box)box.classList.add('show');
     const list=document.getElementById('janitza-anomaly-list');if(list)list.innerHTML=`<div class="anomaly-item">⚠ ${locales[currentLang].janitza_offline_unreachable}</div>`;
     const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--red)';
@@ -3672,7 +3983,7 @@ async function pollUpsData(){
     if(switchedToBattery){
       const runtimeNow = String(document.getElementById('ups-runtime')?.textContent || '').trim();
       const runtimePart = runtimeNow && runtimeNow !== '—' ? ` Runtime: ${runtimeNow}` : '';
-      addError(`[UPS] SOFORTALARM: UPS hat auf Batteriebetrieb gewechselt!${runtimePart}`);
+      addError(t('ups_switched_to_battery_alarm',{runtime:runtimePart}));
       const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--red)';
     }
 
@@ -3680,7 +3991,7 @@ async function pollUpsData(){
       const box=document.getElementById('ups-anomaly-box');if(box)box.classList.add('show');
       const list=document.getElementById('ups-anomaly-list');
       if(list)list.innerHTML=d.warnings.map(w=>`<div class="anomaly-item">⚠ ${w}<span class="anomaly-ts">${ts}</span></div>`).join('');
-      d.warnings.forEach(w=>addError(`[UPS] ${w}`));
+      d.warnings.forEach(w=>addError(t('ups_warning',{warning:w})));
       const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--orange)';
     } else {
       const box=document.getElementById('ups-anomaly-box');if(box)box.classList.remove('show');
@@ -3688,7 +3999,7 @@ async function pollUpsData(){
     markProtocolValueReceived('ups');
   }catch(e){
     console.error('[UPS]',e);
-    addError(`[UPS] FEHLER: ${e}`);
+    addError(t('ups_error_with_detail',{error:e}));
     const sEl=document.getElementById('ups-status');if(sEl){sEl.className='pill pill-r';sEl.innerHTML=`<span class="dot" style="width:6px;height:6px;background:var(--red)"></span>${locales[currentLang].offline}`;}
     const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--red)';
   }
@@ -3708,7 +4019,7 @@ async function watchUpsBatteryMode(){
     if(switchedToBattery){
       const runtimeNow = String(document.getElementById('ups-runtime')?.textContent || '').trim();
       const runtimePart = runtimeNow && runtimeNow !== '—' ? ` Runtime: ${runtimeNow}` : '';
-      addError(`[UPS] SOFORTALARM: UPS hat auf Batteriebetrieb gewechselt!${runtimePart}`);
+      addError(t('ups_switched_to_battery_alarm',{runtime:runtimePart}));
       const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--red)';
       const sEl=document.getElementById('ups-status');
       if(sEl){
@@ -3718,7 +4029,7 @@ async function watchUpsBatteryMode(){
     }
 
     if(switchedToMains){
-      addLog('info','[RESOLVED] UPS wieder im Netzbetrieb (Batteriemodus beendet).');
+      addLogT('info','ups_back_to_mains_resolved');
       const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--green)';
       const sEl=document.getElementById('ups-status');
       if(sEl){
@@ -3729,7 +4040,7 @@ async function watchUpsBatteryMode(){
   }catch(e){
     const now=Date.now();
     if(now-upsWatchLastErrorAt>30000){
-      addError(`[UPS] Battery-Watch FEHLER: ${e}`,{showBanner:false});
+      addError(t('ups_battery_watch_error',{error:e}),{showBanner:false});
       upsWatchLastErrorAt=now;
     }
   }
@@ -3746,7 +4057,7 @@ async function pollLocalBatteryStatus(){
     if(pct<LOCAL_BATTERY_WARN_THRESHOLD){
       if(!localBatteryLowAlertActive){
         localBatteryLowAlertActive=true;
-        addError(`[SYSTEM] AKKU WARNUNG: Akkustand unter ${LOCAL_BATTERY_WARN_THRESHOLD}% (aktuell ${pct}%).`);
+        addError(t('system_battery_low_warning',{threshold:LOCAL_BATTERY_WARN_THRESHOLD,pct}));
       }
     } else {
       localBatteryLowAlertActive=false;
@@ -3765,7 +4076,7 @@ async function pollPoeSwitchData(){
       port:Number(cfg.poe_switch_snmp_port||161)
     });
     if(!data){
-      const modelEl=document.getElementById('net-poe-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
+      const modelEl=document.getElementById('net-poe-model'); if(modelEl) modelEl.textContent=locales[currentLang].snmp_unreachable;
       const upEl=document.getElementById('net-poe-uptime'); if(upEl) upEl.textContent='—';
       const budgetEl=document.getElementById('net-poe-budget'); if(budgetEl) budgetEl.textContent='—';
       const usedEl=document.getElementById('net-poe-used'); if(usedEl) usedEl.textContent='—';
@@ -3788,7 +4099,7 @@ async function pollPoeSwitchData(){
     markProtocolValueReceived('poe');
   }catch(e){
     console.error('[PoE SNMP]',e);
-    const modelEl=document.getElementById('net-poe-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
+    const modelEl=document.getElementById('net-poe-model'); if(modelEl) modelEl.textContent=locales[currentLang].snmp_unreachable;
     const upEl=document.getElementById('net-poe-uptime'); if(upEl) upEl.textContent='—';
     const budgetEl=document.getElementById('net-poe-budget'); if(budgetEl) budgetEl.textContent='—';
     const usedEl=document.getElementById('net-poe-used'); if(usedEl) usedEl.textContent='—';
@@ -3805,7 +4116,7 @@ async function pollRutx50Data(){
       port:Number(cfg.rutx50_snmp_port||161)
     });
     if(!data){
-      const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
+      const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent=locales[currentLang].snmp_unreachable;
       const fwEl=document.getElementById('net-rutx-fw'); if(fwEl) fwEl.textContent='—';
       const opEl=document.getElementById('net-rutx-operator'); if(opEl) opEl.textContent='—';
       const signalEl=document.getElementById('net-rutx-signal'); if(signalEl) signalEl.textContent='—';
@@ -3839,7 +4150,7 @@ async function pollRutx50Data(){
     markProtocolValueReceived('rutx');
   }catch(e){
     console.error('[RUTX50 SNMP]',e);
-    const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
+    const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent=locales[currentLang].snmp_unreachable;
     const fwEl=document.getElementById('net-rutx-fw'); if(fwEl) fwEl.textContent='—';
     const opEl=document.getElementById('net-rutx-operator'); if(opEl) opEl.textContent='—';
     const signalEl=document.getElementById('net-rutx-signal'); if(signalEl) signalEl.textContent='—';
@@ -3973,9 +4284,11 @@ function updateProjectorSelectionSummary(){
   if(!el) return;
   const selected=getSelectedProjectorIndices().length;
   const total=getConfiguredProjectorIndices().length;
-  el.textContent=projectorSelectionMode ? `${selected}/${total} ausgewählt` : `${total} Projektoren verfügbar`;
+  el.textContent=projectorSelectionMode
+    ? t('projector_selected_summary',{selected,total})
+    : t('projector_available_summary',{total});
   if(selectAllBtn){
-    selectAllBtn.textContent=`Alle anwählen (${total})`;
+    selectAllBtn.textContent=t('projector_select_all_with_count',{total});
   }
 }
 
@@ -4025,7 +4338,7 @@ function syncProjectorSelectedActionsVisibility(){
     btn.disabled=!hasSelection;
   });
   toggleBtn.classList.toggle('active',hasSelectionMode);
-  toggleBtn.textContent='Auswählen';
+  toggleBtn.textContent=locales[currentLang]?.projector_select_toggle || 'Auswählen';
   updateProjectorActionButtonStates();
 }
 
@@ -4050,12 +4363,12 @@ function updateProjectorActionButtonStates(){
 async function runSelectedProjectorAction(label, action){
   const indices=getSelectedProjectorIndices();
   if(!indices.length){
-    addError(`[Pixera API] Keine Projektoren ausgewählt für ${label}`);
+    addError(t('projector_no_selection_for_action',{label}));
     return;
   }
   try{
     await Promise.allSettled(indices.map(index=>action(index)));
-    addLog('info',`[Pixera API] ${label} an ${indices.length} Projektoren gesendet`);
+    addLogT('info','projector_action_sent_count',{label,count:indices.length});
   }finally{
     clearProjectorSelection();
     buildMonProjGrid(true);
@@ -4067,12 +4380,12 @@ async function runSelectedProjectorAction(label, action){
 async function runAllProjectorAction(label, action){
   const indices=getConfiguredProjectorIndices();
   if(!indices.length){
-    addError(`[Pixera API] Keine Projektoren konfiguriert für ${label}`);
+    addError(t('projector_no_config_for_action',{label}));
     return;
   }
   try{
     await Promise.allSettled(indices.map(index=>action(index)));
-    addLog('info',`[Pixera API] ${label} an ${indices.length} Projektoren gesendet`);
+    addLogT('info','projector_action_sent_count',{label,count:indices.length});
   }finally{
     projectorSelectionStates.fill(false);
     projectorSelectionMode=false;
@@ -4085,7 +4398,7 @@ async function runAllProjectorAction(label, action){
 
 async function pjLinkSetProjectorPower(index, turnOn){
   const ip=String(projStates[index]?.ip||'').trim();
-  if(!ip || ip==='0.0.0.0') throw new Error('Keine IP konfiguriert');
+  if(!ip || ip==='0.0.0.0') throw new Error(t('projector_no_ip_error'));
   try{
     projectorPowerCommandActive=true;
     const ok=await invoke('pjlink_set_power',{ip,on:!!turnOn,password:getPjlinkPassword()});
@@ -4098,7 +4411,7 @@ async function pjLinkSetProjectorPower(index, turnOn){
 
 async function pjLinkSetProjectorShutter(index, muted){
   const ip=String(projStates[index]?.ip||'').trim();
-  if(!ip || ip==='0.0.0.0') throw new Error('Keine IP konfiguriert');
+  if(!ip || ip==='0.0.0.0') throw new Error(t('projector_no_ip_error'));
   const ok=await invoke('pjlink_set_shutter',{ip,muted:!!muted,password:getPjlinkPassword()});
   if(!ok) throw new Error('PJLink set shutter failed');
   return true;
@@ -4107,7 +4420,7 @@ async function pjLinkSetProjectorShutter(index, muted){
 async function setProjectorPowerOn(index){
   // Check if projector has IP configured
   if(!projStates[index].ip || projStates[index].ip==='0.0.0.0'){
-    addError(`[Pixera API] Projector ${index+1}: Keine IP konfiguriert`);
+    addError(t('projector_no_ip_configured',{index:index+1}));
     return;
   }
   try{
@@ -4117,7 +4430,7 @@ async function setProjectorPowerOn(index){
   }catch(e){
     clearProjectorTransition(index);
     projectorControlStates[index]='error';
-    addError(`[Pixera API] PJ-Link projector ${index+1} ON fehlgeschlagen: ${e}`);
+    addError(t('projector_power_on_failed',{index:index+1,error:e}));
     throw e;
   }
 }
@@ -4125,7 +4438,7 @@ async function setProjectorPowerOn(index){
 async function setProjectorPowerOff(index){
   // Check if projector has IP configured
   if(!projStates[index].ip || projStates[index].ip==='0.0.0.0'){
-    addError(`[Pixera API] Projector ${index+1}: Keine IP konfiguriert`);
+    addError(t('projector_no_ip_configured',{index:index+1}));
     return;
   }
   try{
@@ -4135,21 +4448,21 @@ async function setProjectorPowerOff(index){
   }catch(e){
     clearProjectorTransition(index);
     projectorControlStates[index]='error';
-    addError(`[Pixera API] PJ-Link projector ${index+1} OFF fehlgeschlagen: ${e}`);
+    addError(t('projector_power_off_failed',{index:index+1,error:e}));
     throw e;
   }
 }
 
 async function setProjectorMuted(index, muted){
   if(!projStates[index].ip || projStates[index].ip==='0.0.0.0'){
-    addError(`[Pixera API] Projector ${index+1}: Keine IP konfiguriert`);
+    addError(t('projector_no_ip_configured',{index:index+1}));
     return;
   }
   try{
     await pjLinkSetProjectorShutter(index,muted);
     projStates[index].mute=muted;
   }catch(e){
-    addError(`[Pixera API] PJ-Link projector ${index+1} Shutter fehlgeschlagen: ${e}`);
+    addError(t('projector_shutter_failed',{index:index+1,error:e}));
     throw e;
   }
 }
@@ -4289,7 +4602,7 @@ window.confirmGainDialog = async () => {
     ampGains[n][ch] = `${target >= 0 ? '+' : ''}${target.toFixed(1)} dB`;
     buildAmpChannels(n);
     setTimeout(() => pollD40Status(), 1200);
-    addLog('info', t('gain_set_log',{amp:n,channel:'ABCD'[ch],value:ampGains[n][ch]}));
+    addLogT('info', 'gain_set_log',{amp:n,channel:'ABCD'[ch],value:ampGains[n][ch]});
   } catch (e) {
     console.error('Set gain error:', e);
     alert(locales[currentLang].gain_set_error);
@@ -4318,7 +4631,7 @@ async function pollD40Status(){
         if (ampMutes[n][idx] !== muted) {
           ampMutes[n][idx] = muted;
           changed = true;
-          addLog('info', t('amp_sync_log',{amp:n,channel:'ABCD'[idx],state:muted ? locales[currentLang].muted_state : locales[currentLang].unmuted_state}));
+          addLogT('info', 'amp_sync_log',{amp:n,channel:'ABCD'[idx],state:muted ? locales[currentLang].muted_state : locales[currentLang].unmuted_state});
         }
         if (ampGains[n][idx] !== gain) {
           ampGains[n][idx] = gain;
@@ -4388,14 +4701,14 @@ async function muteAllD40ForEmergency(){
     amps.map(async ({ n, ip }) => {
       if(!ip) throw new Error(`AMP 0${n}: missing IP`);
       await invoke('d40_command', { ip, command: 'mute_all' });
-      addLog('error', `EMERGENCY: AMP 0${n} mute_all`);
+      addLogT('error', 'emergency_amp_mute_all_log',{ampNo:n});
     })
   );
 
   results.forEach((result, idx) => {
     if(result.status === 'rejected'){
       const ampNo = amps[idx]?.n ?? '?';
-      addError(`EMERGENCY: AMP 0${ampNo} mute_all fehlgeschlagen: ${result.reason}`);
+      addError(t('emergency_amp_mute_all_failed',{ampNo,error:result.reason}));
     }
   });
 }
@@ -4405,29 +4718,29 @@ async function muteAllD40ForEmergency(){
 // ============================================================
 window.triggerPowerAll=async()=>{
   document.getElementById('last-power-all').textContent=new Date().toLocaleTimeString('de-CH');
-  addLog('info',locales[currentLang].powerall_triggered);
+  addLogT('info','powerall_triggered');
   try{
     await schedulerCall('PowerAll');
-    addLog('info','[Pixera API] Scheduler PowerAll ausgefuehrt');
+    addLogT('info','scheduler_powerall_executed');
   }catch(e){
-    addError(`[Pixera API] Scheduler PowerAll fehlgeschlagen: ${e}`);
+    addError(t('scheduler_powerall_failed',{error:e}));
   }
 };
 window.triggerPowerOff=async()=>{
   if(!confirm(locales[currentLang].confirm_projector_off))return;
   document.getElementById('last-power-off').textContent=new Date().toLocaleTimeString('de-CH');
-  addLog('info',locales[currentLang].poweroff_executed);
+  addLogT('info','poweroff_executed');
   try{
     await schedulerCall('PowerOff');
-    addLog('info','[Pixera API] Scheduler PowerOff ausgefuehrt');
+    addLogT('info','scheduler_poweroff_executed');
   }catch(e){
-    addError(`[Pixera API] Scheduler PowerOff fehlgeschlagen: ${e}`);
+    addError(t('scheduler_poweroff_failed',{error:e}));
   }
 };
 window.confirmEmergency=()=>{
   activateEmergencyLock();
   switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
-  addLog('error',locales[currentLang].emergency_triggered);
+  addLogT('error','emergency_triggered');
   addError(`${locales[currentLang].emergency_description} ${locales[currentLang].emergency_hotline_lock_title}: ${cfg?.hotline||document.getElementById('em-hotline')?.textContent||''}`.trim());
 };
 
@@ -4449,7 +4762,7 @@ window.camPreset=async(cam,preset)=>{
       addLog('info',`CAM 0${cam}: Preset ${guiPreset} -> CAM ${cameraCode} (${r||'OK'})`);
     }
   }catch(e){
-    addError(`CAM 0${cam} Remote Fehler: ${e}`);
+    addError(t('camera_remote_error',{cam,error:e}));
   }
 };
 
@@ -4472,7 +4785,7 @@ window.camReloadStream=async(cam)=>{
   clearCameraStreamImage(cam);
   if(window.__camPreviewWarned) window.__camPreviewWarned[cam]=false;
   await updateCameraPreview(cam);
-  addLog('info',`CAM 0${cam}: Stream Reload manuell ausgeloest`);
+  addLogT('info','camera_stream_reload_manual',{cam});
 };
 
 const CAMERA_PTZ_MAP={
@@ -4529,7 +4842,7 @@ window.camPtzNudge=async(cam,action)=>{
       },delay);
     }
   }catch(e){
-    addError(`CAM 0${cam} PTZ Fehler: ${e}`);
+    addError(t('camera_ptz_error',{cam,error:e}));
   }
 };
 
@@ -4588,9 +4901,9 @@ async function updateCameraPreview(cam){
         }else{
           img.style.display='none';
           fallback.style.display='flex';
-          fallback.textContent='Kein Signal — versuche erneut...';
+          fallback.textContent=locales[currentLang].camera_no_signal_retry;
         }
-        diagnoseCameraStream(cam,ip,'Stream nicht verfuegbar');
+        diagnoseCameraStream(cam,ip,locales[currentLang].camera_stream_unavailable);
         delete img.dataset.streamUrl;
         delete img.dataset.mode;
         delete img.dataset.streamLastOk;
@@ -4615,8 +4928,8 @@ async function updateCameraPreview(cam){
         }
         img.style.display='none';
         fallback.style.display='flex';
-        fallback.textContent='Kein Stream-Signal';
-        await diagnoseCameraStream(cam,ip,'Stream Timeout');
+        fallback.textContent=locales[currentLang].camera_no_stream_signal;
+        await diagnoseCameraStream(cam,ip,locales[currentLang].camera_stream_timeout);
         delete img.dataset.streamUrl;
         delete img.dataset.mode;
         delete img.dataset.streamLastOk;
@@ -4641,18 +4954,18 @@ async function updateCameraPreview(cam){
     }else{
       img.style.display='none';
       fallback.style.display='flex';
-      fallback.textContent='Preview nicht verfügbar';
+      fallback.textContent=locales[currentLang].camera_preview_unavailable;
       if(!window.__camPreviewWarned[cam]){
-        addError(`CAM 0${cam} Preview nicht verfügbar (kein gültiges Bild).`);
+        addError(t('camera_preview_unavailable_invalid',{cam}));
         window.__camPreviewWarned[cam]=true;
       }
     }
   }catch(e){
     img.style.display='none';
     fallback.style.display='flex';
-    fallback.textContent='Preview nicht verfügbar';
+    fallback.textContent=locales[currentLang].camera_preview_unavailable;
     if(!window.__camPreviewWarned[cam]){
-      addError(`CAM 0${cam} Preview Fehler: ${e}`);
+      addError(t('camera_preview_error',{cam,error:e}));
       window.__camPreviewWarned[cam]=true;
     }
   }
@@ -4778,11 +5091,12 @@ async function loadPersistedLogs(){
 function addLog(type,msg,opts={}){
   const ts=Number(opts.timestampMs)||Date.now();
   const persist=opts.persist!==false;
-  logs.unshift({type,msg,ts,time:formatLogTime(ts,false)});
+  const encodedMsg=encodeLogMessage(msg,opts);
+  logs.unshift({type,msg:encodedMsg,ts,time:formatLogTime(ts,false)});
   if(logs.length>MAX_LOG_ENTRIES_UI)logs.pop();
   renderLog();
   if(persist){
-    persistAppLog(type,msg,ts);
+    persistAppLog(type,encodedMsg,ts);
   }
 }
 
@@ -4826,7 +5140,7 @@ window.clearAllErrors=()=>{
   const total=snapshot.length;
   snapshot.forEach((e,idx)=>{
     if(isUpsErrorMessage(e.msg)){
-      addLog('info', `[RESOLVED] Error ${idx+1}/${total} geloest: ${e.msg}`);
+      addLogT('info', 'error_resolved_many',{index:idx+1,total,message:e.msg});
     }
   });
   errors.length=0;
@@ -4838,7 +5152,7 @@ window.ackErrorById=(id)=>{
   if(idx===-1)return;
   const entry=errors[idx];
   if(isUpsErrorMessage(entry.msg)){
-    addLog('info', `[RESOLVED] Error 1/1 geloest: ${entry.msg}`);
+    addLogT('info', 'error_resolved_one',{message:entry.msg});
   }
   errors.splice(idx,1);
   renderErrors();
@@ -4846,7 +5160,7 @@ window.ackErrorById=(id)=>{
 };
 
 window.exportLog=()=>{
-  const rows=[['Zeit','Typ','Nachricht'],...logs.map(l=>[l.time,l.type,l.msg])];
+  const rows=[['Zeit','Typ','Nachricht'],...logs.map(l=>[l.time,l.type,localizeLogMessage(l.msg)])];
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download=`projektil-log-${new Date().toISOString().slice(0,10)}.csv`;a.click();
@@ -4854,7 +5168,7 @@ window.exportLog=()=>{
 
 function renderLog(){
   const el=document.getElementById('system-log');if(!el)return;
-  el.innerHTML=logs.map(l=>`<div style="background:rgba(96,165,250,.06);border-left:3px solid ${l.type==='error'?'var(--red)':'var(--blue)'};border-radius:4px;padding:6px 8px"><div style="font-family:var(--mono);color:#6b7280;font-size:10px;margin-bottom:1px">${l.time}</div><div style="color:#d4d0f0;font-size:11px">${l.msg}</div></div>`).join('');
+  el.innerHTML=logs.map(l=>`<div style="background:rgba(96,165,250,.06);border-left:3px solid ${l.type==='error'?'var(--red)':'var(--blue)'};border-radius:4px;padding:6px 8px"><div style="font-family:var(--mono);color:#6b7280;font-size:10px;margin-bottom:1px">${l.time}</div><div style="color:#d4d0f0;font-size:11px">${localizeLogMessage(l.msg)}</div></div>`).join('');
   const cnt=document.getElementById('log-count');if(cnt)cnt.textContent=locales[currentLang].log_entries.replace('{count}', logs.length);
 }
 function renderErrors(){
@@ -4876,8 +5190,8 @@ function setDeviceOnline(key,online,label,overlayId){
     deviceState[key]=online;
     onProtocolDeviceOnlineStateChanged(key, online);
     const icon=online?'🟢':'🔴';
-    addLog(online?'info':'error',`${icon} ${label} ist jetzt ${online?'ONLINE':'OFFLINE'}`);
-    if(!online) addError(`${label} ist OFFLINE!`);
+    addLogT(online?'info':'error','device_state_now',{icon,label,state:online?locales[currentLang].online.toUpperCase():locales[currentLang].offline.toUpperCase()});
+    if(!online) addError(t('device_offline_alert',{label}));
   }
   if(overlayId){const ov=document.getElementById(overlayId);if(ov)ov.classList.toggle('show',!online);}
 }
@@ -5337,7 +5651,7 @@ async function detectProjectorModelsOnStartup(){
       buildMonProjGrid(true);
     }
   }catch(e){
-    addError(`[PJLink] Modell-Erkennung beim Start fehlgeschlagen: ${e}`,{showBanner:false});
+    addError(t('pjlink_model_detect_startup_failed',{error:e}),{showBanner:false});
   }
 }
 
@@ -5693,7 +6007,7 @@ async function pollSchedulerNextEvent(){
       return;
     }
     if(!schedulerWarned){
-      addError(`[Pixera API] Scheduler-Abfrage fehlgeschlagen: ${e}`);
+      addError(t('scheduler_query_failed',{error:e}));
       schedulerWarned=true;
     }
   }
@@ -5855,7 +6169,7 @@ async function pollSchedulerUpcoming(){
 window.restartPixeraServer=async(serverKey)=>{
   if(demoMode) return;
   const map={director:'Pixera Director (IP: 192.168.1.31)',octo1:'Pixera Octo 01 (IP: 192.168.1.32)',octo2:'Pixera Octo 02 (IP: 192.168.1.33)'};
-  addError(`[Pixera API] Restart fuer ${map[serverKey]||serverKey} ist im Standard-API-Flow noch nicht hinterlegt.`);
+  addError(t('pixera_restart_not_implemented',{server:map[serverKey]||serverKey}));
 };
 
 window.pixeraPlay=async()=>{
@@ -5863,9 +6177,9 @@ window.pixeraPlay=async()=>{
     await pixeraApiCall(buildPixeraPaths('Pixera.Compound.startFirstTimeline'));
     const el=document.getElementById('tl-status');
     if(el){el.className='pill pill-g';el.innerHTML=`<span class="dot" style="width:6px;height:6px;background:var(--green)"></span> ${locales[currentLang].playing}`;}
-    addLog('info','[Pixera API] startFirstTimeline gesendet');
+    addLogT('info','pixera_play_sent');
   }catch(e){
-    addError(`[Pixera API] Play fehlgeschlagen: ${e}`);
+    addError(t('pixera_play_failed',{error:e}));
   }
 };
 window.pixeraPause=async()=>{
@@ -5873,9 +6187,9 @@ window.pixeraPause=async()=>{
     await pixeraApiCall(buildPixeraPaths('Pixera.Compound.pauseFirstTimeline'));
     const el=document.getElementById('tl-status');
     if(el){el.className='pill pill-r';el.innerHTML=`<span class="dot" style="width:6px;height:6px;background:var(--red)"></span> ${locales[currentLang].stopped}`;}
-    addLog('info','[Pixera API] pauseFirstTimeline gesendet');
+    addLogT('info','pixera_pause_sent');
   }catch(e){
-    addError(`[Pixera API] Pause fehlgeschlagen: ${e}`);
+    addError(t('pixera_pause_failed',{error:e}));
   }
 };
 window.pixeraStop=async()=>{
@@ -5883,14 +6197,18 @@ window.pixeraStop=async()=>{
     await pixeraApiCall(buildPixeraPaths('Pixera.Compound.stopFirstTimeline'));
     const el=document.getElementById('tl-status');
     if(el){el.className='pill pill-r';el.innerHTML=`<span class="dot" style="width:6px;height:6px;background:var(--red)"></span> ${locales[currentLang].stopped}`;}
-    addLog('info','[Pixera API] stopFirstTimeline gesendet');
+    addLogT('info','pixera_stop_sent');
   }catch(e){
-    addError(`[Pixera API] Stop fehlgeschlagen: ${e}`);
+    addError(t('pixera_stop_failed',{error:e}));
   }
 };
 
 window.addEventListener('error',(ev)=>{
-  const msg = `JS Error: ${ev.message||'Unbekannter Fehler'} (${ev.filename||'unknown'}:${ev.lineno||0})`;
+  const msg = t('js_error_with_detail',{
+    message:ev.message||locales[currentLang].unknown_error,
+    file:ev.filename||'unknown',
+    line:ev.lineno||0
+  });
   addError(msg);
 });
 
@@ -5899,7 +6217,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
     const reason = typeof ev.reason === 'string' ? ev.reason : (ev.reason?.message || JSON.stringify(ev.reason||{}));
     if(!reason.includes('abort') && !reason.includes('Polling')){
       console.error('[Unhandled Rejection]',reason);
-      addLog('error',`Unhandled Promise Rejection: ${reason}`,{persist:true});
+      addLogT('error','unhandled_promise_rejection',{reason},{persist:true});
     }
   }catch(e){
     console.error('[Error in unhandledrejection handler]',e);
@@ -5907,11 +6225,11 @@ window.addEventListener('unhandledrejection',(ev)=>{
 });
 
 init().catch((e)=>{
-  const reason = String(e?.message || e || 'Unbekannter Initialisierungsfehler');
+  const reason = String(e?.message || e || locales[currentLang].unknown_init_error);
   console.error('[init] fatal', e);
   try{
     closeStartupOverlay();
-    addError(`[Init] ${reason}`);
+    addError(t('init_error',{reason}));
   }catch(_err){
     // Avoid cascading failures in fatal bootstrap path.
   }
