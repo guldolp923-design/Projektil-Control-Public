@@ -12,8 +12,8 @@
 - Runtime-Texte, Statusmeldungen und Fehlertexte wurden weiter vereinheitlicht
 
 ### Release Assets
-- Private Release: Windows EXE + Sourcecode-Archiv
-- Public Release: Windows EXE
+- Private Release: Windows EXE + Windows Installer (NSIS) + Sourcecode-Archiv
+- Public Release: Windows EXE + Windows Installer (NSIS)
 
 ## v1.0.4-beta - 2026-04-20
 
