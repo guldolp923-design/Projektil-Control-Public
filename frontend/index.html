@@ -270,7 +270,9 @@ body.emergency-locked .btn-o{background:#9a3412}
 .ups-fill{height:100%;border-radius:3px;background:var(--green);transition:width .5s,background .3s}
 .vol-bar{height:8px;background:#0a1020;border-radius:3px;overflow:hidden;flex:1}
 .vol-fill{height:100%;border-radius:3px}
-.proj-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px}
+.proj-card{background:linear-gradient(180deg,rgba(40,36,118,.72) 0%,rgba(30,26,98,.76) 100%);border:1px solid rgba(139,132,255,.26);border-radius:10px;padding:10px;transition:border-color .16s,box-shadow .16s,transform .16s}
+.proj-card:hover{border-color:rgba(139,132,255,.55);box-shadow:0 10px 24px rgba(8,6,40,.35);transform:translateY(-1px)}
+.proj-card.selected{border-color:rgba(96,165,250,.95);box-shadow:0 0 0 1px rgba(96,165,250,.45),0 0 0 4px rgba(96,165,250,.12)}
 .proj-status-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:10px}
 .proj-ping{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);font-family:var(--mono)}
 .proj-ping-dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
@@ -284,6 +286,24 @@ body.emergency-locked .btn-o{background:#9a3412}
 .proj-status-pill.offline{background:#450a0a;color:#fca5a5;border-color:#dc2626}
 .proj-status-pill.error{background:#450a0a;color:#fca5a5;border-color:#dc2626}
 .proj-status-pill.unknown{background:var(--card2);color:#d8d4ff;border-color:var(--border)}
+.proj-toolbar{display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px;position:relative}
+.proj-toolbar-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.proj-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+.proj-toolbar-actions.hidden{display:none}
+.proj-select-wrap{position:relative;display:inline-flex;justify-content:flex-end}
+.proj-select-toggle{padding:7px 12px;font-size:11px;line-height:1;border-radius:9px;border-color:#334155;background:linear-gradient(180deg,#0f172a 0%,#111827 100%)}
+.proj-select-toggle:hover{border-color:#64748b;box-shadow:0 8px 20px rgba(30,64,175,.28),0 0 0 1px rgba(148,163,184,.24) inset;transform:translateY(-1px)}
+.proj-select-toggle:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(96,165,250,.3),0 8px 20px rgba(30,64,175,.25)}
+.proj-select-toggle.active{background:#1d4ed8;border-color:#60a5fa;box-shadow:0 0 0 3px rgba(37,99,235,.2)}
+.proj-select-menu{position:absolute;top:38px;right:0;display:grid;gap:8px;min-width:360px;padding:10px;border-radius:10px;border:1px solid rgba(139,132,255,.38);background:linear-gradient(180deg,rgba(20,20,48,.96) 0%,rgba(14,14,34,.98) 100%);box-shadow:0 16px 40px rgba(0,0,0,.4);z-index:5;opacity:1;transform:translateY(0) scale(1);visibility:visible;pointer-events:auto;transition:opacity .18s ease,transform .2s ease,visibility 0s linear 0s}
+.proj-select-menu.hidden{opacity:0;transform:translateY(-6px) scale(.985);visibility:hidden;pointer-events:none;transition:opacity .16s ease,transform .18s ease,visibility 0s linear .18s}
+.proj-selection-summary{font-size:10px;color:var(--muted);font-family:var(--mono);padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);justify-self:start}
+.proj-shutter-btn{border:1px solid #60a5fa;background:#1e3a8a;color:#fff}
+.proj-shutter-btn.active{border-color:#f87171;background:#7f1d1d;color:#fee2e2}
+.proj-select-btn{padding:3px 8px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:#fff;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+.proj-select-btn:hover{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.5)}
+.proj-select-btn.selected{background:rgba(96,165,250,.18);border-color:rgba(96,165,250,.95);color:#dbeafe}
+.proj-card.selectable{cursor:pointer}
 .mon-proj-card{padding:8px 10px;background:var(--card2);border-radius:8px;border:1px solid var(--border)}
 .mon-proj-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .mon-proj-name{font-size:11px;font-weight:700;color:#fff}
@@ -292,6 +312,8 @@ body.emergency-locked .btn-o{background:#9a3412}
 .proj-name{font-size:11px;font-weight:600}
 .proj-btns{display:flex;gap:4px}
 .proj-btns button{flex:1;padding:4px 0;font-size:9px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:#fff;font-family:inherit;transition:background .1s}
+.proj-btns .shutter-btn{border-color:#60a5fa;background:#1e3a8a;color:#fff}
+.proj-btns .shutter-btn.active{border-color:#ef4444;background:#7f1d1d;color:#fee2e2}
 .cam-preview-frame{background:#0a0a1a;border-radius:6px;position:relative;overflow:hidden;margin-bottom:10px;border:1px solid rgba(255,255,255,.08);width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
 .cam-preview-img{width:100%;height:100%;object-fit:contain;display:none;background:#000}
 .camera-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -544,13 +566,25 @@ body.emergency-locked .btn-o{background:#9a3412}
 
     <!-- PROJECTORS -->
     <div class="tab-panel" id="tab-projectors">
+      <div class="proj-toolbar">
+        <div class="proj-select-wrap">
+          <button class="btn proj-select-toggle" id="projector-select-toggle" onclick="toggleProjectorSelectionMode()">Auswählen</button>
+          <div class="proj-select-menu hidden" id="projector-selected-actions">
+            <div class="proj-selection-summary" id="projector-selection-summary">0/0 ausgewählt</div>
+            <div class="proj-toolbar-buttons">
+              <button class="btn" id="projector-select-all-btn" style="padding:8px 14px;font-size:12px;background:#1f2937;border:1px solid #4b5563;color:#e5e7eb" onclick="selectAllProjectors()">Alle anwählen</button>
+              <button class="btn btn-g" style="padding:8px 14px;font-size:12px" onclick="projSelectedOn()">Ein</button>
+              <button class="btn btn-o" style="padding:8px 14px;font-size:12px" onclick="projSelectedOff()">Off</button>
+              <button class="btn proj-shutter-btn" id="proj-selected-shutter-btn" style="padding:8px 14px;font-size:12px" onclick="projSelectedShutterToggle()">Shutter</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="proj-grid"></div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <button class="btn" style="background:#b91c1c;border:none;padding:10px 20px;font-size:13px" data-l10n-key="test_pattern">Test Pattern</button>
-        <button class="btn" style="background:#fff;color:#000;border:none;padding:10px 20px;font-size:13px" data-l10n-key="white">White</button>
-        <button class="btn" style="background:#000;border:1px solid #444;padding:10px 20px;font-size:13px" data-l10n-key="blackout">Blackout</button>
-        <button class="btn btn-o" style="padding:10px 20px;font-size:13px" onclick="if(confirm(locales[currentLang].confirm_projector_off))allProjOff()" data-l10n-key="all_off">All OFF</button>
-        <button class="btn btn-g" style="padding:10px 20px;font-size:13px" onclick="allProjOn()" data-l10n-key="all_on">All ON</button>
+        <button class="btn btn-g" style="padding:10px 20px;font-size:13px" onclick="allProjOn()">Alle EIN</button>
+        <button class="btn btn-o" style="padding:10px 20px;font-size:13px" onclick="allProjOff()">Alle OFF</button>
+        <button class="btn proj-shutter-btn" id="all-proj-shutter-btn" style="padding:10px 20px;font-size:13px;color:#fff" onclick="allProjShutterToggle()">Alle Shutter</button>
       </div>
     </div>
 
@@ -856,7 +890,9 @@ body.emergency-locked .btn-o{background:#9a3412}
         <!-- UPS -->
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="ups-dot"></span> APC UPS — Schneider <small style="color:var(--muted);font-weight:400">IP: 192.168.1.6</small></div>
+          <div class="card-title" style="justify-content:space-between;gap:8px">
+            <span><span class="dot" id="ups-dot"></span> APC UPS — Schneider <small style="color:var(--muted);font-weight:400">IP: 192.168.1.6</small></span>
+          </div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="ups-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="battery">Batterie</span><span style="font-family:var(--mono);font-size:12px" id="ups-bat">—</span></div>
           <div class="ups-bar"><div class="ups-fill" id="ups-bar-fill" style="width:0%"></div></div>
@@ -1207,7 +1243,7 @@ function buildDefaultConfig(){
     rutx50_ip:'192.168.1.1',
     rutx50_ping_port:443,
     rutx50_snmp_port:161,
-    rutx50_snmp_community:'public',
+    rutx50_snmp_community:'projektil',
     ups_ip:'192.168.1.6',
     power_disp_ip:'192.168.1.5',
     cam_01_ip:'192.168.1.22',
@@ -1338,6 +1374,8 @@ const projectorOnlineStates=Array.from({length:16},()=>false);
 const projectorControlStates=Array.from({length:16},()=> 'unknown');
 const projectorTransitionTimers=Array.from({length:16},()=>null);
 const projectorTransitionTargets=Array.from({length:16},()=>null);
+const projectorSelectionStates=Array.from({length:16},()=>false);
+let projectorSelectionMode=false;
 const PROJECTOR_TRANSITION_TIMEOUT_MS=90000;
 let pjlinkSyncInFlight=false;
 let projectorPowerCommandActive=false;
@@ -1362,8 +1400,12 @@ const CAMERA_PREVIEW_INTERVAL_STREAM_MS = 1000;
 const CAMERA_STREAM_BOOT_TIMEOUT_MS = 20000;
 const CAMERA_STREAM_BLACKOUT_GRACE_MS = 15000;
 const CAMERA_STREAM_RETRY_DELAY_MS = 2500;
+const SNMP_POLL_INTERVAL_MS = 10000;
+const MODBUS_POLL_INTERVAL_MS = 10000;
 const UPS_WATCH_INTERVAL_MS = 1000;
-const UPS_POLL_INTERVAL_MS = 1000;
+const UPS_POLL_INTERVAL_MS = 5000;
+const PROTOCOL_STALE_GRACE_MULTIPLIER = 3;
+const PROTOCOL_STALE_MIN_MS = 30000;
 const LOCAL_BATTERY_WARN_THRESHOLD = 20;
 const LOCAL_BATTERY_POLL_INTERVAL_MS = 60000;
 let cameraPreviewIntervalMs = cameraViewMode==='stream' ? CAMERA_PREVIEW_INTERVAL_STREAM_MS : CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS;
@@ -1376,6 +1418,139 @@ let upsPrevOnMains = null;
 let upsPrevBatteryState = null;
 let upsWatchLastErrorAt = 0;
 let localBatteryLowAlertActive = false;
+const protocolLastValueAt = { janitza: 0, ups: 0, nas: 0, poe: 0, rutx: 0 };
+const protocolOnlineSinceAt = { janitza: 0, ups: 0, nas: 0, poe: 0, rutx: 0 };
+const protocolStaleAlertActive = { janitza: false, ups: false, nas: false, poe: false, rutx: false };
+
+function protocolDeviceLabel(key){
+  switch(key){
+    case 'janitza': return `Janitza UMG96RM-E (${cfg?.power_disp_ip||'192.168.1.5'})`;
+    case 'ups': return `APC UPS (${cfg?.ups_ip||'192.168.1.6'})`;
+    case 'nas': return `Synology NAS (${cfg?.nas_ip||'192.168.1.21'})`;
+    case 'poe': return `PoE Switch (${cfg?.poe_switch_ip||DEFAULT_POE_IP})`;
+    case 'rutx': return `Teltonika RUTX50 (${cfg?.rutx50_ip||DEFAULT_RUTX50_IP})`;
+    default: return key;
+  }
+}
+
+function protocolTypeForKey(key){
+  return key==='janitza' ? 'Modbus' : 'SNMP';
+}
+
+function protocolPollIntervalMs(key){
+  if(key==='janitza') return MODBUS_POLL_INTERVAL_MS;
+  if(key==='ups') return UPS_POLL_INTERVAL_MS;
+  return SNMP_POLL_INTERVAL_MS;
+}
+
+function protocolStaleTimeoutMs(key){
+  const base=protocolPollIntervalMs(key)*PROTOCOL_STALE_GRACE_MULTIPLIER;
+  return Math.max(PROTOCOL_STALE_MIN_MS, base);
+}
+
+function resetJanitzaUiValues(){
+  [['pow-v1','— V'],['pow-v2','— V'],['pow-v3','— V'],['pow-i1','— A'],['pow-i2','— A'],['pow-i3','— A'],['pow-freq','— Hz'],['pow-total','— kW'],['pow-imbal','— V']]
+    .forEach(([id,text])=>{ const el=document.getElementById(id); if(el){ el.textContent=text; el.className='pow-val def'; } });
+  ['vbar-l1','vbar-l2','vbar-l3'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.style.width='0%'; el.style.background='var(--muted)'; } });
+  ['trend-l1','trend-l2','trend-l3'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.textContent='—'; el.className='trend st'; } });
+  const tsEl=document.getElementById('janitza-ts'); if(tsEl) tsEl.textContent='—';
+  const box=document.getElementById('janitza-anomaly-box'); if(box) box.classList.remove('show');
+}
+
+function resetUpsUiValues(){
+  const sEl=document.getElementById('ups-status'); if(sEl){ sEl.className='pill pill-r'; sEl.innerHTML=`<span class="dot" style="width:6px;height:6px;background:var(--red)"></span>—`; }
+  const bEl=document.getElementById('ups-bat'); if(bEl){ bEl.textContent='—'; bEl.className='pow-val def'; }
+  const barEl=document.getElementById('ups-bar-fill'); if(barEl){ barEl.style.width='0%'; barEl.style.background='var(--muted)'; }
+  const rtEl=document.getElementById('ups-runtime'); if(rtEl) rtEl.textContent='—';
+  const ldEl=document.getElementById('ups-load'); if(ldEl) ldEl.textContent='—';
+  const ivEl=document.getElementById('ups-inv'); if(ivEl) ivEl.textContent='—';
+  const ovEl=document.getElementById('ups-outv'); if(ovEl) ovEl.textContent='—';
+  const tsEl=document.getElementById('ups-ts'); if(tsEl) tsEl.textContent='—';
+  const box=document.getElementById('ups-anomaly-box'); if(box) box.classList.remove('show');
+}
+
+function resetNasUiValues(){
+  const tEl=document.getElementById('nas-temp'); if(tEl){ tEl.textContent='—'; tEl.className='pow-val def'; }
+  const upEl=document.getElementById('nas-uptime'); if(upEl) upEl.textContent='—';
+  for(let i=1;i<=2;i++){
+    const el=document.getElementById(`raid${i}`);
+    if(el){ el.className='pill pill-r'; el.textContent='—'; }
+  }
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById(`disk${i}`);
+    if(el){ el.className='pill pill-r'; el.textContent='—'; }
+  }
+  ['nas-vol1','nas-vol2'].forEach(prefix=>{
+    const bar=document.getElementById(`${prefix}-bar`);
+    const txt=document.getElementById(`${prefix}-txt`);
+    if(bar) bar.style.width='0%';
+    if(txt) txt.textContent='— TB';
+  });
+}
+
+function resetPoeUiValues(){
+  const modelEl=document.getElementById('net-poe-model'); if(modelEl) modelEl.textContent='—';
+  const upEl=document.getElementById('net-poe-uptime'); if(upEl) upEl.textContent='—';
+  const budgetEl=document.getElementById('net-poe-budget'); if(budgetEl) budgetEl.textContent='—';
+  const usedEl=document.getElementById('net-poe-used'); if(usedEl) usedEl.textContent='—';
+  const freeEl=document.getElementById('net-poe-free'); if(freeEl) freeEl.textContent='—';
+}
+
+function resetRutxUiValues(){
+  const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent='—';
+  const fwEl=document.getElementById('net-rutx-fw'); if(fwEl) fwEl.textContent='—';
+  const opEl=document.getElementById('net-rutx-operator'); if(opEl) opEl.textContent='—';
+  const signalEl=document.getElementById('net-rutx-signal'); if(signalEl) signalEl.textContent='—';
+  const nwEl=document.getElementById('net-rutx-network'); if(nwEl) nwEl.textContent='—';
+  const ipEl=document.getElementById('net-rutx-ip'); if(ipEl) ipEl.textContent='—';
+  const upEl=document.getElementById('net-rutx-mobile-uptime'); if(upEl) upEl.textContent='—';
+}
+
+function resetProtocolUiByKey(key){
+  if(key==='janitza') resetJanitzaUiValues();
+  if(key==='ups') resetUpsUiValues();
+  if(key==='nas') resetNasUiValues();
+  if(key==='poe') resetPoeUiValues();
+  if(key==='rutx') resetRutxUiValues();
+}
+
+function onProtocolDeviceOnlineStateChanged(key,online){
+  if(!(key in protocolLastValueAt)) return;
+  if(online){
+    if(!protocolOnlineSinceAt[key]) protocolOnlineSinceAt[key]=Date.now();
+    return;
+  }
+  protocolOnlineSinceAt[key]=0;
+  protocolLastValueAt[key]=0;
+  protocolStaleAlertActive[key]=false;
+  resetProtocolUiByKey(key);
+}
+
+function markProtocolValueReceived(key){
+  if(!(key in protocolLastValueAt)) return;
+  protocolLastValueAt[key]=Date.now();
+  if(protocolStaleAlertActive[key]){
+    protocolStaleAlertActive[key]=false;
+    addLog('info',`[RESOLVED] ${protocolTypeForKey(key)}-Werte von ${protocolDeviceLabel(key)} werden wieder empfangen.`);
+  }
+}
+
+function enforceProtocolFreshnessTimeouts(){
+  if(demoMode) return;
+  const now=Date.now();
+  for(const key of Object.keys(protocolLastValueAt)){
+    if(!deviceState[key]) continue;
+    const baseline=Math.max(protocolLastValueAt[key]||0, protocolOnlineSinceAt[key]||0);
+    if(!baseline) continue;
+    const staleTimeoutMs=protocolStaleTimeoutMs(key);
+    if((now-baseline) <= staleTimeoutMs) continue;
+    resetProtocolUiByKey(key);
+    if(protocolStaleAlertActive[key]) continue;
+    protocolStaleAlertActive[key]=true;
+    const protocol=protocolTypeForKey(key);
+    addError(`[${protocol}] Keine ${protocol}-Werte von ${protocolDeviceLabel(key)} seit ${Math.round(staleTimeoutMs/1000)}s empfangen.`);
+  }
+}
 
 async function invokeStrict(cmd, args){
   if (isDemoModeEnabled() && shouldBlockNetworkCommandInDemo(cmd)) {
@@ -1574,7 +1749,7 @@ const locales = {
     stopped: 'Stopped',
     confirm_projector_off: 'Wirklich alle Projektoren ausschalten?',
     app_started: 'PROJEKTIL Control gestartet',
-    network_polling: 'Netzwerk: 192.168.1.x — Polling alle 10s',
+    network_polling: 'Netzwerk: 192.168.1.x — SNMP Polling alle 10s',
     supply_switched: 'Zuleitung auf {limit}A umgestellt — Schwellwerte angepasst',
     powerall_triggered: 'PowerAll ausgelöst',
     projector_ping_label: 'Ping',
@@ -1601,6 +1776,7 @@ const locales = {
     unmuted_state: 'aktiv',
     gain_click_title: 'Klicken zum Ändern',
     mute: 'Mute',
+    shutter: 'Shutter',
     muted: '🔇 Stumm',
     projector_on: 'ON',
     projector_off: 'OFF',
@@ -1809,7 +1985,7 @@ const locales = {
     stopped: 'Stopped',
     confirm_projector_off: 'Really turn off all projectors?',
     app_started: 'PROJEKTIL Control started',
-    network_polling: 'Network: 192.168.1.x — polling every 10s',
+    network_polling: 'Network: 192.168.1.x — SNMP polling every 10s',
     supply_switched: 'Supply switched to {limit}A — thresholds adjusted',
     powerall_triggered: 'PowerAll triggered',
     projector_ping_label: 'Ping',
@@ -1836,6 +2012,7 @@ const locales = {
     unmuted_state: 'active',
     gain_click_title: 'Click to edit',
     mute: 'Mute',
+    shutter: 'Shutter',
     muted: '🔇 Muted',
     projector_on: 'ON',
     projector_off: 'OFF',
@@ -2532,13 +2709,40 @@ function applyDemoMode(){
   const upsInv = document.getElementById('ups-inv'); if(upsInv) upsInv.textContent = '230 V';
   const upsOutv = document.getElementById('ups-outv'); if(upsOutv) upsOutv.textContent = '230.0 V';
 
+  const demoJanitza = {
+    v1: 228.4,
+    v2: 229.1,
+    v3: 227.8,
+    i1: 11.8,
+    i2: 10.6,
+    i3: 12.4,
+    f: 50.01,
+    p: 7.84,
+    imbal: 1.3
+  };
   const powValues = [
-    ['pow-v1','228.4 V','pow-val ok'],['pow-v2','229.1 V','pow-val ok'],['pow-v3','227.8 V','pow-val ok'],
-    ['pow-i1','11.8 A','pow-val ok'],['pow-i2','10.6 A','pow-val ok'],['pow-i3','12.4 A','pow-val ok'],
-    ['pow-freq','50.01 Hz','pow-val ok'],['pow-total','7.84 kW','pow-val ok'],['pow-imbal','1.3 V','pow-val ok']
+    ['pow-v1',`${demoJanitza.v1.toFixed(1)} V`,`pow-val ${vClass(demoJanitza.v1)}`],
+    ['pow-v2',`${demoJanitza.v2.toFixed(1)} V`,`pow-val ${vClass(demoJanitza.v2)}`],
+    ['pow-v3',`${demoJanitza.v3.toFixed(1)} V`,`pow-val ${vClass(demoJanitza.v3)}`],
+    ['pow-i1',`${demoJanitza.i1.toFixed(1)} A`,`pow-val ${iClass(demoJanitza.i1)}`],
+    ['pow-i2',`${demoJanitza.i2.toFixed(1)} A`,`pow-val ${iClass(demoJanitza.i2)}`],
+    ['pow-i3',`${demoJanitza.i3.toFixed(1)} A`,`pow-val ${iClass(demoJanitza.i3)}`],
+    ['pow-freq',`${demoJanitza.f.toFixed(2)} Hz`,`pow-val ${fClass(demoJanitza.f)}`],
+    ['pow-total',`${demoJanitza.p.toFixed(2)} kW`,'pow-val ok'],
+    ['pow-imbal',`${demoJanitza.imbal.toFixed(1)} V`,'pow-val ok']
   ];
   powValues.forEach(([id,text,cls])=>{ const el=document.getElementById(id); if(el){ el.textContent=text; el.className=cls; } });
-  [['vbar-l1','64%'],['vbar-l2','66%'],['vbar-l3','63%']].forEach(([id,width])=>{ const el=document.getElementById(id); if(el){ el.style.width=width; el.style.background='var(--green)'; } });
+  [
+    ['vbar-l1',demoJanitza.i1],
+    ['vbar-l2',demoJanitza.i2],
+    ['vbar-l3',demoJanitza.i3]
+  ].forEach(([id,current])=>{
+    const el=document.getElementById(id);
+    if(el){
+      el.style.width=`${iBarW(current)}%`;
+      el.style.background=iBarC(current);
+    }
+  });
   [['trend-l1','→'],['trend-l2','↑'],['trend-l3','→']].forEach(([id,text])=>{ const el=document.getElementById(id); if(el){ el.textContent=text; el.className='trend st'; } });
   const janTs = document.getElementById('janitza-ts'); if(janTs) janTs.textContent = new Date().toLocaleTimeString('de-CH');
   const upsTs = document.getElementById('ups-ts'); if(upsTs) upsTs.textContent = new Date().toLocaleTimeString('de-CH');
@@ -3015,6 +3219,7 @@ async function init(){
     await pollD40Status();
   }
   setInterval(pollAll,10000);
+  setInterval(enforceProtocolFreshnessTimeouts,1000);
   setInterval(pollD40Status,5000);
   setInterval(syncProjectorsFromPjLink,5000);
   setInterval(pollLocalBatteryStatus,LOCAL_BATTERY_POLL_INTERVAL_MS);
@@ -3038,9 +3243,15 @@ async function init(){
     if(demoMode) return;
     await pollJanitzaData();
     await pollUpsData();
+    await pollNasData();
+    await pollPoeSwitchData();
+    await pollRutx50Data();
     await watchUpsBatteryMode();
-    setInterval(pollJanitzaData,10000);
+    setInterval(pollJanitzaData,MODBUS_POLL_INTERVAL_MS);
     setInterval(pollUpsData,UPS_POLL_INTERVAL_MS);
+    setInterval(pollNasData,SNMP_POLL_INTERVAL_MS);
+    setInterval(pollPoeSwitchData,SNMP_POLL_INTERVAL_MS);
+    setInterval(pollRutx50Data,SNMP_POLL_INTERVAL_MS);
     setInterval(watchUpsBatteryMode,UPS_WATCH_INTERVAL_MS);
   },2000);
   setTimeout(buildProjGrid,100);
@@ -3261,7 +3472,7 @@ window.setProjectorPixeraStatuses = (statuses = []) => {
 };
 
 // ============================================================
-// VOLTAGE HELPERS
+// VOLTAGE / CURRENT HELPERS
 // ============================================================
 function vClass(v){
   const t = cfg.thresholds || {};
@@ -3277,6 +3488,10 @@ window.setSupply = (limit) => {
   document.getElementById('btn-32a').classList.toggle('active', limit === 32);
   document.getElementById('btn-63a').classList.toggle('active', limit === 63);
   addLog('info', t('supply_switched',{limit}));
+  if(demoMode){
+    applyDemoMode();
+    return;
+  }
   pollJanitzaData();
 };
 
@@ -3291,7 +3506,27 @@ function iClass(i){
   return 'ok';
 }
 
+function iBarW(i){
+  if(i<=0) return 0;
+  const t = cfg.thresholds || {};
+  const max = currentLimit === 63 ? (t.i_max_63 || 58) : (t.i_max_32 || 28);
+  return Math.min(100, Math.max(4, (i / max) * 100));
+}
+
+function iBarC(i){
+  const c=iClass(i);
+  return c==='ok'?'var(--green)':c==='warn'?'var(--orange)':c==='err'?'var(--red)':'var(--muted)';
+}
+
 function upsBatClass(c){if(c<=0)return'def';if(c<30)return'err';if(c<70)return'warn';return'ok';}
+function normalizeUpsLoadPercent(raw){
+  const value=Number(raw)||0;
+  if(value<=0) return 0;
+  if(value<=100) return Math.round(value);
+  if(value<=1000) return Math.round(value/10);
+  if(value<=10000) return Math.round(value/100);
+  return Math.round(value/10);
+}
 function nasTempClass(t){if(t<=0)return'def';if(t>=65)return'err';if(t>=55)return'warn';return'ok';}
 function nasSynoStateLabel(v){
   switch(Number(v)||0){
@@ -3351,7 +3586,7 @@ async function pollJanitzaData(){
     const updPhase=(vid,iid,barId,trid,v,i,prevV)=>{
       const vel=document.getElementById(vid);if(vel){vel.textContent=`${v.toFixed(1)} V`;vel.className=`pow-val ${vClass(v)}`;}
       const iel=document.getElementById(iid);if(iel){iel.textContent=`${i.toFixed(1)} A`;iel.className=`pow-val ${iClass(i)}`;}
-      const bar=document.getElementById(barId);if(bar){bar.style.width=`${vBarW(v)}%`;bar.style.background=vBarC(v);}
+      const bar=document.getElementById(barId);if(bar){bar.style.width=`${iBarW(i)}%`;bar.style.background=iBarC(i);}
       const tr=document.getElementById(trid);if(tr){const t=trendOf(prevV,v);tr.textContent=t.s;tr.className=`trend ${t.c}`;}
     };
 
@@ -3383,6 +3618,7 @@ async function pollJanitzaData(){
       const box=document.getElementById('janitza-anomaly-box');if(box)box.classList.remove('show');
       const nb=document.getElementById('nav-power-b');if(nb)nb.style.background='var(--green)';
     }
+    markProtocolValueReceived('janitza');
   }catch(e){
     console.error('[Janitza]',e);
     addError(`[Janitza] FEHLER: ${e}`);
@@ -3410,7 +3646,7 @@ async function pollUpsData(){
     const batStatus=Number(d.bat_status??0);
     const outV=Number(d.output_v??0);
     const mins=runtimeT>0?Math.round(runtimeT/6000):10;
-    const loadPct=outLoad>0?Math.round(outLoad/10):0;
+    const loadPct=normalizeUpsLoadPercent(outLoad);
     // APC semantics: output_status is usually the most reliable battery indicator.
     // 2=online, 3=onBattery, 5=onBatteryLow. Fallback to bat_status/output_online.
     const isBatteryMode =
@@ -3449,6 +3685,7 @@ async function pollUpsData(){
     } else {
       const box=document.getElementById('ups-anomaly-box');if(box)box.classList.remove('show');
     }
+    markProtocolValueReceived('ups');
   }catch(e){
     console.error('[UPS]',e);
     addError(`[UPS] FEHLER: ${e}`);
@@ -3548,6 +3785,7 @@ async function pollPoeSwitchData(){
     const budgetEl=document.getElementById('net-poe-budget'); if(budgetEl) budgetEl.textContent=poeBudget===null?'—':`${poeBudget} W`;
     const usedEl=document.getElementById('net-poe-used'); if(usedEl) usedEl.textContent=poeUsed===null?'—':`${poeUsed} W`;
     const freeEl=document.getElementById('net-poe-free'); if(freeEl) freeEl.textContent=poeFree===null?'—':`${poeFree} W`;
+    markProtocolValueReceived('poe');
   }catch(e){
     console.error('[PoE SNMP]',e);
     const modelEl=document.getElementById('net-poe-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
@@ -3563,7 +3801,7 @@ async function pollRutx50Data(){
   try{
     const data=await invoke('rutx50_get_status',{
       ip:cfg.rutx50_ip||DEFAULT_RUTX50_IP,
-      community:cfg.rutx50_snmp_community||'public',
+      community:cfg.rutx50_snmp_community||'projektil',
       port:Number(cfg.rutx50_snmp_port||161)
     });
     if(!data){
@@ -3598,6 +3836,7 @@ async function pollRutx50Data(){
         upEl.textContent='—';
       }
     }
+    markProtocolValueReceived('rutx');
   }catch(e){
     console.error('[RUTX50 SNMP]',e);
     const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent='SNMP nicht erreichbar';
@@ -3677,6 +3916,7 @@ async function pollNasData(){
 
     applyVolume('nas-vol1',data.vol1_alloc_units,data.vol1_size_units,data.vol1_used_units,'var(--green)','#d97706');
     applyVolume('nas-vol2',data.vol2_alloc_units,data.vol2_size_units,data.vol2_used_units,'#d97706','var(--red)');
+    markProtocolValueReceived('nas');
   }catch(e){
     console.error('[NAS SNMP]',e);
   }
@@ -3695,14 +3935,16 @@ function buildProjGrid(){
     const displayIpLabel=`IP: ${displayIp}`;
     const statusState = getProjectorStatusState(i);
     const statusLabel = getProjectorStatusLabel(i);
+    const isSelected = Boolean(projectorSelectionStates[i]);
     // Unified dot coloring: Green=ON, Orange=Standby, Red=Offline
     const dotBg=moduleOnline?(p.on?'var(--green)':'var(--orange)'):'var(--red)';
     const lampHoursTxt=(p.lampHours===null||p.lampHours===undefined||Number.isNaN(Number(p.lampHours)))?'—':String(p.lampHours);
     const section=document.createElement('div');
     section.className='device-section';
     const card=document.createElement('div');
-    card.className='proj-card';
-    card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button onclick="projMute(${i})" style="border-color:${p.mute?'var(--orange)':'var(--border)'};background:${p.mute?'#431407':'var(--card2)'}">${locales[currentLang].mute}</button></div>`;
+    card.className=`proj-card${isSelected?' selected':''}${projectorSelectionMode?' selectable':''}`;
+    card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="event.stopPropagation();projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="event.stopPropagation();projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button class="shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div>`;
+    card.addEventListener('click',()=>{ if(projectorSelectionMode) toggleProjectorSelection(i); });
     const overlay=document.createElement('div');
     overlay.className='offline-overlay'+(moduleOnline?'':' show');
     overlay.id=`overlay-pj-${n}`;
@@ -3711,6 +3953,134 @@ function buildProjGrid(){
     section.appendChild(overlay);
     g.appendChild(section);
   });
+  updateProjectorSelectionSummary();
+  syncProjectorSelectedActionsVisibility();
+}
+
+function getConfiguredProjectorIndices(){
+  return projStates
+    .map((p,i)=>((p.ip && p.ip!=='' && p.ip!=='0.0.0.0') ? i : null))
+    .filter(i=>i!==null);
+}
+
+function getSelectedProjectorIndices(){
+  return getConfiguredProjectorIndices().filter(i=>projectorSelectionStates[i]);
+}
+
+function updateProjectorSelectionSummary(){
+  const el=document.getElementById('projector-selection-summary');
+  const selectAllBtn=document.getElementById('projector-select-all-btn');
+  if(!el) return;
+  const selected=getSelectedProjectorIndices().length;
+  const total=getConfiguredProjectorIndices().length;
+  el.textContent=projectorSelectionMode ? `${selected}/${total} ausgewählt` : `${total} Projektoren verfügbar`;
+  if(selectAllBtn){
+    selectAllBtn.textContent=`Alle anwählen (${total})`;
+  }
+}
+
+function clearProjectorSelection(){
+  projectorSelectionStates.fill(false);
+  projectorSelectionMode=false;
+  buildProjGrid();
+}
+
+function clearSelectedProjectorsOnly(){
+  projectorSelectionStates.fill(false);
+  buildProjGrid();
+}
+
+function selectAllProjectors(){
+  getConfiguredProjectorIndices().forEach(i=>{ projectorSelectionStates[i]=true; });
+  buildProjGrid();
+}
+
+function toggleProjectorSelectionMode(){
+  projectorSelectionMode=!projectorSelectionMode;
+  if(!projectorSelectionMode){
+    projectorSelectionStates.fill(false);
+  }
+  buildProjGrid();
+}
+
+function toggleProjectorSelection(index){
+  if(!projectorSelectionMode) return;
+  if(!projStates[index]?.ip || projStates[index].ip==='0.0.0.0') return;
+  projectorSelectionStates[index]=!projectorSelectionStates[index];
+  buildProjGrid();
+}
+
+function syncProjectorSelectedActionsVisibility(){
+  const el=document.getElementById('projector-selected-actions');
+  const toggleBtn=document.getElementById('projector-select-toggle');
+  if(!el || !toggleBtn) return;
+  const hasSelectionMode=projectorSelectionMode;
+  const hasSelection=getSelectedProjectorIndices().length>0;
+  el.classList.toggle('hidden',!(hasSelectionMode));
+  el.querySelectorAll('button').forEach(btn=>{
+    if(btn.id==='projector-select-all-btn'){
+      btn.disabled=false;
+      return;
+    }
+    btn.disabled=!hasSelection;
+  });
+  toggleBtn.classList.toggle('active',hasSelectionMode);
+  toggleBtn.textContent='Auswählen';
+  updateProjectorActionButtonStates();
+}
+
+function areProjectorsShuttered(indices){
+  if(!indices.length) return false;
+  return indices.every(i=>Boolean(projStates[i]?.mute));
+}
+
+function updateProjectorActionButtonStates(){
+  const allBtn=document.getElementById('all-proj-shutter-btn');
+  if(allBtn){
+    const allIndices=getConfiguredProjectorIndices();
+    allBtn.classList.toggle('active',areProjectorsShuttered(allIndices));
+  }
+  const selectedBtn=document.getElementById('proj-selected-shutter-btn');
+  if(selectedBtn){
+    const selectedIndices=getSelectedProjectorIndices();
+    selectedBtn.classList.toggle('active',areProjectorsShuttered(selectedIndices));
+  }
+}
+
+async function runSelectedProjectorAction(label, action){
+  const indices=getSelectedProjectorIndices();
+  if(!indices.length){
+    addError(`[Pixera API] Keine Projektoren ausgewählt für ${label}`);
+    return;
+  }
+  try{
+    await Promise.allSettled(indices.map(index=>action(index)));
+    addLog('info',`[Pixera API] ${label} an ${indices.length} Projektoren gesendet`);
+  }finally{
+    clearProjectorSelection();
+    buildMonProjGrid(true);
+    updateProjectorMonitoringGrid();
+    updateProjectorsNavBadge();
+  }
+}
+
+async function runAllProjectorAction(label, action){
+  const indices=getConfiguredProjectorIndices();
+  if(!indices.length){
+    addError(`[Pixera API] Keine Projektoren konfiguriert für ${label}`);
+    return;
+  }
+  try{
+    await Promise.allSettled(indices.map(index=>action(index)));
+    addLog('info',`[Pixera API] ${label} an ${indices.length} Projektoren gesendet`);
+  }finally{
+    projectorSelectionStates.fill(false);
+    projectorSelectionMode=false;
+    buildProjGrid();
+    buildMonProjGrid(true);
+    updateProjectorMonitoringGrid();
+    updateProjectorsNavBadge();
+  }
 }
 
 async function pjLinkSetProjectorPower(index, turnOn){
@@ -3734,87 +4104,111 @@ async function pjLinkSetProjectorShutter(index, muted){
   return true;
 }
 
-window.projOn=async i=>{
+async function setProjectorPowerOn(index){
   // Check if projector has IP configured
-  if(!projStates[i].ip || projStates[i].ip==='0.0.0.0'){
-    addError(`[Pixera API] Projector ${i+1}: Keine IP konfiguriert`);
+  if(!projStates[index].ip || projStates[index].ip==='0.0.0.0'){
+    addError(`[Pixera API] Projector ${index+1}: Keine IP konfiguriert`);
     return;
   }
   try{
-    startProjectorTransition(i,true);
-    await pjLinkSetProjectorPower(i,true);
-    projStates[i].on=true;
+    startProjectorTransition(index,true);
+    await pjLinkSetProjectorPower(index,true);
+    projStates[index].on=true;
+  }catch(e){
+    clearProjectorTransition(index);
+    projectorControlStates[index]='error';
+    addError(`[Pixera API] PJ-Link projector ${index+1} ON fehlgeschlagen: ${e}`);
+    throw e;
+  }
+}
+
+async function setProjectorPowerOff(index){
+  // Check if projector has IP configured
+  if(!projStates[index].ip || projStates[index].ip==='0.0.0.0'){
+    addError(`[Pixera API] Projector ${index+1}: Keine IP konfiguriert`);
+    return;
+  }
+  try{
+    startProjectorTransition(index,false);
+    await pjLinkSetProjectorPower(index,false);
+    projStates[index].on=false;
+  }catch(e){
+    clearProjectorTransition(index);
+    projectorControlStates[index]='error';
+    addError(`[Pixera API] PJ-Link projector ${index+1} OFF fehlgeschlagen: ${e}`);
+    throw e;
+  }
+}
+
+async function setProjectorMuted(index, muted){
+  if(!projStates[index].ip || projStates[index].ip==='0.0.0.0'){
+    addError(`[Pixera API] Projector ${index+1}: Keine IP konfiguriert`);
+    return;
+  }
+  try{
+    await pjLinkSetProjectorShutter(index,muted);
+    projStates[index].mute=muted;
+  }catch(e){
+    addError(`[Pixera API] PJ-Link projector ${index+1} Shutter fehlgeschlagen: ${e}`);
+    throw e;
+  }
+}
+
+window.projOn=async i=>{
+  try{
+    await setProjectorPowerOn(i);
     buildProjGrid();
     buildMonProjGrid(true);
-  }catch(e){
-    clearProjectorTransition(i);
-    projectorControlStates[i]='error';
-    addError(`[Pixera API] PJ-Link projector ${i+1} ON fehlgeschlagen: ${e}`);
-  }
+  }catch{}
 };
 window.projOff=async i=>{
-  // Check if projector has IP configured
-  if(!projStates[i].ip || projStates[i].ip==='0.0.0.0'){
-    addError(`[Pixera API] Projector ${i+1}: Keine IP konfiguriert`);
-    return;
-  }
   try{
-    startProjectorTransition(i,false);
-    await pjLinkSetProjectorPower(i,false);
-    projStates[i].on=false;
+    await setProjectorPowerOff(i);
     buildProjGrid();
     buildMonProjGrid(true);
-  }catch(e){
-    clearProjectorTransition(i);
-    projectorControlStates[i]='error';
-    addError(`[Pixera API] PJ-Link projector ${i+1} OFF fehlgeschlagen: ${e}`);
-  }
+  }catch{}
 };
-window.projMute=async i=>{
-  if(!projStates[i].ip || projStates[i].ip==='0.0.0.0'){
-    addError(`[Pixera API] Projector ${i+1}: Keine IP konfiguriert`);
-    return;
-  }
-  const nextMute=!projStates[i].mute;
+window.projShutterToggle=async i=>{
   try{
-    await pjLinkSetProjectorShutter(i,nextMute);
-    projStates[i].mute=nextMute;
+    const nextMute=!projStates[i].mute;
+    await setProjectorMuted(i,nextMute);
     buildProjGrid();
     buildMonProjGrid(true);
-  }catch(e){
-    addError(`[Pixera API] PJ-Link projector ${i+1} Shutter fehlgeschlagen: ${e}`);
-  }
+  }catch{}
 };
 window.allProjOn=async()=>{
-  try{
-    const jobs=projStates.map((p,i)=>{
-      if(!p.ip||p.ip==='0.0.0.0') return Promise.resolve();
-      startProjectorTransition(i,true);
-      return pjLinkSetProjectorPower(i,true).then(()=>{p.on=true;p.mute=false;});
-    });
-    await Promise.allSettled(jobs);
-    buildProjGrid();
-    buildMonProjGrid(true);
-    addLog('info','[PJLink] Power ON an konfigurierte Projektoren gesendet');
-  }catch(e){
-    addError(`[PJLink] PowerOnAll fehlgeschlagen: ${e}`);
-  }
+  await runAllProjectorAction('Power ON', async i=>{ await setProjectorPowerOn(i); projStates[i].mute=false; });
+  buildProjGrid();
 };
 window.allProjOff=async()=>{
-  try{
-    const jobs=projStates.map((p,i)=>{
-      if(!p.ip||p.ip==='0.0.0.0') return Promise.resolve();
-      startProjectorTransition(i,false);
-      return pjLinkSetProjectorPower(i,false).then(()=>{p.on=false;});
-    });
-    await Promise.allSettled(jobs);
-    buildProjGrid();
-    buildMonProjGrid(true);
-    addLog('info','[PJLink] Power OFF an konfigurierte Projektoren gesendet');
-  }catch(e){
-    addError(`[PJLink] PowerOffAll fehlgeschlagen: ${e}`);
-  }
+  await runAllProjectorAction('Power OFF', async i=>{ await setProjectorPowerOff(i); });
+  buildProjGrid();
 };
+window.allProjShutterToggle=async()=>{
+  const indices=getConfiguredProjectorIndices();
+  const nextMuted=!areProjectorsShuttered(indices);
+  await runAllProjectorAction(nextMuted?'Shutter ON':'Shutter OFF', async i=>{ await setProjectorMuted(i,nextMuted); });
+  buildProjGrid();
+};
+window.projSelectedOn=async()=>{
+  await runSelectedProjectorAction('Power ON', async i=>{ await setProjectorPowerOn(i); projStates[i].mute=false; });
+  buildProjGrid();
+};
+window.projSelectedOff=async()=>{
+  await runSelectedProjectorAction('Power OFF', async i=>{ await setProjectorPowerOff(i); });
+  buildProjGrid();
+};
+window.projSelectedShutterToggle=async()=>{
+  const indices=getSelectedProjectorIndices();
+  const nextMuted=!areProjectorsShuttered(indices);
+  await runSelectedProjectorAction(nextMuted?'Shutter ON':'Shutter OFF', async i=>{ await setProjectorMuted(i,nextMuted); });
+  buildProjGrid();
+};
+window.toggleProjectorSelectionMode=toggleProjectorSelectionMode;
+window.clearProjectorSelection=clearProjectorSelection;
+window.clearSelectedProjectorsOnly=clearSelectedProjectorsOnly;
+window.selectAllProjectors=selectAllProjectors;
+window.toggleProjectorSelection=toggleProjectorSelection;
 
 function buildMonProjGrid(forceRebuild=false){
   const g=document.getElementById('mon-proj-grid');if(!g)return;
@@ -4477,8 +4871,10 @@ function setDeviceOnline(key,online,label,overlayId){
   const prev=deviceState[key];
   if(prev===undefined){
     deviceState[key]=online; // First run: silently record
+    onProtocolDeviceOnlineStateChanged(key, online);
   } else if(prev!==online){
     deviceState[key]=online;
+    onProtocolDeviceOnlineStateChanged(key, online);
     const icon=online?'🟢':'🔴';
     addLog(online?'info':'error',`${icon} ${label} ist jetzt ${online?'ONLINE':'OFFLINE'}`);
     if(!online) addError(`${label} ist OFFLINE!`);

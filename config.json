@@ -22,7 +22,7 @@
   "rutx50_ip": "192.168.1.1",
   "rutx50_ping_port": 443,
   "rutx50_snmp_port": 161,
-  "rutx50_snmp_community": "public",
+  "rutx50_snmp_community": "projektil",
   "ups_ip": "192.168.1.6",
   "power_disp_ip": "192.168.1.5",
   "cam_01_ip": "192.168.1.22",
