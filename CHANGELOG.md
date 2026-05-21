@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.0.16-beta - 2026-05-21
+
+### Added
+- Systemlog-Einträge sind jetzt sprachabhängig und schalten bei der Sprachwahl live um
+- Einstellungen wurden komplett i18n-fähig gemacht, inklusive Platzhalter und Buttons
+
+### Changed
+- Hotline wurde fest auf +41 44 492 51 69 gesetzt
+- Rust/Tauri-Abhängigkeiten wurden aktualisiert und lokal geprüft
+- Runtime-Texte, Statusmeldungen und Fehlertexte wurden weiter vereinheitlicht
+
+### Release Assets
+- Private Release: Windows EXE + Sourcecode-Archiv
+- Public Release: Windows EXE
+
 ## v1.0.4-beta - 2026-04-20
 
 ### Added
