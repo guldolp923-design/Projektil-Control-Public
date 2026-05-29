@@ -24,6 +24,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-famil
 .mac-max{background:#28c840;border:0.5px solid #1aab29}
 .titlebar-logo{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:1px;color:#fff}
 .titlebar-right{display:flex;align-items:center;gap:10px;margin-left:auto;-webkit-app-region:no-drag}
+.mode-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border:1px solid transparent;line-height:1}
+.mode-badge::before{content:'';width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.mode-badge.live{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.45);color:#bbf7d0}
+.mode-badge.live::before{background:var(--green);box-shadow:0 0 8px rgba(34,197,94,.6)}
+.mode-badge.demo{background:rgba(249,115,22,.14);border-color:rgba(249,115,22,.45);color:#fdba74}
+.mode-badge.demo::before{background:var(--orange);box-shadow:0 0 8px rgba(249,115,22,.6)}
 .tb-warn-pill{display:none;align-items:center;gap:5px;background:#7c1010;border:1px solid #b91c1c;border-radius:20px;padding:2px 10px;font-size:10px;font-weight:600;color:#fca5a5;cursor:pointer}
 .tb-warn-pill.show{display:flex;animation:pulse-warn 2s infinite}
 @keyframes pulse-warn{0%,100%{opacity:1}50%{opacity:.6}}
@@ -40,8 +46,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-famil
 .ni-right{display:flex;align-items:center;gap:5px}
 .ni-errcount{background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 5px;display:none}
 .ni-errcount.show{display:inline-block}
-.nav-em{background:var(--nav-em);padding:15px 16px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;border-top:1px solid rgba(255,255,255,.1);margin-top:auto;user-select:none;display:flex;align-items:center;gap:8px}
+.nav-em{background:var(--nav-em);padding:15px 16px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;border-top:1px solid rgba(255,255,255,.1);margin-top:auto;user-select:none;display:flex;align-items:center;gap:8px;line-height:1.15;min-height:46px;flex-shrink:0}
 .nav-em:hover{background:#8f1450}
+.nav-em-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;min-width:14px;line-height:1;transform:translateY(-1px)}
 .lang-option{width:100%;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:transparent;color:#fff;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .15s,border-color .15s}
 .lang-option:hover{background:rgba(255,255,255,.05)}
 .lang-option.active{background:rgba(255,255,255,.1);border-color:var(--blue)}
@@ -51,13 +58,31 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-famil
 .setting-block{padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.03)}
 .setting-label{font-size:12px;color:#fff;font-weight:600;margin-bottom:4px}
 .setting-hint{font-size:11px;color:var(--muted);line-height:1.45}
+.settings-count-row{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:12px}
+.tg-alert-grid{display:grid;gap:8px;margin-bottom:12px;font-size:12px}
+.tg-event-group{border:1px solid rgba(122,108,248,.24);border-radius:10px;background:linear-gradient(180deg,rgba(35,31,112,.78),rgba(27,24,95,.66));overflow:hidden;transition:border-color .16s,box-shadow .16s,background .16s}
+.tg-event-group[open]{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 1px rgba(96,165,250,.18),0 10px 28px rgba(7,8,45,.22);background:linear-gradient(180deg,rgba(37,34,119,.9),rgba(28,24,99,.78))}
+.tg-event-summary{cursor:pointer;padding:10px 12px;font-size:12px;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#ecebff;letter-spacing:.1px}
+.tg-event-summary::-webkit-details-marker{display:none}
+.tg-event-summary::after{content:'+';font-size:14px;color:rgba(196,191,255,.85);line-height:1;transition:transform .16s,color .16s}
+.tg-event-group[open] .tg-event-summary::after{content:'-';color:#9fd0ff}
+.tg-event-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 10px;padding:2px 12px 12px}
+.tg-event-option{display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid transparent;border-radius:8px;transition:background .14s,border-color .14s}
+.tg-event-option:hover{background:rgba(148,163,255,.08);border-color:rgba(148,163,255,.24)}
+.tg-event-check{appearance:none;width:15px;height:15px;border-radius:4px;border:1px solid rgba(200,207,255,.55);background:rgba(11,13,52,.85);display:inline-grid;place-items:center;cursor:pointer;flex-shrink:0;transition:background .14s,border-color .14s,box-shadow .14s}
+.tg-event-check::after{content:'';width:8px;height:8px;clip-path:polygon(14% 44%,0 60%,45% 100%,100% 20%,84% 6%,43% 67%);background:#0a1338;transform:scale(0);transition:transform .14s}
+.tg-event-check:checked{background:linear-gradient(180deg,#7dd3fc,#60a5fa);border-color:#93c5fd;box-shadow:0 0 0 2px rgba(96,165,250,.18)}
+.tg-event-check:checked::after{transform:scale(1)}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.switch{position:relative;display:inline-flex;width:54px;height:30px;cursor:pointer}
+.switch{position:relative;display:inline-flex;width:62px;height:34px;cursor:pointer}
 .switch input{opacity:0;width:0;height:0}
-.switch-slider{position:absolute;inset:0;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.12);transition:background .2s,border-color .2s}
-.switch-slider:before{content:'';position:absolute;left:4px;top:4px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
-.switch input:checked + .switch-slider{background:rgba(34,197,94,.25);border-color:rgba(34,197,94,.6)}
-.switch input:checked + .switch-slider:before{transform:translateX(24px)}
+.switch-slider{position:absolute;inset:0;border-radius:999px;background:linear-gradient(180deg,rgba(23,37,84,.88),rgba(30,41,59,.82));border:1px solid rgba(148,163,184,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -10px 18px rgba(0,0,0,.18), 0 8px 20px rgba(0,0,0,.18);transition:background .22s,border-color .22s,box-shadow .22s}
+.switch-slider:before{content:'';position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:50%;background:linear-gradient(180deg,#ffffff,#e2e8f0);box-shadow:0 2px 10px rgba(15,23,42,.28), inset 0 1px 0 rgba(255,255,255,.75);transition:transform .22s,background .22s}
+.switch-slider:after{content:'';position:absolute;left:12px;top:50%;width:6px;height:6px;border-radius:50%;background:rgba(248,250,252,.9);transform:translateY(-50%);box-shadow:0 0 12px rgba(248,250,252,.45);transition:opacity .22s,transform .22s}
+.switch input:checked + .switch-slider{background:linear-gradient(180deg,rgba(22,101,52,.95),rgba(21,128,61,.88));border-color:rgba(74,222,128,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.12), inset 0 -10px 18px rgba(0,0,0,.14), 0 0 0 4px rgba(34,197,94,.12), 0 10px 24px rgba(21,128,61,.22)}
+.switch input:checked + .switch-slider:before{transform:translateX(28px);background:linear-gradient(180deg,#ffffff,#dcfce7)}
+.switch input:checked + .switch-slider:after{opacity:0;transform:translateY(-50%) scale(.7)}
+.switch input:focus-visible + .switch-slider{box-shadow:0 0 0 4px rgba(96,165,250,.18), inset 0 1px 0 rgba(255,255,255,.08), inset 0 -10px 18px rgba(0,0,0,.18), 0 8px 20px rgba(0,0,0,.18)}
 .demo-state{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:11px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:var(--muted)}
 .demo-state.active{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.12);color:#d7ffe5}
 .view-mode-btn{min-width:160px;justify-content:center}
@@ -102,6 +127,9 @@ body.emergency-locked .sidebar .ni.active:not([data-view-allow]){opacity:.45}
 .lock-unlock-btn:active{transform:scale(.98)}
 .lock-cancel-link{display:block;margin:14px auto 0;background:none;border:none;color:rgba(255,255,255,.25);font-size:11px;cursor:pointer;font-family:inherit;transition:color .15s}
 .lock-cancel-link:hover{color:rgba(255,255,255,.55)}
+.webgui-demo-url{margin-top:10px;padding:11px 12px;border-radius:12px;border:1px solid rgba(122,108,248,.35);background:rgba(122,108,248,.08);color:#d8d2ff;font-family:var(--mono);font-size:11px;word-break:break-all}
+.webgui-demo-actions{display:flex;gap:10px;margin-top:18px}
+.webgui-demo-actions .btn{flex:1}
 /* Lock screen in emergency state */
 body.emergency-locked .lock-card{background:rgba(100,20,20,0.97);border-color:rgba(252,165,165,.25);box-shadow:0 32px 100px rgba(0,0,0,.7),0 0 80px rgba(239,68,68,.12)}
 body.emergency-locked .lock-icon-ring{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5)}
@@ -165,8 +193,19 @@ body.emergency-locked .sidebar-lock-indicator:hover{background:rgba(239,68,68,.1
 .gain-dialog .dlg-label{font-size:11px;color:var(--muted);margin-bottom:10px}
 .view-lock-code{letter-spacing:10px;text-align:center}
 .view-lock-error{min-height:18px;margin-top:10px;font-size:11px;color:#fca5a5}
+.unlock-input-error{animation:unlockShake .28s ease-in-out 0s 1;border-color:#ef4444!important;box-shadow:0 0 0 3px rgba(239,68,68,.18)!important}
+@keyframes unlockShake{
+  0%{transform:translateX(0)}
+  25%{transform:translateX(-5px)}
+  50%{transform:translateX(5px)}
+  75%{transform:translateX(-3px)}
+  100%{transform:translateX(0)}
+}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g2,.g3{align-items:stretch}
+.g2>.card,.g3>.card,.g2>.device-section,.g3>.device-section{height:100%}
+.g2>.card,.g3>.card,.g2>.device-section>.card,.g3>.device-section>.card{height:100%;margin-bottom:0}
 .mon-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}
 .mon-row:last-child{border-bottom:none}
 
@@ -304,6 +343,24 @@ body.emergency-locked .btn-o{background:#9a3412}
 .proj-select-btn:hover{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.5)}
 .proj-select-btn.selected{background:rgba(96,165,250,.18);border-color:rgba(96,165,250,.95);color:#dbeafe}
 .proj-card.selectable{cursor:pointer}
+.proj-mobile-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.proj-mobile-title{display:grid;gap:4px;min-width:0}
+.proj-mobile-name{font-size:22px;font-weight:800;line-height:1;color:#fff;letter-spacing:.02em}
+.proj-mobile-model{font-size:11px;color:#d8d2ff;line-height:1.25;word-break:break-word}
+.proj-mobile-meta{display:grid;gap:4px;margin-bottom:12px}
+.proj-mobile-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:11px;color:#e9e7ff;font-family:var(--mono)}
+.proj-mobile-chip.status{justify-content:space-between;font-family:inherit;font-size:12px;font-weight:700}
+.proj-mobile-link{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#d8d2ff}
+.proj-mobile-link-dot{width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0}
+.proj-mobile-link.online .proj-mobile-link-dot{background:var(--green)}
+.proj-mobile-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.proj-mobile-actions button{width:100%;padding:11px 0;font-size:12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:#fff;font-family:inherit;appearance:none;-webkit-appearance:none;box-shadow:none}
+.proj-mobile-actions .btn-g{background:#14532d;border-color:var(--green);color:#dcfce7}
+.proj-mobile-actions .btn-g:hover{background:#15803d}
+.proj-mobile-actions .btn-o{background:#431407;border-color:var(--orange);color:#ffedd5}
+.proj-mobile-actions .btn-o:hover{background:#9a3412}
+.proj-mobile-actions .proj-shutter-btn{border-color:#60a5fa;background:#1e3a8a;color:#dbeafe}
+.proj-mobile-actions .proj-shutter-btn.active{border-color:#f87171;background:#7f1d1d;color:#fee2e2}
 .mon-proj-card{padding:8px 10px;background:var(--card2);border-radius:8px;border:1px solid var(--border)}
 .mon-proj-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .mon-proj-name{font-size:11px;font-weight:700;color:#fff}
@@ -324,7 +381,13 @@ body.emergency-locked .btn-o{background:#9a3412}
 .cam-reload-overlay:hover{background:rgba(26,26,58,.86)}
 .camera-card{display:grid;gap:10px}
 .camera-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px}
-.camera-ip-chip{font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 8px;border-radius:20px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08)}
+.camera-ip-chip,.device-ip-chip{font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 8px;border-radius:20px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08)}
+.device-chip-btn{cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.device-chip-btn:hover{background:rgba(30,58,138,.36);border-color:rgba(96,165,250,.55);color:#dbeafe}
+.device-webgui-chip{font-size:10px;color:#dbeafe;padding:4px 9px;border-radius:20px;background:rgba(30,58,138,.36);border:1px solid rgba(96,165,250,.45);cursor:pointer;transition:background .15s,border-color .15s}
+.device-webgui-chip:hover{background:rgba(30,64,175,.5);border-color:rgba(147,197,253,.7)}
+.device-head-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.proj-webgui-row{margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .camera-panel{padding:10px;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06)}
 .camera-panel-title{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:700}
 .preset-row{display:flex;gap:6px;flex-wrap:wrap}
@@ -352,6 +415,90 @@ body.emergency-locked .btn-o{background:#9a3412}
 .startup-status{font-size:13px;color:#ece9ff;font-weight:600}
 .startup-progress-count{font-size:11px;color:#c9c4f7;font-family:var(--mono);padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
 .startup-detail{margin-top:8px;font-size:11px;color:var(--muted);font-family:var(--mono)}
+
+/* DEVICE ADAPTIVE UI: phone-first variant */
+.mobile-nav{display:none}
+body.ui-mobile .titlebar{height:34px;padding:0 10px}
+body.ui-mobile .titlebar-logo{font-size:11px;gap:6px}
+body.ui-mobile .macos-btns{display:none}
+body.ui-mobile .tb-warn-pill{padding:2px 8px;font-size:9px}
+body.ui-mobile{overflow-x:hidden}
+body.ui-mobile .app-body{display:block;height:calc(100vh - 34px);padding-bottom:76px}
+body.ui-mobile .sidebar{display:none}
+body.ui-mobile .main-area{height:100%}
+body.ui-mobile .tab-panel{padding:12px 12px 96px}
+body.ui-mobile .card{border-radius:14px;padding:14px}
+body.ui-mobile .card-title{font-size:14px}
+body.ui-mobile .statusbar{display:none}
+body.ui-mobile .g2,
+body.ui-mobile .g3{grid-template-columns:1fr;gap:10px}
+body.ui-mobile .settings-count-row{grid-template-columns:1fr}
+body.ui-mobile .mobile-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:120;background:rgba(13,11,52,.96);border-top:1px solid rgba(122,108,248,.32);padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));gap:8px;overflow:hidden;backdrop-filter:blur(14px) saturate(1.1);box-shadow:0 -10px 30px rgba(0,0,0,.25)}
+.mnav-btn{width:100%;min-width:0;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));color:#fff;padding:8px 6px;border-radius:14px;font-size:10px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1.05}
+.mnav-btn .mnav-icon{font-size:16px;line-height:1}
+.mnav-btn .mnav-label{font-size:9px;opacity:.92;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.mnav-btn.active{background:linear-gradient(180deg,rgba(122,108,248,.42),rgba(122,108,248,.18));border-color:#7a6cf8;box-shadow:0 0 0 1px rgba(122,108,248,.18) inset}
+.mnav-btn.emergency{background:linear-gradient(180deg,rgba(122,16,64,.52),rgba(122,16,64,.28));border-color:rgba(255,130,170,.55)}
+.mnav-btn.emergency.active{background:linear-gradient(180deg,rgba(239,68,68,.72),rgba(122,16,64,.46));border-color:#fca5a5}
+.mnav-btn:active{transform:scale(.98)}
+.mobile-more-backdrop{display:none;position:fixed;inset:0;background:rgba(5,4,24,.45);backdrop-filter:blur(6px);z-index:118}
+.mobile-more-backdrop.show{display:block}
+.mobile-more-sheet{display:none;position:fixed;left:10px;right:10px;bottom:88px;z-index:119;background:linear-gradient(180deg,rgba(24,21,94,.98),rgba(14,12,58,.98));border:1px solid rgba(122,108,248,.28);border-radius:20px;padding:14px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.mobile-more-sheet.show{display:block}
+.mobile-more-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.mobile-more-title{font-size:12px;font-weight:700;color:#d8d2ff;letter-spacing:.04em;text-transform:uppercase}
+.mobile-more-close{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;padding:6px 10px;font-size:10px;cursor:pointer}
+.mobile-more-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mobile-more-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;border-radius:14px;padding:12px 10px;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left}
+.mobile-more-btn.active{border-color:#7a6cf8;background:rgba(122,108,248,.18)}
+.mobile-more-btn.emergency{border-color:rgba(255,130,170,.4);background:rgba(122,16,64,.22)}
+.mobile-more-icon{font-size:16px;line-height:1;flex-shrink:0}
+.mobile-more-label{font-size:11px;font-weight:700;line-height:1.1}
+body.ui-mobile #tab-projectors{overflow-x:hidden}
+body.ui-mobile .proj-toolbar{justify-content:stretch}
+body.ui-mobile .proj-select-wrap{display:flex;width:100%}
+body.ui-mobile .proj-select-toggle{width:100%}
+body.ui-mobile .proj-select-menu{left:0;right:0;top:44px;min-width:0;width:100%;max-width:100%}
+body.ui-mobile .proj-toolbar-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body.ui-mobile .proj-toolbar-buttons .btn{min-width:0;width:100%}
+body.ui-mobile .proj-grid{grid-template-columns:1fr!important}
+body.ui-mobile .proj-bulk-actions{display:grid!important;grid-template-columns:1fr;justify-content:stretch}
+body.ui-mobile .proj-bulk-actions .btn{width:100%}
+body.ui-mobile .proj-card{padding:16px;border-radius:18px}
+body.ui-mobile .proj-card:hover{transform:none;box-shadow:none}
+body.ui-mobile .proj-header{gap:10px;align-items:flex-start}
+body.ui-mobile .proj-btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+body.ui-mobile .proj-btns button{padding:8px 0;font-size:10px}
+body.ui-mobile-test .show-legacy-layout{display:none}
+.mobile-test-home{display:none}
+body.ui-mobile-test .mobile-test-home{display:grid;gap:12px}
+body.ui-mobile-test .tab-panel{padding-top:10px}
+.mtest-hero{position:relative;overflow:hidden;padding:18px;border-radius:20px;border:1px solid rgba(122,108,248,.28);background:radial-gradient(circle at top right, rgba(122,108,248,.42), transparent 45%), linear-gradient(180deg, rgba(30,27,107,.98), rgba(15,12,58,.98));box-shadow:0 18px 40px rgba(0,0,0,.28)}
+.mtest-hero-sub{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(216,210,255,.62);margin-bottom:6px}
+.mtest-hero-title{font-size:20px;font-weight:800;line-height:1.05;color:#fff;max-width:210px}
+.mtest-hero-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.mtest-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);font-size:10px;color:#e9e7ff}
+.mtest-chip-dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
+.mtest-realtime{font-family:var(--mono);font-size:14px;color:#d8d2ff}
+.mtest-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mtest-stat{padding:14px;border-radius:18px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.08)}
+.mtest-stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.mtest-stat-value{font-size:18px;font-weight:800;color:#fff;line-height:1.05}
+.mtest-stat-sub{font-size:11px;color:#d8d2ff;margin-top:6px}
+.mtest-quick{padding:14px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.mtest-section-title{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#d8d2ff;margin-bottom:10px}
+.mtest-quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mtest-quick-btn{border:none;border-radius:18px;padding:16px 12px;background:linear-gradient(180deg, rgba(122,108,248,.28), rgba(54,47,128,.28));color:#fff;display:flex;flex-direction:column;align-items:flex-start;gap:8px;cursor:pointer;text-align:left;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.mtest-quick-btn:active{transform:scale(.98)}
+.mtest-quick-icon{font-size:18px;line-height:1}
+.mtest-quick-label{font-size:13px;font-weight:800}
+.mtest-quick-hint{font-size:10px;color:rgba(255,255,255,.72)}
+.mtest-log{padding:14px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.mtest-log-list{display:grid;gap:8px}
+.mtest-log-item{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+.mtest-log-type{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.mtest-log-msg{font-size:11px;color:#fff;line-height:1.35}
+.mtest-log-time{font-size:10px;color:rgba(255,255,255,.52);margin-top:6px;font-family:var(--mono)}
 </style>
 </head>
 <body>
@@ -385,11 +532,6 @@ body.emergency-locked .btn-o{background:#9a3412}
 
 <!-- TITLEBAR -->
 <div class="titlebar">
-  <div class="macos-btns">
-    <button class="mac-btn mac-close" id="btn-close" title="In Tray minimieren">&#10005;</button>
-    <button class="mac-btn mac-min"   id="btn-minimize" title="Minimieren">&#8722;</button>
-    <button class="mac-btn mac-max"   id="btn-fullscreen" title="Fullscreen">&#8853;</button>
-  </div>
   <div class="titlebar-logo">
     <svg viewBox="0 0 32.4 50" style="height:20px;width:auto" xmlns="http://www.w3.org/2000/svg">
       <rect x="4.2" y="4.8" fill="#F32D55" width="8.1" height="8.1"/>
@@ -404,6 +546,7 @@ body.emergency-locked .btn-o{background:#9a3412}
     <div class="tb-warn-pill" id="tb-warn-pill" onclick="switchTab('error',null)" title="Zum Error Log">
       &#9888; <span id="tb-warn-count">0</span> <span data-l10n-key="warnings_label">Warnung(en)</span>
     </div>
+    <span class="mode-badge live" id="mode-badge">LIVE</span>
     <span id="tb-clock" style="font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5)">--:--:--</span>
   </div>
 </div>
@@ -479,6 +622,19 @@ body.emergency-locked .btn-o{background:#9a3412}
     <button class="lock-unlock-btn" data-view-allow onclick="confirmViewModeUnlock()" data-l10n-key="view_mode_unlock_action">Entsperren</button>
   </div>
 </div>
+<div class="lock-screen-overlay" id="webgui-demo-backdrop" data-view-allow onclick="if(event.target.id==='webgui-demo-backdrop')closeWebGuiDemoDialog()">
+  <div class="lock-card" data-view-allow style="max-width:430px">
+    <div class="lock-icon-ring">🌐</div>
+    <h2 class="lock-title" data-l10n-key="webgui_demo_popup_title">WebGUI im Demo-Modus</h2>
+    <p class="lock-subtitle" data-l10n-key="webgui_demo_popup_hint">Im Demo-Modus kann diese Funktion gesperrt sein. Du kannst die URL trotzdem im Browser öffnen.</p>
+    <div style="font-size:11px;color:var(--muted);text-align:left" data-l10n-key="webgui_demo_popup_url_label">Aufgerufene URL</div>
+    <div class="webgui-demo-url" id="webgui-demo-url">http://0.0.0.0</div>
+    <div class="webgui-demo-actions">
+      <button class="btn btn-o" data-view-allow onclick="closeWebGuiDemoDialog()" data-l10n-key="cancel">Abbrechen</button>
+      <button class="btn btn-g" data-view-allow onclick="openWebGuiDemoUrlAnyway()" data-l10n-key="webgui_demo_popup_open_anyway">IP trotzdem öffnen</button>
+    </div>
+  </div>
+</div>
 <div class="app-body">
   <div class="sidebar">
     <div class="logo" style="padding:10px 14px">
@@ -513,13 +669,70 @@ body.emergency-locked .btn-o{background:#9a3412}
       &#128274; <span id="sidebar-lock-label">Gesperrt</span>
     </div>
     <div style="padding:8px 14px;border-top:1px solid var(--border);font-size:9px;color:rgba(255,255,255,.18);font-family:var(--mono)"><span data-l10n-key="nav_hint">1–9 Tabs · E Emergency</span></div>
-    <div class="nav-em" data-tab="emergency" onclick="switchTab('emergency',this)" title="Shortcut: E">&#9888; <span data-l10n-key="nav_emergency">Emergency</span></div>
+    <div class="nav-em" data-tab="emergency" onclick="switchTab('emergency',this)" title="Shortcut: E"><span class="nav-em-icon">&#9888;</span><span data-l10n-key="nav_emergency">Emergency</span></div>
   </div>
 
   <div class="main-area">
 
     <!-- SHOW -->
     <div class="tab-panel active" id="tab-show">
+
+      <div class="mobile-test-home" id="mobile-test-home">
+        <div class="mtest-hero">
+          <div class="mtest-hero-sub">Mobile Test Dashboard</div>
+          <div class="mtest-hero-title" id="mtest-venue-title">Projektil Control</div>
+          <div class="mtest-hero-meta">
+            <div class="mtest-chip"><span class="mtest-chip-dot" id="mtest-pixera-dot"></span><span id="mtest-pixera-label">Pixera Offline</span></div>
+            <div class="mtest-realtime" id="mtest-time">--:--:--</div>
+          </div>
+        </div>
+
+        <div class="mtest-grid">
+          <div class="mtest-stat">
+            <div class="mtest-stat-label">Timeline</div>
+            <div class="mtest-stat-value" id="mtest-tl-status">--</div>
+            <div class="mtest-stat-sub" id="mtest-next-event">Kein Event</div>
+          </div>
+          <div class="mtest-stat">
+            <div class="mtest-stat-label">Alerts</div>
+            <div class="mtest-stat-value" id="mtest-alert-count">0</div>
+            <div class="mtest-stat-sub" id="mtest-mode-state">Admin</div>
+          </div>
+        </div>
+
+        <div class="mtest-quick">
+          <div class="mtest-section-title">Schnellzugriff</div>
+          <div class="mtest-quick-grid">
+            <button class="mtest-quick-btn" onclick="switchTab('projectors', document.querySelector('[data-tab=&quot;projectors&quot;]'))">
+              <span class="mtest-quick-icon">📽️</span>
+              <span class="mtest-quick-label">Projectors</span>
+              <span class="mtest-quick-hint">Power, Shutter, Status</span>
+            </button>
+            <button class="mtest-quick-btn" onclick="switchTab('audio', document.querySelector('[data-tab=&quot;audio&quot;]'))">
+              <span class="mtest-quick-icon">🔊</span>
+              <span class="mtest-quick-label">Audio</span>
+              <span class="mtest-quick-hint">Mute, Gain, AMP</span>
+            </button>
+            <button class="mtest-quick-btn" onclick="switchTab('power', document.querySelector('[data-tab=&quot;power&quot;]'))">
+              <span class="mtest-quick-icon">⚡</span>
+              <span class="mtest-quick-label">Power</span>
+              <span class="mtest-quick-hint">UPS, Janitza, Safety</span>
+            </button>
+            <button class="mtest-quick-btn" onclick="switchTab('error', document.querySelector('[data-tab=&quot;error&quot;]'))">
+              <span class="mtest-quick-icon">⚠️</span>
+              <span class="mtest-quick-label">Logs</span>
+              <span class="mtest-quick-hint">Systemlog, Fehler</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mtest-log">
+          <div class="mtest-section-title">Letzte Einträge</div>
+          <div class="mtest-log-list" id="mtest-log-list"></div>
+        </div>
+      </div>
+
+      <div class="show-legacy-layout">
 
       <!-- Standort-Banner -->
       <div id="venue-banner" style="display:none;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:12px">
@@ -550,17 +763,19 @@ body.emergency-locked .btn-o{background:#9a3412}
         </div>
         <div class="card" style="margin-bottom:0">
           <div class="card-title" style="font-size:11px;margin-bottom:8px" data-l10n-key="system_title">System</div>
-          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="pixera_director">Pixera Director</span><span class="pill pill-r" id="sys-pixera"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="octo_01_32">Octo 01 (IP: 192.168.1.32)</span><span class="pill pill-r" id="sys-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="octo_02_33">Octo 02 (IP: 192.168.1.33)</span><span class="pill pill-r" id="sys-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="d40_amp_01">D40 AMP 01</span><span class="pill pill-r" id="sys-d40-01"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="d40_amp_02">D40 AMP 02</span><span class="pill pill-r" id="sys-d40-02"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" id="sys-pixera-label">Director (IP: 192.168.1.31)</span><span class="pill pill-r" id="sys-pixera"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="sys-octo1-row" style="font-size:11px"><span style="color:var(--muted)" id="sys-octo1-label">Octo 01 (IP: 192.168.1.32)</span><span class="pill pill-r" id="sys-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="sys-octo2-row" style="font-size:11px"><span style="color:var(--muted)" id="sys-octo2-label">Octo 02 (IP: 192.168.1.33)</span><span class="pill pill-r" id="sys-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="sys-d40-01-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="d40_amp_01">D40 AMP 01</span><span class="pill pill-r" id="sys-d40-01"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="sys-d40-02-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="d40_amp_02">D40 AMP 02</span><span class="pill pill-r" id="sys-d40-02"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="sys-d40-03-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="d40_amp_03">D40 AMP 03</span><span class="pill pill-r" id="sys-d40-03"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)">NAS</span><span class="pill pill-r" id="sys-nas"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row" style="font-size:11px"><span style="color:var(--muted)" data-l10n-key="poe_switch_short">PoE-SW</span><span class="pill pill-r" id="sys-poe"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         </div>
       </div>
       <div style="text-align:center;margin-top:16px;color:var(--muted);font-style:italic;font-size:12px">
         <span data-l10n-key="technical_hotline_label">Technical Hotline</span> <strong style="color:#c4bfff;font-size:14px;display:block;margin-top:3px" id="hotline-nr">+41 44 492 51 69</strong>
+      </div>
       </div>
     </div>
 
@@ -580,8 +795,8 @@ body.emergency-locked .btn-o{background:#9a3412}
           </div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="proj-grid"></div>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <div class="proj-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="proj-grid"></div>
+      <div class="proj-bulk-actions" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn btn-g" style="padding:10px 20px;font-size:13px" onclick="allProjOn()" data-l10n-key="all_on">Alle EIN</button>
         <button class="btn btn-o" style="padding:10px 20px;font-size:13px" onclick="allProjOff()" data-l10n-key="all_off">Alle OFF</button>
         <button class="btn proj-shutter-btn" id="all-proj-shutter-btn" style="padding:10px 20px;font-size:13px;color:#fff" onclick="allProjShutterToggle()" data-l10n-key="projector_all_shutter">Alle Shutter</button>
@@ -603,12 +818,30 @@ body.emergency-locked .btn-o{background:#9a3412}
               <button class="btn btn-g" onclick="saveVenueName()" data-l10n-key="settings_ok">OK</button>
             </div>
           </div>
-          <div class="setting-block">
-            <div class="setting-label" data-l10n-key="projector_count_label">Anzahl Projektoren (1-16)</div>
-            <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
-            <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-              <input id="projector-count-input" type="number" min="1" max="16" step="1" onchange="commitProjectorCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitProjectorCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
-              <button class="btn btn-g" onclick="commitProjectorCountFromInput()" data-l10n-key="settings_ok">OK</button>
+          <div class="settings-count-row">
+            <div class="setting-block">
+              <div class="setting-label" data-l10n-key="projector_count_label">Anzahl Projektoren (1-16)</div>
+              <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                <input id="projector-count-input" type="number" min="1" max="16" step="1" onchange="commitProjectorCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitProjectorCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
+                <button class="btn btn-g" onclick="commitProjectorCountFromInput()" data-l10n-key="settings_ok">OK</button>
+              </div>
+            </div>
+            <div class="setting-block">
+              <div class="setting-label" data-l10n-key="pixera_octo_count_label">Anzahl Pixera Octos (0-2)</div>
+              <div class="setting-hint" data-l10n-key="pixera_octo_count_hint">Legt fest, wie viele Octos abgefragt werden (0, 1 oder 2).</div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                <input id="pixera-octo-count-input" type="number" min="0" max="2" step="1" onchange="commitPixeraOctoCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitPixeraOctoCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
+                <button class="btn btn-g" onclick="commitPixeraOctoCountFromInput()" data-l10n-key="settings_ok">OK</button>
+              </div>
+            </div>
+            <div class="setting-block">
+              <div class="setting-label" data-l10n-key="amp_count_label">Anzahl Endstufen (1-3)</div>
+              <div class="setting-hint" data-l10n-key="amp_count_hint">Legt fest, wie viele D40 AMPs abgefragt werden (1 bis 3).</div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                <input id="amp-count-input" type="number" min="1" max="3" step="1" onchange="commitAmpCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitAmpCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
+                <button class="btn btn-g" onclick="commitAmpCountFromInput()" data-l10n-key="settings_ok">OK</button>
+              </div>
             </div>
           </div>
           <div class="setting-block">
@@ -734,36 +967,54 @@ body.emergency-locked .btn-o{background:#9a3412}
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
                 </div>
               </div>
-              <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-l10n-key="telegram_alert_events_label">Alarm-Ereignisse</div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 10px;margin-bottom:12px;font-size:12px">
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-offline"> <span data-l10n-key="telegram_event_offline">Offline</span></label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-ups"> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span></label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-trigger-missed"> <span data-l10n-key="telegram_event_trigger_missed">Trigger nicht ausgeloest</span></label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-timeline"> <span data-l10n-key="telegram_event_timeline_error">Timeline-Fehler</span></label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-emergency"> <span data-l10n-key="telegram_event_emergency">Emergency</span></label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-panic"> <span data-l10n-key="telegram_event_panic">Panic</span></label>
-                <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="tg-event-keyword"> <span data-l10n-key="telegram_event_keyword">Eigene Keywords</span></label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="telegram_alert_events_label">Alarm-Ereignisse</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px" data-l10n-key="telegram_alert_events_hint">Nur diese Ereignisse loesen Telegram aus.</div>
+              <div class="tg-alert-grid">
+                <details open class="tg-event-group">
+                  <summary class="tg-event-summary" data-l10n-key="telegram_group_janitza">Janitza</summary>
+                  <div class="tg-event-options">
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-offline"> <span data-l10n-key="telegram_event_janitza_offline">Janitza offline</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-asymmetry"> <span data-l10n-key="telegram_event_janitza_asymmetry">Janitza Asymmetrie</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-overfreq"> <span data-l10n-key="telegram_event_janitza_overfrequency">Janitza Ueberfrequenz</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-underfreq"> <span data-l10n-key="telegram_event_janitza_underfrequency">Janitza Unterfrequenz</span></label>
+                  </div>
+                </details>
+                <details class="tg-event-group">
+                  <summary class="tg-event-summary" data-l10n-key="telegram_group_ups">UPS</summary>
+                  <div class="tg-event-options">
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-ups-offline"> <span data-l10n-key="telegram_event_ups_offline">UPS offline</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-ups-battery"> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span></label>
+                  </div>
+                </details>
+                <details class="tg-event-group">
+                  <summary class="tg-event-summary" data-l10n-key="telegram_group_network">Netzwerk</summary>
+                  <div class="tg-event-options">
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-nas-offline"> <span data-l10n-key="telegram_event_nas_offline">NAS offline</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-poe-offline"> <span data-l10n-key="telegram_event_poe_offline">Switch offline</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-rutx-offline"> <span data-l10n-key="telegram_event_rutx_offline">Router offline</span></label>
+                  </div>
+                </details>
+                <details class="tg-event-group">
+                  <summary class="tg-event-summary" data-l10n-key="telegram_group_show">Show / Pixera</summary>
+                  <div class="tg-event-options">
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-pixera-offline"> <span data-l10n-key="telegram_event_pixera_offline">Pixera offline</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-trigger-missed"> <span data-l10n-key="telegram_event_trigger_missed">Trigger nicht ausgeloest</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-timeline"> <span data-l10n-key="telegram_event_timeline_error">Timeline-Fehler</span></label>
+                  </div>
+                </details>
+                <details class="tg-event-group">
+                  <summary class="tg-event-summary" data-l10n-key="telegram_group_safety">Safety</summary>
+                  <div class="tg-event-options">
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-emergency"> <span data-l10n-key="telegram_event_emergency">Emergency</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-panic"> <span data-l10n-key="telegram_event_panic">Panic</span></label>
+                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-keyword"> <span data-l10n-key="telegram_event_keyword">Eigene Keywords</span></label>
+                  </div>
+                </details>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveTelegramSettings()" data-l10n-key="save">Speichern</button>
                 <button class="btn btn-o" style="flex:1;min-width:100px" onclick="sendTelegramTest()" data-l10n-key="telegram_send_test_button">Test senden</button>
                 <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockTelegramSettings()" data-l10n-key="lock">Sperren</button>
-              </div>
-              <div style="margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--card2)">
-                <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-l10n-key="telegram_simulation_title">Alarm-Simulation (nutzt gespeicherte Telegram-Konfiguration)</div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <select id="tg-alert-test-kind" style="flex:2;min-width:170px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:#fff;font-size:12px">
-                    <option value="trigger_missed" data-l10n-key="telegram_option_trigger_missed">Trigger nicht ausgeloest</option>
-                    <option value="timeline_error" data-l10n-key="telegram_option_timeline_error">Timeline-Fehler</option>
-                    <option value="offline" data-l10n-key="telegram_option_offline">Offline</option>
-                    <option value="ups_battery" data-l10n-key="telegram_option_ups_battery">UPS Batteriebetrieb</option>
-                    <option value="emergency" data-l10n-key="telegram_option_emergency">Emergency</option>
-                    <option value="panic" data-l10n-key="telegram_option_panic">Panic</option>
-                    <option value="keyword_match" data-l10n-key="telegram_option_keyword_match">Keyword-Match</option>
-                  </select>
-                  <button class="btn btn-o" style="flex:1;min-width:130px" onclick="simulateTelegramAlertEvent()" data-l10n-key="telegram_simulate_alarm_button">Alarm simulieren</button>
-                  <button class="btn btn-o" style="flex:1;min-width:150px" onclick="simulateSelectedTelegramAlertEvents()" data-l10n-key="telegram_test_selection_button">Auswahl testen</button>
-                </div>
               </div>
               <div id="tg-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
             </div>
@@ -788,10 +1039,21 @@ body.emergency-locked .btn-o{background:#9a3412}
 
     <!-- AUDIO -->
     <div class="tab-panel" id="tab-audio">
+      <div class="card" id="pixera-master-mute-card" style="margin-bottom:12px">
+        <div class="card-title" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <span>Pixera Master Mute</span>
+          <span class="pill pill-r" id="pixera-master-mute-status-pill"><span class="dot" style="width:6px;height:6px"></span><span id="pixera-master-mute-status-text">Unbekannt</span></span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="pixera-master-mute-toggle-btn" onclick="togglePixeraMasterMute()">Status laden</button>
+          <button class="btn" data-view-allow onclick="pollPixeraMasterMuteStatus(true)">Refresh</button>
+        </div>
+        <div id="pixera-master-mute-meta" style="margin-top:8px;font-size:10px;color:var(--muted);font-family:var(--mono)">API: —</div>
+      </div>
       <div class="g2" style="margin-bottom:12px">
-        <div class="device-section">
+        <div class="device-section" id="amp1-section">
           <div class="card">
-            <div class="card-title"><span class="dot" id="amp1-dot"></span> D&amp;B D40 — AMP 01 <small style="color:var(--muted);font-weight:400">IP: 192.168.1.51</small> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp1-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
+            <div class="card-title"><span class="dot" id="amp1-dot"></span> D&amp;B D40 — AMP 01 <button class="device-ip-chip device-chip-btn" data-view-allow id="amp1-ip-chip" onclick="window.openDeviceWebGui(window.getAmpIp(1))">IP: 192.168.1.51</button> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp1-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
             <div id="amp1-channels"></div>
             <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
               <button class="btn btn-o" style="flex:1;font-size:10px" onclick="d40MuteAll(1)" data-l10n-key="all_mute">Alle Mute</button>
@@ -804,9 +1066,9 @@ body.emergency-locked .btn-o{background:#9a3412}
             <div class="offline-overlay-ip">IP: 192.168.1.51</div>
           </div>
         </div>
-        <div class="device-section">
+        <div class="device-section" id="amp2-section">
           <div class="card">
-            <div class="card-title"><span class="dot" id="amp2-dot"></span> D&amp;B D40 — AMP 02 <small style="color:var(--muted);font-weight:400">IP: 192.168.1.52</small> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp2-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
+            <div class="card-title"><span class="dot" id="amp2-dot"></span> D&amp;B D40 — AMP 02 <button class="device-ip-chip device-chip-btn" data-view-allow id="amp2-ip-chip" onclick="window.openDeviceWebGui(window.getAmpIp(2))">IP: 192.168.1.52</button> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp2-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
             <div id="amp2-channels"></div>
             <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
               <button class="btn btn-o" style="flex:1;font-size:10px" onclick="d40MuteAll(2)" data-l10n-key="all_mute">Alle Mute</button>
@@ -817,6 +1079,21 @@ body.emergency-locked .btn-o{background:#9a3412}
             <div class="offline-overlay-icon">📡</div>
             <div class="offline-overlay-text" data-l10n-key="amp02_offline">AMP 02 — OFFLINE</div>
             <div class="offline-overlay-ip">IP: 192.168.1.52</div>
+          </div>
+        </div>
+        <div class="device-section" id="amp3-section">
+          <div class="card">
+            <div class="card-title"><span class="dot" id="amp3-dot"></span> D&amp;B D40 — AMP 03 <button class="device-ip-chip device-chip-btn" data-view-allow id="amp3-ip-chip" onclick="window.openDeviceWebGui(window.getAmpIp(3))">IP: 192.168.1.53</button> <span class="pill pill-r" style="margin-left:auto;font-size:9px" id="amp3-online"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
+            <div id="amp3-channels"></div>
+            <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+              <button class="btn btn-o" style="flex:1;font-size:10px" onclick="d40MuteAll(3)" data-l10n-key="all_mute">Alle Mute</button>
+              <button class="btn btn-g" style="flex:1;font-size:10px" onclick="d40UnmuteAll(3)" data-l10n-key="all_unmute">Alle Unmute</button>
+            </div>
+          </div>
+          <div class="offline-overlay" id="overlay-amp3">
+            <div class="offline-overlay-icon">📡</div>
+            <div class="offline-overlay-text" data-l10n-key="amp03_offline">AMP 03 — OFFLINE</div>
+            <div class="offline-overlay-ip">IP: 192.168.1.53</div>
           </div>
         </div>
       </div>
@@ -840,7 +1117,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="device-section">
         <div class="card">
           <div class="card-title" style="justify-content:space-between">
-            <div style="display:flex;align-items:center;gap:7px"><span class="dot" id="janitza-dot"></span> Janitza UMG96RM-E <small style="color:var(--muted);font-weight:400">IP: 192.168.1.5</small></div>
+            <div class="device-head-meta"><span class="dot" id="janitza-dot"></span> Janitza UMG96RM-E <button class="device-ip-chip device-chip-btn" data-view-allow id="janitza-ip-chip" onclick="window.openDeviceWebGui(window.getJanitzaIp())">IP: 192.168.1.5</button></div>
             <div class="supply-switch">
               <button id="btn-32a" class="active" onclick="setSupply(32)">32A</button>
               <button id="btn-63a" onclick="setSupply(63)">63A</button>
@@ -891,7 +1168,7 @@ body.emergency-locked .btn-o{background:#9a3412}
         <div class="device-section">
         <div class="card">
           <div class="card-title" style="justify-content:space-between;gap:8px">
-            <span><span class="dot" id="ups-dot"></span> APC UPS — Schneider <small style="color:var(--muted);font-weight:400">IP: 192.168.1.6</small></span>
+            <span class="device-head-meta"><span class="dot" id="ups-dot"></span> APC UPS — Schneider <button class="device-ip-chip device-chip-btn" data-view-allow id="ups-ip-chip" onclick="window.openDeviceWebGui(window.getUpsIp())">IP: 192.168.1.6</button></span>
           </div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="ups-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="battery">Batterie</span><span style="font-family:var(--mono);font-size:12px" id="ups-bat">—</span></div>
@@ -921,14 +1198,15 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="g3">
         <div class="card">
           <div class="card-title" data-l10n-key="pixera_system">Pixera System</div>
-          <div class="mon-row"><span data-l10n-key="director_31">Director (IP: 192.168.1.31)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('director')">Restart</button><span class="pill pill-r" id="mon-director"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-          <div class="mon-row"><span data-l10n-key="octo_01_32">Octo 01 (IP: 192.168.1.32)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo1')">Restart</button><span class="pill pill-r" id="mon-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-          <div class="mon-row"><span data-l10n-key="octo_02_33">Octo 02 (IP: 192.168.1.33)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo2')">Restart</button><span class="pill pill-r" id="mon-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row"><span id="mon-director-label">Director (IP: 192.168.1.31)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('director')">Restart</button><span class="pill pill-r" id="mon-director"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row" id="mon-octo1-row"><span id="mon-octo1-label">Octo 01 (IP: 192.168.1.32)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo1')">Restart</button><span class="pill pill-r" id="mon-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row" id="mon-octo2-row"><span id="mon-octo2-label">Octo 02 (IP: 192.168.1.33)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo2')">Restart</button><span class="pill pill-r" id="mon-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
         </div>
         <div class="card">
           <div class="card-title" data-l10n-key="audio_infra">Audio / Infra</div>
-          <div class="mon-row"><span data-l10n-key="d40_amp_01_51">D40 AMP 01 (IP: 192.168.1.51)</span><span class="pill pill-r" id="mon-amp1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-          <div class="mon-row"><span data-l10n-key="d40_amp_02_52">D40 AMP 02 (IP: 192.168.1.52)</span><span class="pill pill-r" id="mon-amp2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="mon-amp1-row"><span data-l10n-key="d40_amp_01_51">D40 AMP 01 (IP: 192.168.1.51)</span><span class="pill pill-r" id="mon-amp1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="mon-amp2-row"><span data-l10n-key="d40_amp_02_52">D40 AMP 02 (IP: 192.168.1.52)</span><span class="pill pill-r" id="mon-amp2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="mon-amp3-row"><span data-l10n-key="d40_amp_03_53">D40 AMP 03 (IP: 192.168.1.53)</span><span class="pill pill-r" id="mon-amp3"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row"><span data-l10n-key="synology_nas_21">Synology NAS (IP: 192.168.1.21)</span><span class="pill pill-r" id="mon-nas"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row"><span data-l10n-key="apc_ups_6">APC UPS (IP: 192.168.1.6)</span><span class="pill pill-r" id="mon-ups"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row"><span data-l10n-key="janitza_5">Janitza (IP: 192.168.1.5)</span><span class="pill pill-r" id="mon-janitza"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
@@ -948,13 +1226,14 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="g2">
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="net-poe-dot"></span> <span data-l10n-key="poe_switch_24">PoE Switch (IP: 192.168.1.11)</span></div>
+          <div class="card-title"><span class="dot" id="net-poe-dot"></span> PoE Switch <button class="device-ip-chip device-chip-btn" data-view-allow id="poe-ip-chip" onclick="window.openDeviceWebGui(window.getPoeIp())">IP: 192.168.1.11</button></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="net-poe-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_model_label">Model</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-poe-model">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_uptime_label">Uptime</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-poe-uptime">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_budget_label">PoE Budget</span><span style="font-family:var(--mono);font-size:11px;color:#fff" id="net-poe-budget">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_used_label">PoE Used</span><span style="font-family:var(--mono);font-size:11px;color:#fff" id="net-poe-used">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_free_label">PoE Free</span><span style="font-family:var(--mono);font-size:11px;color:#fff" id="net-poe-free">—</span></div>
+          <div class="last-upd"><span data-l10n-key="last_query">Letzte Abfrage:</span> <span id="net-poe-ts">—</span></div>
         </div>
         <div class="offline-overlay" id="overlay-poe">
           <div class="offline-overlay-icon">🛜</div>
@@ -965,7 +1244,7 @@ body.emergency-locked .btn-o{background:#9a3412}
 
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="net-rutx-dot"></span> <span data-l10n-key="rutx50_1">Teltonika RUTX50 (IP: 192.168.1.1)</span></div>
+          <div class="card-title"><span class="dot" id="net-rutx-dot"></span> Teltonika RUTX50 <button class="device-ip-chip device-chip-btn" data-view-allow id="rutx-ip-chip" onclick="window.openDeviceWebGui(window.getRutxIp())">IP: 192.168.1.1</button></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="net-rutx-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="poe_model_label">Model</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-rutx-model">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="rutx50_fw_label">Firmware</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-rutx-fw">—</span></div>
@@ -974,6 +1253,7 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="rutx50_network_label">Network</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-rutx-network">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="rutx50_ip_label">IP</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-rutx-ip">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="rutx50_uptime_label">Mobile Uptime</span><span style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right" id="net-rutx-mobile-uptime">—</span></div>
+          <div class="last-upd"><span data-l10n-key="last_query">Letzte Abfrage:</span> <span id="net-rutx-ts">—</span></div>
         </div>
         <div class="offline-overlay" id="overlay-rutx">
           <div class="offline-overlay-icon">📡</div>
@@ -1002,13 +1282,13 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="camera-title-row">
             <div class="card-title" style="margin-bottom:0"><span class="dot" id="cam1-dot"></span> Cam 01 — Panasonic AW-UE40KEJ</div>
             <div class="camera-title-meta">
-              <span class="camera-ip-chip">IP: 192.168.1.22</span>
+              <button class="camera-ip-chip device-chip-btn" data-view-allow id="cam1-ip-chip" onclick="window.camOpenWeb(1)">IP: 192.168.1.22</button>
               <span class="pill pill-r" id="cam1-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span>
             </div>
           </div>
           <div id="cam1-preview-frame" class="cam-preview-frame">
             <button class="cam-reload-overlay" title="Stream neu laden" onclick="camReloadStream(1)">↻</button>
-            <button class="cam-web-overlay" onclick="camOpenWeb(1)">WebGUI</button>
+            <button class="cam-web-overlay" onclick="window.camOpenWeb(1)">WebGUI</button>
             <img id="cam1-preview-img" class="cam-preview-img" alt="Cam1 Preview" />
             <div id="cam1-preview-fallback" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.28);font-size:11px" data-l10n-key="live_preview_rtsp">Live Preview (RTSP)</div>
           </div>
@@ -1053,13 +1333,13 @@ body.emergency-locked .btn-o{background:#9a3412}
           <div class="camera-title-row">
             <div class="card-title" style="margin-bottom:0"><span class="dot" id="cam2-dot"></span> Cam 02 — Panasonic AW-UE40KEJ</div>
             <div class="camera-title-meta">
-              <span class="camera-ip-chip">IP: 192.168.1.23</span>
+              <button class="camera-ip-chip device-chip-btn" data-view-allow id="cam2-ip-chip" onclick="window.camOpenWeb(2)">IP: 192.168.1.23</button>
               <span class="pill pill-r" id="cam2-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span>
             </div>
           </div>
           <div id="cam2-preview-frame" class="cam-preview-frame">
             <button class="cam-reload-overlay" title="Stream neu laden" onclick="camReloadStream(2)">↻</button>
-            <button class="cam-web-overlay" onclick="camOpenWeb(2)">WebGUI</button>
+            <button class="cam-web-overlay" onclick="window.camOpenWeb(2)">WebGUI</button>
             <img id="cam2-preview-img" class="cam-preview-img" alt="Cam2 Preview" />
             <div id="cam2-preview-fallback" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.28);font-size:11px" data-l10n-key="live_preview_rtsp">Live Preview (RTSP)</div>
           </div>
@@ -1107,7 +1387,7 @@ body.emergency-locked .btn-o{background:#9a3412}
       <div class="g2">
         <div class="device-section">
         <div class="card">
-          <div class="card-title"><span class="dot" id="nas-dot"></span> Synology RS422+ (IP: 192.168.1.21)</div>
+          <div class="card-title"><span class="dot" id="nas-dot"></span> Synology RS422+ <button class="device-ip-chip device-chip-btn" data-view-allow id="nas-ip-chip" onclick="window.openDeviceWebGui(window.getNasIp())">IP: 192.168.1.21</button></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="status">Status</span><span class="pill pill-r" id="nas-status"><span class="dot" style="width:6px;height:6px;background:var(--red)"></span>Offline</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="temperature">Temperatur</span><span style="font-family:var(--mono);font-size:12px" id="nas-temp">—</span></div>
           <div class="mon-row"><span style="color:var(--muted)" data-l10n-key="uptime">Uptime</span><span style="font-family:var(--mono);font-size:12px" id="nas-uptime">—</span></div>
@@ -1124,6 +1404,7 @@ body.emergency-locked .btn-o{background:#9a3412}
               <span style="font-family:var(--mono);font-size:10px;color:#fff;white-space:nowrap" id="nas-vol2-txt">— TB</span>
             </div>
           </div>
+          <div class="last-upd"><span data-l10n-key="last_query">Letzte Abfrage:</span> <span id="nas-ts">—</span></div>
         </div>
         <div class="offline-overlay" id="overlay-nas">
           <div class="offline-overlay-icon">💾</div>
@@ -1186,12 +1467,23 @@ body.emergency-locked .btn-o{background:#9a3412}
   </div>
 </div>
 
+  <div class="mobile-more-backdrop" id="mobile-more-backdrop" onclick="closeMobileMoreMenu()"></div>
+  <div class="mobile-more-sheet" id="mobile-more-sheet">
+    <div class="mobile-more-head">
+      <div class="mobile-more-title">Navigation</div>
+      <button type="button" class="mobile-more-close" onclick="closeMobileMoreMenu()">Schliessen</button>
+    </div>
+    <div class="mobile-more-grid" id="mobile-more-grid"></div>
+  </div>
+  <div class="mobile-nav" id="mobile-nav"></div>
+
 <!-- STATUSBAR -->
 <div class="statusbar">
   <div class="sb-item"><span class="sb-dot" id="sb-pixera" style="background:var(--red)"></span>Pixera<span id="sb-pixera-state" data-l10n-key="offline" style="color:rgba(255,255,255,.25);margin-left:3px">Offline</span></div>
   <div style="width:1px;height:12px;background:rgba(255,255,255,.1)"></div>
-  <div class="sb-item"><span class="sb-dot" id="sb-d40-01" style="background:var(--red)"></span>D40-01</div>
-  <div class="sb-item"><span class="sb-dot" id="sb-d40-02" style="background:var(--red)"></span>D40-02</div>
+  <div class="sb-item" id="sb-d40-01-item"><span class="sb-dot" id="sb-d40-01" style="background:var(--red)"></span>D40-01</div>
+  <div class="sb-item" id="sb-d40-02-item"><span class="sb-dot" id="sb-d40-02" style="background:var(--red)"></span>D40-02</div>
+  <div class="sb-item" id="sb-d40-03-item"><span class="sb-dot" id="sb-d40-03" style="background:var(--red)"></span>D40-03</div>
   <div style="width:1px;height:12px;background:rgba(255,255,255,.1)"></div>
   <div class="sb-item"><span class="sb-dot" id="sb-nas" style="background:var(--red)"></span>NAS</div>
   <div class="sb-item"><span class="sb-dot" id="sb-poe" style="background:var(--red)"></span>PoE-SW</div>
@@ -1211,25 +1503,52 @@ body.emergency-locked .btn-o{background:#9a3412}
 // TAURI BRIDGE
 // ============================================================
 const isTauri = typeof window.__TAURI_INTERNALS__ !== 'undefined';
-const DEFAULT_PIXERA_SCHEDULER_MODULE = 'Projektil_EventScheduler_V21';
+const DEFAULT_PIXERA_SCHEDULER_MODULE = 'Projektil_EventScheduler_V2_7';
 const FALLBACK_PIXERA_SCHEDULER_MODULES = [
   DEFAULT_PIXERA_SCHEDULER_MODULE,
+  'Projektil_EventScheduler_V27',
+  'Projektil_EventScheduler_V21',
   'EventScheduler_Projektil_V17'
 ];
 let _schedulerModuleResolved = '';
+const DEFAULT_PIXERA_HUB_MODULE = 'Pojektil_Hub_V1';
+const FALLBACK_PIXERA_HUB_MODULES = [
+  DEFAULT_PIXERA_HUB_MODULE,
+  'Projektil_Hub_V1',
+  'Pojektil_Hub',
+  'Projektil_Hub'
+];
+let _pixeraHubModuleResolved = '';
+let _resolvedPixeraOctoHosts = {1:'',2:''};
 
 function buildDefaultConfig(){
   return {
+    demo_mode:false,
+    startup_mode:'admin',
+    language:'de',
+    camera_view_mode:'snapshot',
+    demo_amp_mutes:{
+      1:[false,false,false,false],
+      2:[false,false,false,false],
+      3:[false,false,false,false]
+    },
+    demo_projector_on:[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],
+    demo_projector_mute:[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],
+    projector_control_states:['unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown','unknown'],
+    projector_status_updated_at:0,
     pixera_ip:'192.168.1.31',
     pixera_port:1338,
     pixera_octo_port:4000,
     pixera_octo1_ip:'192.168.1.32',
     pixera_octo2_ip:'192.168.1.33',
+    pixera_octo_count:2,
     pixera_api_root:'erwer',
     pixera_pjlink_module:'PJ_Link__16ch',
     pixera_scheduler_module:DEFAULT_PIXERA_SCHEDULER_MODULE,
     d40_01_ip:'192.168.1.51',
     d40_02_ip:'192.168.1.52',
+    d40_03_ip:'192.168.1.53',
+    amp_count:2,
     d40_oca_port:50014,
     nas_ip:'192.168.1.21',
     nas_port:5000,
@@ -1259,7 +1578,7 @@ function delay(ms){
 }
 
 function isDemoModeEnabled(){
-  return localStorage.getItem('demoMode') === '1';
+  return demoMode === true;
 }
 
 function getDemoInvokeResponse(cmd){
@@ -1282,6 +1601,7 @@ function getDemoInvokeResponse(cmd){
     pjlink_set_shutter: true,
     pjlink_poll_many: [],
     pjlink_detect_models: [],
+    pixera_api_request: null,
     open_external_url: null
   };
   if(Object.prototype.hasOwnProperty.call(byCmd, cmd)) return byCmd[cmd];
@@ -1308,8 +1628,24 @@ function shouldBlockNetworkCommandInDemo(cmd){
     'pjlink_set_shutter',
     'pjlink_poll_many',
     'pjlink_detect_models',
+    'pixera_api_request',
     'open_external_url'
   ].includes(cmd);
+}
+
+async function invokeRemote(cmd, args){
+  const endpoint = `${window.location.origin}/api/invoke`;
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cmd, args: args ?? {} })
+  });
+  const payload = await resp.json().catch(() => null);
+  if(!resp.ok || !payload || payload.ok !== true){
+    const msg = payload?.error || `HTTP ${resp.status}`;
+    throw new Error(msg);
+  }
+  return payload.data;
 }
 
 async function invoke(cmd, args) {
@@ -1319,6 +1655,11 @@ async function invoke(cmd, args) {
   if (isTauri) {
     try { return await window.__TAURI_INTERNALS__.invoke(cmd, args ?? {}); }
     catch(e) { console.error('[invoke]', cmd, e); return null; }
+  }
+  try {
+    return await invokeRemote(cmd, args);
+  } catch(e) {
+    console.error('[invoke-remote]', cmd, e);
   }
   const def = buildDefaultConfig();
   if(cmd==='get_config') return def;
@@ -1387,14 +1728,41 @@ let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
 let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
-const APP_VERSION_FALLBACK = '1.0.16-beta';
+let sharedUiStateSyncTimer = null;
+let sharedUiStateSyncInFlight = false;
+let sharedUiStateInputSyncTimer = null;
+let sharedUiStateLastPersistedFingerprint = '';
+let sharedUiStateLastAppliedDemoRuntimeFingerprint = '';
+let projectorStatusSyncUpdatedAt = 0;
+let projectorStatusLastPersistedFingerprint = '';
+let activeUiMode = 'desktop';
+let uiModeResizeTimer = null;
+const APP_VERSION_FALLBACK = '1.0.19-beta';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
 const VIEW_MODE_PIN = '8048';
 const TELEGRAM_SETTINGS_PIN = '1215';
-const TELEGRAM_ALERT_EVENT_DEFAULTS = ['offline', 'ups_battery', 'trigger_missed', 'timeline_error', 'emergency', 'panic', 'keyword_match'];
-const CAMERA_MJPEG_BASE_URL = 'http://127.0.0.1:41777';
+const TELEGRAM_ALERT_EVENT_DEFAULTS = [
+  'janitza_offline',
+  'janitza_asymmetry',
+  'janitza_overfrequency',
+  'janitza_underfrequency',
+  'ups_offline',
+  'ups_battery',
+  'nas_offline',
+  'poe_switch_offline',
+  'rutx_offline',
+  'pixera_offline',
+  'trigger_missed',
+  'timeline_error',
+  'emergency',
+  'panic',
+  'keyword_match'
+];
+const CAMERA_MJPEG_BASE_URL = isTauri
+  ? 'http://127.0.0.1:41777'
+  : `http://${window.location.hostname}:41777`;
 const CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS = 1200;
 const CAMERA_PREVIEW_INTERVAL_STREAM_MS = 1000;
 const CAMERA_STREAM_BOOT_TIMEOUT_MS = 20000;
@@ -1418,9 +1786,58 @@ let upsPrevOnMains = null;
 let upsPrevBatteryState = null;
 let upsWatchLastErrorAt = 0;
 let localBatteryLowAlertActive = false;
+let hostClockOffsetMs = 0;
+let hostClockSynced = false;
+let hostClockSyncInFlight = false;
 const protocolLastValueAt = { janitza: 0, ups: 0, nas: 0, poe: 0, rutx: 0 };
 const protocolOnlineSinceAt = { janitza: 0, ups: 0, nas: 0, poe: 0, rutx: 0 };
 const protocolStaleAlertActive = { janitza: false, ups: false, nas: false, poe: false, rutx: false };
+
+function detectUiMode(){
+  const query = new URLSearchParams(window.location.search).get('ui');
+  if(query === 'mobile' || query === 'desktop' || query === 'mobile-test'){
+    localStorage.setItem('uiModeOverride', query);
+    return query;
+  }
+
+  const ua = navigator.userAgent || '';
+  const isIphone = /iPhone|iPod/i.test(ua);
+  const isMobileUa = /iPhone|iPod|Android.*Mobile|Windows Phone|Mobile/i.test(ua);
+  const coarse = window.matchMedia?.('(pointer: coarse)')?.matches === true;
+  const compact = Math.min(window.innerWidth || 0, window.innerHeight || 0) <= 820;
+  const phoneLikeDevice = isMobileUa || (coarse && compact);
+
+  const override = localStorage.getItem('uiModeOverride');
+  if(override === 'mobile' || override === 'desktop' || override === 'mobile-test'){
+    if(!(phoneLikeDevice && override === 'desktop')) return override;
+  }
+
+  if(isIphone) return 'mobile-test';
+  return phoneLikeDevice ? 'mobile' : 'desktop';
+}
+
+function applyUiMode(){
+  activeUiMode = detectUiMode();
+  const mobile = activeUiMode === 'mobile' || activeUiMode === 'mobile-test';
+  document.body.classList.toggle('ui-mobile', mobile);
+  document.body.classList.toggle('ui-mobile-test', activeUiMode === 'mobile-test');
+  document.body.classList.toggle('ui-desktop', !mobile);
+  document.body.dataset.uiMode = activeUiMode;
+  updateProjectorResponsiveLayout();
+  if(!mobile) closeMobileMoreMenu();
+}
+
+function scheduleUiModeRefresh(){
+  if(uiModeResizeTimer) clearTimeout(uiModeResizeTimer);
+  uiModeResizeTimer = setTimeout(()=>{
+    const prev = activeUiMode;
+    applyUiMode();
+    if(prev !== activeUiMode){
+      renderMobileNav();
+      switchTab(currentTab, document.querySelector(`[data-tab="${currentTab}"]`));
+    }
+  }, 140);
+}
 
 function protocolDeviceLabel(key){
   switch(key){
@@ -1603,8 +2020,23 @@ const locales = {
     telegram_bot_token_label: 'Bot-Token',
     telegram_chat_id_label: 'Chat-ID',
     telegram_alert_events_label: 'Alarm-Ereignisse',
+    telegram_alert_events_hint: 'Nur diese Ereignisse loesen Telegram aus.',
+    telegram_group_janitza: 'Janitza',
+    telegram_group_ups: 'UPS',
+    telegram_group_network: 'Netzwerk',
+    telegram_group_show: 'Show / Pixera',
+    telegram_group_safety: 'Safety',
     telegram_event_offline: 'Offline',
+    telegram_event_janitza_offline: 'Janitza offline',
+    telegram_event_janitza_asymmetry: 'Janitza Asymmetrie',
+    telegram_event_janitza_overfrequency: 'Janitza Ueberfrequenz',
+    telegram_event_janitza_underfrequency: 'Janitza Unterfrequenz',
+    telegram_event_ups_offline: 'UPS offline',
     telegram_event_ups_battery: 'UPS Batteriebetrieb',
+    telegram_event_nas_offline: 'NAS offline',
+    telegram_event_poe_offline: 'Switch offline',
+    telegram_event_rutx_offline: 'Router offline',
+    telegram_event_pixera_offline: 'Pixera offline',
     telegram_event_trigger_missed: 'Trigger nicht ausgeloest',
     telegram_event_timeline_error: 'Timeline-Fehler',
     telegram_event_emergency: 'Emergency',
@@ -1621,6 +2053,15 @@ const locales = {
     telegram_option_keyword_match: 'Keyword-Match',
     telegram_simulate_alarm_button: 'Alarm simulieren',
     telegram_test_selection_button: 'Auswahl testen',
+    telegram_device_tests_title: 'Geräte-Tests (aufklappen)',
+    telegram_device_tests_hint: 'Pro Gerät auswählbar, welche Fehlertypen simuliert werden.',
+    telegram_test_device_ups: 'UPS',
+    telegram_test_device_nas: 'NAS',
+    telegram_test_device_switch: 'Switch',
+    telegram_test_device_router: 'Router',
+    telegram_test_device_pixera: 'Pixera',
+    telegram_test_device_audio: 'Audio',
+    telegram_test_device_custom: 'Custom',
     software_version_title: 'Software-Version',
     update_title: 'Update',
     update_hint: 'Prüft, ob eine neuere Version verfügbar ist.',
@@ -1634,12 +2075,19 @@ const locales = {
     update_failed: 'Update-Prüfung fehlgeschlagen.',
     update_download_started: 'Download wurde im Browser gestartet: {version}',
     update_demo_blocked: 'Im Demo-Modus ist die Update-Prüfung deaktiviert.',
+    webgui_demo_blocked: 'Demo-Modus aktiv. Diese Funktion ist im Demo-Modus nicht verfugbar.\n\nAufgerufen worden ware:\n{url}',
+    webgui_demo_popup_title: 'WebGUI im Demo-Modus',
+    webgui_demo_popup_hint: 'Im Demo-Modus kann diese Funktion gesperrt sein. Du kannst die URL trotzdem im Browser öffnen.',
+    webgui_demo_popup_url_label: 'Aufgerufene URL',
+    webgui_demo_popup_open_anyway: 'IP trotzdem öffnen',
     lang_deutsch: 'Deutsch',
     lang_english: 'English',
     demo_mode_title: 'Demo-Modus',
     demo_mode_hint: 'Simuliert alle Geräte als online und füllt Anzeigen mit Demo-Werten.',
     demo_mode_active: 'Demo-Modus aktiv. Alle Geräte werden als online simuliert.',
     demo_mode_inactive: 'Demo-Modus ist aus. Es werden Live-Daten verwendet.',
+    mode_badge_demo: 'Demo',
+    mode_badge_live: 'Live',
     demo_mode_enabled_log: 'Demo-Modus aktiviert',
     demo_mode_disabled_log: 'Demo-Modus deaktiviert',
     startup_mode_title: 'Startmodus',
@@ -1666,6 +2114,12 @@ const locales = {
     projector_count_label: 'Anzahl Projektoren (1-16)',
     projector_count_hint: 'Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.',
     projector_count_saved: 'Projektor-Anzahl auf {count} gesetzt',
+    pixera_octo_count_label: 'Anzahl Pixera Octos (0-2)',
+    pixera_octo_count_hint: 'Legt fest, wie viele Octos abgefragt werden (0, 1 oder 2).',
+    pixera_octo_count_saved: 'Pixera-Octo-Anzahl auf {count} gesetzt',
+    amp_count_label: 'Anzahl Endstufen (1-3)',
+    amp_count_hint: 'Legt fest, wie viele D40 AMPs abgefragt werden (1 bis 3).',
+    amp_count_saved: 'Endstufen-Anzahl auf {count} gesetzt',
     warnings_label: 'Warnung(en)',
     system_warning: 'Systemwarnung',
     gain_dialog_default_title: 'Amplifier Gain ändern',
@@ -1679,6 +2133,7 @@ const locales = {
     octo_02_33: 'Octo 02 (IP: 192.168.1.33)',
     d40_amp_01_51: 'D40 AMP 01 (IP: 192.168.1.51)',
     d40_amp_02_52: 'D40 AMP 02 (IP: 192.168.1.52)',
+    d40_amp_03_53: 'D40 AMP 03 (IP: 192.168.1.53)',
     synology_nas_21: 'Synology NAS (IP: 192.168.1.21)',
     poe_switch_24: 'PoE Switch (IP: 192.168.1.11)',
     rutx50_1: 'Teltonika RUTX50 (IP: 192.168.1.1)',
@@ -1710,12 +2165,14 @@ const locales = {
     pixera_director: 'Pixera Director',
     d40_amp_01: 'D40 AMP 01',
     d40_amp_02: 'D40 AMP 02',
+    d40_amp_03: 'D40 AMP 03',
     test_pattern: 'Testbild',
     white: 'Weiß',
     blackout: 'Blackout',
     all_on: 'Alle EIN',
     amp01_offline: 'AMP 01 — OFFLINE',
     amp02_offline: 'AMP 02 — OFFLINE',
+    amp03_offline: 'AMP 03 — OFFLINE',
     janitza_anomaly_title: '⚠ Strom-Anomalien erkannt (Janitza)',
     ups_anomaly_title: '⚠ UPS-Anomalien erkannt',
     frequency: 'Frequenz',
@@ -1730,6 +2187,7 @@ const locales = {
     input_voltage: 'Eingangs-V',
     output_voltage: 'Ausgangs-V',
     last_query: 'Letzte Abfrage:',
+    last_snmp_message: 'Letzte SNMP-Meldung:',
     ups_offline: 'UPS — OFFLINE',
     power_control: 'Power Steuerung',
     last_powerall: 'Letzter PowerAll:',
@@ -1825,6 +2283,9 @@ const locales = {
     telegram_simulating_events: 'Simuliere {count} Ereignisse…',
     telegram_events_simulated: '✓ Auswahl simuliert ({count} Ereignisse).',
     telegram_no_events_selected: 'Keine Alarm-Ereignisse ausgewählt.',
+    telegram_no_device_events_selected: 'Keine Geräte-Tests ausgewählt.',
+    telegram_simulating_device_events: 'Sende {count} Geräte-Tests…',
+    telegram_device_events_simulated: '✓ Geräte-Tests gesendet ({count}).',
     camera_invalid_frame_backend: 'kein gueltiger Frame vom Backend erhalten',
     unknown_error: 'unbekannter Fehler',
     camera_stream_diagnosis_error: 'CAM 0{cam} {context}: {detail}',
@@ -1849,6 +2310,10 @@ const locales = {
     pjlink_model_detect_startup_failed: '[PJLink] Modell-Erkennung beim Start fehlgeschlagen: {error}',
     scheduler_query_failed: '[Pixera API] Scheduler-Abfrage fehlgeschlagen: {error}',
     pixera_restart_not_implemented: '[Pixera API] Restart fuer {server} ist im Standard-API-Flow noch nicht hinterlegt.',
+    pixera_restart_unavailable: '[Pixera API] Restart fuer {server} ist mit der aktuellen Konfiguration nicht verfuegbar.',
+    pixera_restart_target_unresolved: '[Pixera API] Restart fuer {server} abgebrochen: aktive Ziel-IP konnte nicht eindeutig bestimmt werden.',
+    pixera_restart_sent: '[Pixera API] Restart fuer {server} ueber Hub {hubIndex} ({host}) gesendet',
+    pixera_restart_failed: '[Pixera API] Restart fuer {server} fehlgeschlagen: {error}',
     pixera_play_sent: '[Pixera API] startFirstTimeline gesendet',
     pixera_pause_sent: '[Pixera API] pauseFirstTimeline gesendet',
     pixera_stop_sent: '[Pixera API] stopFirstTimeline gesendet',
@@ -1890,6 +2355,8 @@ const locales = {
     ups_battery_mode: 'Online / Batterie',
     pixera_connected: 'Pixera: verbunden',
     pixera_disconnected: 'Pixera: —',
+    pixera_api_connected: 'Pixera API: verbunden',
+    pixera_api_disconnected: 'Pixera API: offline',
     timeline_status: 'Timeline: {status}',
     gain_dialog_title: 'AMP 0{amp} Kanal {channel} einstellen',
     gain_dialog_subtitle: 'Aktuell: {value} dB',
@@ -1955,8 +2422,23 @@ const locales = {
     telegram_bot_token_label: 'Bot token',
     telegram_chat_id_label: 'Chat ID',
     telegram_alert_events_label: 'Alert events',
+    telegram_alert_events_hint: 'Only these events trigger Telegram messages.',
+    telegram_group_janitza: 'Janitza',
+    telegram_group_ups: 'UPS',
+    telegram_group_network: 'Network',
+    telegram_group_show: 'Show / Pixera',
+    telegram_group_safety: 'Safety',
     telegram_event_offline: 'Offline',
+    telegram_event_janitza_offline: 'Janitza offline',
+    telegram_event_janitza_asymmetry: 'Janitza asymmetry',
+    telegram_event_janitza_overfrequency: 'Janitza overfrequency',
+    telegram_event_janitza_underfrequency: 'Janitza underfrequency',
+    telegram_event_ups_offline: 'UPS offline',
     telegram_event_ups_battery: 'UPS battery mode',
+    telegram_event_nas_offline: 'NAS offline',
+    telegram_event_poe_offline: 'Switch offline',
+    telegram_event_rutx_offline: 'Router offline',
+    telegram_event_pixera_offline: 'Pixera offline',
     telegram_event_trigger_missed: 'Trigger missed',
     telegram_event_timeline_error: 'Timeline error',
     telegram_event_emergency: 'Emergency',
@@ -1973,6 +2455,15 @@ const locales = {
     telegram_option_keyword_match: 'Keyword match',
     telegram_simulate_alarm_button: 'Simulate alert',
     telegram_test_selection_button: 'Test selection',
+    telegram_device_tests_title: 'Device tests (expand)',
+    telegram_device_tests_hint: 'Choose simulated error types per device.',
+    telegram_test_device_ups: 'UPS',
+    telegram_test_device_nas: 'NAS',
+    telegram_test_device_switch: 'Switch',
+    telegram_test_device_router: 'Router',
+    telegram_test_device_pixera: 'Pixera',
+    telegram_test_device_audio: 'Audio',
+    telegram_test_device_custom: 'Custom',
     software_version_title: 'Software version',
     update_title: 'Update',
     update_hint: 'Checks whether a newer version is available.',
@@ -1986,12 +2477,19 @@ const locales = {
     update_failed: 'Update check failed.',
     update_download_started: 'Download started in browser: {version}',
     update_demo_blocked: 'Update checks are disabled in demo mode.',
+    webgui_demo_blocked: 'Demo mode is active. This function is not available in demo mode.\n\nWould have opened:\n{url}',
+    webgui_demo_popup_title: 'WebGUI in demo mode',
+    webgui_demo_popup_hint: 'In demo mode this function may be blocked. You can still open the URL in the browser.',
+    webgui_demo_popup_url_label: 'Requested URL',
+    webgui_demo_popup_open_anyway: 'Open IP anyway',
     lang_deutsch: 'Deutsch',
     lang_english: 'English',
     demo_mode_title: 'Demo mode',
     demo_mode_hint: 'Simulates all devices as online and fills the UI with demo values.',
     demo_mode_active: 'Demo mode is active. All devices are simulated as online.',
     demo_mode_inactive: 'Demo mode is off. Live data is used.',
+    mode_badge_demo: 'Demo',
+    mode_badge_live: 'Live',
     demo_mode_enabled_log: 'Demo mode enabled',
     demo_mode_disabled_log: 'Demo mode disabled',
     startup_mode_title: 'Startup mode',
@@ -2018,6 +2516,12 @@ const locales = {
     projector_count_label: 'Projector count (1-16)',
     projector_count_hint: 'Only PJ 1..N are polled. IP pattern: 192.168.1.101 + index.',
     projector_count_saved: 'Projector count set to {count}',
+    pixera_octo_count_label: 'Pixera Octo count (0-2)',
+    pixera_octo_count_hint: 'Defines how many Octos are polled (0, 1 or 2).',
+    pixera_octo_count_saved: 'Pixera Octo count set to {count}',
+    amp_count_label: 'Amplifier count (1-3)',
+    amp_count_hint: 'Defines how many D40 amplifiers are polled (1 to 3).',
+    amp_count_saved: 'Amplifier count set to {count}',
     warnings_label: 'warning(s)',
     system_warning: 'System warning',
     gain_dialog_default_title: 'Change amplifier gain',
@@ -2031,6 +2535,7 @@ const locales = {
     octo_02_33: 'Octo 02 (IP: 192.168.1.33)',
     d40_amp_01_51: 'D40 AMP 01 (IP: 192.168.1.51)',
     d40_amp_02_52: 'D40 AMP 02 (IP: 192.168.1.52)',
+    d40_amp_03_53: 'D40 AMP 03 (IP: 192.168.1.53)',
     synology_nas_21: 'Synology NAS (IP: 192.168.1.21)',
     poe_switch_24: 'PoE Switch (IP: 192.168.1.11)',
     rutx50_1: 'Teltonika RUTX50 (IP: 192.168.1.1)',
@@ -2062,12 +2567,14 @@ const locales = {
     pixera_director: 'Pixera Director',
     d40_amp_01: 'D40 AMP 01',
     d40_amp_02: 'D40 AMP 02',
+    d40_amp_03: 'D40 AMP 03',
     test_pattern: 'Test Pattern',
     white: 'White',
     blackout: 'Blackout',
     all_on: 'All ON',
     amp01_offline: 'AMP 01 — OFFLINE',
     amp02_offline: 'AMP 02 — OFFLINE',
+    amp03_offline: 'AMP 03 — OFFLINE',
     janitza_anomaly_title: '⚠ Power anomalies detected (Janitza)',
     ups_anomaly_title: '⚠ UPS anomalies detected',
     frequency: 'Frequency',
@@ -2082,6 +2589,7 @@ const locales = {
     input_voltage: 'Input voltage',
     output_voltage: 'Output voltage',
     last_query: 'Last query:',
+    last_snmp_message: 'Last SNMP message:',
     ups_offline: 'UPS — OFFLINE',
     power_control: 'Power Control',
     last_powerall: 'Last PowerAll:',
@@ -2177,6 +2685,9 @@ const locales = {
     telegram_simulating_events: 'Simulating {count} events…',
     telegram_events_simulated: '✓ Selection simulated ({count} events).',
     telegram_no_events_selected: 'No alert events selected.',
+    telegram_no_device_events_selected: 'No device tests selected.',
+    telegram_simulating_device_events: 'Sending {count} device tests…',
+    telegram_device_events_simulated: '✓ Device tests sent ({count}).',
     camera_invalid_frame_backend: 'no valid frame received from backend',
     unknown_error: 'unknown error',
     camera_stream_diagnosis_error: 'CAM 0{cam} {context}: {detail}',
@@ -2201,6 +2712,10 @@ const locales = {
     pjlink_model_detect_startup_failed: '[PJLink] Model detection on startup failed: {error}',
     scheduler_query_failed: '[Pixera API] Scheduler query failed: {error}',
     pixera_restart_not_implemented: '[Pixera API] Restart for {server} is not implemented in the default API flow yet.',
+    pixera_restart_unavailable: '[Pixera API] Restart for {server} is not available with the current configuration.',
+    pixera_restart_target_unresolved: '[Pixera API] Restart for {server} aborted: active target IP could not be determined reliably.',
+    pixera_restart_sent: '[Pixera API] Restart for {server} sent via hub {hubIndex} ({host})',
+    pixera_restart_failed: '[Pixera API] Restart for {server} failed: {error}',
     pixera_play_sent: '[Pixera API] startFirstTimeline sent',
     pixera_pause_sent: '[Pixera API] pauseFirstTimeline sent',
     pixera_stop_sent: '[Pixera API] stopFirstTimeline sent',
@@ -2242,6 +2757,8 @@ const locales = {
     ups_battery_mode: 'Online / battery',
     pixera_connected: 'Pixera: connected',
     pixera_disconnected: 'Pixera: —',
+    pixera_api_connected: 'Pixera API: connected',
+    pixera_api_disconnected: 'Pixera API: offline',
     timeline_status: 'Timeline: {status}',
     gain_dialog_title: 'Set AMP 0{amp} channel {channel}',
     gain_dialog_subtitle: 'Current: {value} dB',
@@ -2274,6 +2791,224 @@ const locales = {
     confirm_emergency: 'EMERGENCY executed!'
   }
 };
+
+function getTabLabelForMobile(tab){
+  const source = document.querySelector(`.sidebar [data-tab="${tab}"] span[data-l10n-key]`);
+  const key = source?.dataset?.l10nKey;
+  if(key && locales[currentLang]?.[key]) return locales[currentLang][key];
+  if(source?.textContent) return source.textContent.trim();
+  return tab;
+}
+
+function getTabIconForMobile(tab){
+  const icons = {
+    show: '🏠',
+    projectors: '📽️',
+    audio: '🔊',
+    power: '⚡',
+    monitoring: '📟',
+    cameras: '📷',
+    network: '🌐',
+    nas: '🗄️',
+    error: '⚠️',
+    settings: '⋯',
+    emergency: '🛑'
+  };
+  return icons[tab] || '•';
+}
+
+function getShortTabLabelForMobile(tab){
+  const full = getTabLabelForMobile(tab);
+  const compact = {
+    show: 'Show',
+    projectors: 'PJ',
+    audio: 'Audio',
+    power: 'Power',
+    monitoring: 'Status',
+    cameras: 'Cam',
+    network: 'Net',
+    nas: 'NAS',
+    error: 'Log',
+    settings: 'Mehr',
+    emergency: 'EM'
+  };
+  return compact[tab] || full;
+}
+
+function updateMobileNavActive(){
+  const nav = document.getElementById('mobile-nav');
+  if(!nav) return;
+  const primaryTabs = ['show','projectors','audio','monitoring','settings'];
+  nav.querySelectorAll('.mnav-btn').forEach(btn=>{
+    const active = btn.dataset.tab === currentTab;
+    btn.classList.toggle('active', active);
+  });
+  const moreGrid = document.getElementById('mobile-more-grid');
+  if(moreGrid){
+    moreGrid.querySelectorAll('.mobile-more-btn').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.tab === currentTab);
+    });
+  }
+}
+
+function closeMobileMoreMenu(){
+  document.getElementById('mobile-more-sheet')?.classList.remove('show');
+  document.getElementById('mobile-more-backdrop')?.classList.remove('show');
+}
+
+function openMobileMoreMenu(){
+  if(activeUiMode !== 'mobile' && activeUiMode !== 'mobile-test') return;
+  document.getElementById('mobile-more-sheet')?.classList.add('show');
+  document.getElementById('mobile-more-backdrop')?.classList.add('show');
+}
+
+function toggleMobileMoreMenu(){
+  const sheet = document.getElementById('mobile-more-sheet');
+  if(!sheet) return;
+  if(sheet.classList.contains('show')) closeMobileMoreMenu();
+  else openMobileMoreMenu();
+}
+
+window.closeMobileMoreMenu = closeMobileMoreMenu;
+
+function updateProjectorResponsiveLayout(){
+  const mobileLike = activeUiMode === 'mobile' || activeUiMode === 'mobile-test';
+  const tab = document.getElementById('tab-projectors');
+  const toolbar = tab?.querySelector('.proj-toolbar');
+  const selectWrap = tab?.querySelector('.proj-select-wrap');
+  const selectToggle = document.getElementById('projector-select-toggle');
+  const selectMenu = document.getElementById('projector-selected-actions');
+  const grid = document.getElementById('proj-grid');
+  const bulkActions = tab?.querySelector('.proj-bulk-actions');
+
+  if(tab) tab.style.overflowX = 'hidden';
+  if(toolbar) toolbar.style.justifyContent = mobileLike ? 'stretch' : 'flex-end';
+  if(selectWrap){
+    selectWrap.style.display = mobileLike ? 'flex' : 'inline-flex';
+    selectWrap.style.width = mobileLike ? '100%' : '';
+  }
+  if(selectToggle) selectToggle.style.width = mobileLike ? '100%' : '';
+  if(selectMenu){
+    selectMenu.style.left = mobileLike ? '0' : '';
+    selectMenu.style.right = '0';
+    selectMenu.style.minWidth = mobileLike ? '0' : '360px';
+    selectMenu.style.width = mobileLike ? '100%' : '';
+    selectMenu.style.maxWidth = mobileLike ? '100%' : '';
+    selectMenu.style.top = mobileLike ? '44px' : '38px';
+  }
+  if(grid){
+    grid.style.display = 'grid';
+    grid.style.setProperty('grid-template-columns', mobileLike ? '1fr' : 'repeat(4,minmax(0,1fr))', 'important');
+    grid.style.overflowX = 'hidden';
+  }
+  if(bulkActions){
+    bulkActions.style.display = mobileLike ? 'grid' : 'flex';
+    bulkActions.style.gridTemplateColumns = mobileLike ? '1fr' : '';
+  }
+}
+
+function renderMobileNav(){
+  const nav = document.getElementById('mobile-nav');
+  const moreGrid = document.getElementById('mobile-more-grid');
+  if(!nav) return;
+  if(activeUiMode !== 'mobile' && activeUiMode !== 'mobile-test'){
+    nav.innerHTML = '';
+    if(moreGrid) moreGrid.innerHTML = '';
+    closeMobileMoreMenu();
+    return;
+  }
+
+  const primaryTabs = ['show','projectors','audio','monitoring','settings'];
+  const secondaryTabs = ['monitoring','cameras','network','nas','error','settings','emergency'];
+  nav.innerHTML = '';
+  primaryTabs.forEach(tab=>{
+    const source = document.querySelector(`.sidebar [data-tab="${tab}"]`);
+    if(!source) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `mnav-btn${tab==='emergency'?' emergency':''}`;
+    btn.dataset.tab = tab;
+    const icon = getTabIconForMobile(tab);
+    const label = getShortTabLabelForMobile(tab);
+    btn.innerHTML = `<span class="mnav-icon">${icon}</span><span class="mnav-label">${label}</span>`;
+    btn.addEventListener('click', ()=> switchTab(tab, source));
+    nav.appendChild(btn);
+  });
+
+  if(moreGrid){
+    moreGrid.innerHTML = '';
+    secondaryTabs.forEach(tab=>{
+      const source = document.querySelector(`.sidebar [data-tab="${tab}"]`);
+      if(!source) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `mobile-more-btn${tab==='emergency'?' emergency':''}`;
+      btn.dataset.tab = tab;
+      btn.innerHTML = `<span class="mobile-more-icon">${getTabIconForMobile(tab)}</span><span class="mobile-more-label">${getTabLabelForMobile(tab)}</span>`;
+      btn.addEventListener('click', ()=>{
+        closeMobileMoreMenu();
+        switchTab(tab, source);
+      });
+      moreGrid.appendChild(btn);
+    });
+  }
+
+  updateMobileNavActive();
+}
+
+function updateMobileTestHome(){
+  if(activeUiMode !== 'mobile-test') return;
+
+  const venueTitle = document.getElementById('mtest-venue-title');
+  const displayName = document.getElementById('venue-name-display')?.textContent?.trim();
+  if(venueTitle) venueTitle.textContent = displayName && displayName !== '—' ? displayName : 'Projektil Control';
+
+  const directorOnline = getPixeraDirectorOnline();
+  const pixeraApiOnline = getPixeraApiOnline();
+  const pixeraDot = document.getElementById('mtest-pixera-dot');
+  const pixeraLabel = document.getElementById('mtest-pixera-label');
+  if(pixeraDot) pixeraDot.style.background = directorOnline ? (pixeraApiOnline ? 'var(--green)' : 'var(--orange)') : 'var(--red)';
+  if(pixeraLabel){
+    if(!directorOnline) pixeraLabel.textContent = 'Director Offline';
+    else pixeraLabel.textContent = pixeraApiOnline ? 'Pixera API Online' : 'Pixera API Offline';
+  }
+
+  const time = document.getElementById('sb-time')?.textContent?.trim() || '--:--:--';
+  const timeEl = document.getElementById('mtest-time');
+  if(timeEl) timeEl.textContent = time;
+
+  const tlStatus = document.getElementById('tl-status')?.textContent?.trim() || '—';
+  const tlStatusEl = document.getElementById('mtest-tl-status');
+  if(tlStatusEl) tlStatusEl.textContent = tlStatus;
+
+  const nextEvent = document.getElementById('next-event-name')?.textContent?.trim() || 'Kein Event';
+  const nextCountdown = document.getElementById('next-countdown')?.textContent?.trim() || '--:--:--';
+  const nextEventEl = document.getElementById('mtest-next-event');
+  if(nextEventEl) nextEventEl.textContent = `${nextEvent} · ${nextCountdown}`;
+
+  const alertCountEl = document.getElementById('mtest-alert-count');
+  if(alertCountEl) alertCountEl.textContent = String(errors.length || 0);
+
+  const modeStateEl = document.getElementById('mtest-mode-state');
+  if(modeStateEl){
+    const parts = [];
+    parts.push(viewModeLocked ? 'Viewer' : 'Admin');
+    if(demoMode) parts.push('Demo');
+    modeStateEl.textContent = parts.join(' · ');
+  }
+
+  const logList = document.getElementById('mtest-log-list');
+  if(logList){
+    const items = logs.slice(0, 3);
+    logList.innerHTML = items.length ? items.map(item=>`
+      <div class="mtest-log-item">
+        <div class="mtest-log-type">${item.type === 'error' ? 'Alert' : 'System'}</div>
+        <div class="mtest-log-msg">${localizeLogMessage(item.msg)}</div>
+        <div class="mtest-log-time">${item.time}</div>
+      </div>
+    `).join('') : `<div class="mtest-log-item"><div class="mtest-log-msg">Noch keine Einträge</div></div>`;
+  }
+}
 
 function translatePage(){
   document.documentElement.lang = currentLang;
@@ -2341,6 +3076,15 @@ function translatePage(){
   if(typeof updateCameraModeUI === 'function'){
     updateCameraModeUI();
   }
+  if(typeof updatePixeraSystemServerLabels === 'function'){
+    updatePixeraSystemServerLabels();
+  }
+  if(typeof renderMobileNav === 'function'){
+    renderMobileNav();
+  }
+  if(typeof updateMobileTestHome === 'function'){
+    updateMobileTestHome();
+  }
   localStorage.setItem('lang', currentLang);
 }
 
@@ -2351,6 +3095,8 @@ function setLanguage(lang){
     return;
   }
   currentLang = lang;
+  cfg.language = currentLang;
+  persistSharedUiState({language: currentLang});
   localStorage.setItem('lang', currentLang);
   localStorage.setItem('activeTab', currentTab || 'settings');
   translatePage();
@@ -2386,6 +3132,18 @@ function updateDemoSettingsUI(){
     status.classList.toggle('active', demoMode);
     status.textContent = demoMode ? locales[currentLang].demo_mode_active : locales[currentLang].demo_mode_inactive;
   }
+  updateModeBadgeUI();
+  if(typeof updateMobileTestHome === 'function') updateMobileTestHome();
+}
+
+function updateModeBadgeUI(){
+  const badge = document.getElementById('mode-badge');
+  if(!badge) return;
+  badge.classList.toggle('demo', demoMode);
+  badge.classList.toggle('live', !demoMode);
+  badge.textContent = demoMode
+    ? (locales[currentLang]?.mode_badge_demo || 'Demo')
+    : (locales[currentLang]?.mode_badge_live || 'Live');
 }
 
 function updateAppVersionUI(){
@@ -2398,6 +3156,27 @@ function updateAppVersionUI(){
     startupVersion.textContent = `v${appVersion || APP_VERSION_FALLBACK}`;
   }
 }
+
+function getCompanionEmergencyPressUrl(){
+  return 'http://192.168.1.42:8000/api/location/1/2/0/press';
+}
+
+async function triggerCompanionEmergencyPress(){
+  try{
+    if(isTauri){
+      await invoke('companion_press_emergency_button', { url: getCompanionEmergencyPressUrl() });
+      return true;
+    }
+    const response = await fetch(getCompanionEmergencyPressUrl(), { method: 'POST' });
+    return response.ok;
+  }catch(error){
+    console.warn('[Companion emergency]', error);
+    return false;
+  }
+}
+
+window.getCompanionEmergencyPressUrl = getCompanionEmergencyPressUrl;
+window.triggerCompanionEmergencyPress = triggerCompanionEmergencyPress;
 
 function updateUpdateUI(){
   const status=document.getElementById('update-status');
@@ -2444,6 +3223,51 @@ async function openUrlForUpdate(url){
   }
   window.open(url,'_blank','noopener,noreferrer');
 }
+
+async function openExternalUrl(url){
+  if(!url) return;
+  if(isTauri){
+    await invoke('open_external_url',{url}).catch(()=>{
+      const popup=window.open(url,'_blank','noopener,noreferrer');
+      if(!popup) window.location.href=url;
+    });
+    return;
+  }
+  const popup=window.open(url,'_blank','noopener,noreferrer');
+  if(!popup) window.location.href=url;
+}
+
+let pendingDemoWebGuiUrl='';
+
+function openWebGuiDemoDialog(url){
+  pendingDemoWebGuiUrl=String(url||'').trim();
+  const urlEl=document.getElementById('webgui-demo-url');
+  if(urlEl) urlEl.textContent=pendingDemoWebGuiUrl || '—';
+  document.getElementById('webgui-demo-backdrop')?.classList.add('show');
+}
+
+function closeWebGuiDemoDialog(){
+  document.getElementById('webgui-demo-backdrop')?.classList.remove('show');
+}
+
+window.closeWebGuiDemoDialog=closeWebGuiDemoDialog;
+window.openWebGuiDemoUrlAnyway=async()=>{
+  const url=String(pendingDemoWebGuiUrl||'').trim();
+  if(!url) return;
+  await openExternalUrl(url);
+  closeWebGuiDemoDialog();
+};
+
+window.openDeviceWebGui=(ip)=>{
+  const host=String(ip||'').trim();
+  if(!host) return;
+  const url=`http://${host}`;
+  if(demoMode){
+    openWebGuiDemoDialog(url);
+    return;
+  }
+  openExternalUrl(url);
+};
 
 window.checkForUpdates=async()=>{
   if(demoMode){
@@ -2520,10 +3344,291 @@ function updateStartupModeSettingsUI(){
   if(viewerBtn) viewerBtn.classList.toggle('active', viewerStartup);
 }
 
+function normalizeStartupMode(mode){
+  return mode === 'viewer' ? 'viewer' : 'admin';
+}
+
+function normalizeLanguage(lang){
+  return lang === 'en' ? 'en' : 'de';
+}
+
+function normalizeCameraViewMode(mode){
+  return mode === 'stream' ? 'stream' : 'snapshot';
+}
+
+function normalizeProjectorCount(count){
+  const n = Number(count||16);
+  return Math.max(1, Math.min(16, Number.isFinite(n) ? n : 16));
+}
+
+function normalizePixeraOctoCount(count){
+  const n = Number(count??2);
+  return Math.max(0, Math.min(2, Number.isFinite(n) ? n : 2));
+}
+
+function normalizeAmpCount(count){
+  const n = Number(count??2);
+  return Math.max(1, Math.min(3, Number.isFinite(n) ? n : 2));
+}
+
+function normalizeBoolArray(values, len){
+  const out = Array.from({length:len},()=>false);
+  if(!Array.isArray(values)) return out;
+  for(let i=0;i<Math.min(len, values.length);i++) out[i] = values[i] === true;
+  return out;
+}
+
+function extractDemoRuntimeState(cfgObj){
+  const ampObj = cfgObj?.demo_amp_mutes || {};
+  const amp1 = normalizeBoolArray(ampObj?.[1] ?? ampObj?.['1'], 4);
+  const amp2 = normalizeBoolArray(ampObj?.[2] ?? ampObj?.['2'], 4);
+  const amp3 = normalizeBoolArray(ampObj?.[3] ?? ampObj?.['3'], 4);
+  const projOn = normalizeBoolArray(cfgObj?.demo_projector_on, 16);
+  const projMute = normalizeBoolArray(cfgObj?.demo_projector_mute, 16);
+  return {amp1, amp2, amp3, projOn, projMute};
+}
+
+function applyDemoRuntimeState(state){
+  if(!state) return;
+  ampMutes[1] = state.amp1.slice(0,4);
+  ampMutes[2] = state.amp2.slice(0,4);
+  ampMutes[3] = normalizeBoolArray(state.amp3, 4);
+  for(let i=0;i<Math.min(16, projStates.length);i++){
+    projStates[i].on = state.projOn[i] === true;
+    projStates[i].mute = state.projMute[i] === true;
+    projectorControlStates[i] = projStates[i].on ? 'online' : 'standby';
+    projectorOnlineStates[i] = true;
+  }
+  for(const n of [1,2,3]) buildAmpChannels(n);
+  buildProjGrid();
+  buildMonProjGrid(true);
+}
+
+function getDemoRuntimeFingerprint(state){
+  return `${normalizeBoolArray(state?.amp1,4).join('')}|${normalizeBoolArray(state?.amp2,4).join('')}|${normalizeBoolArray(state?.amp3,4).join('')}|${normalizeBoolArray(state?.projOn,16).join('')}|${normalizeBoolArray(state?.projMute,16).join('')}`;
+}
+
+function persistDemoRuntimeState(){
+  const state = {
+    demoAmp1Mutes: normalizeBoolArray(ampMutes[1], 4),
+    demoAmp2Mutes: normalizeBoolArray(ampMutes[2], 4),
+    demoAmp3Mutes: normalizeBoolArray(ampMutes[3], 4),
+    demoProjectorOn: normalizeBoolArray(projStates.map(p=>p?.on===true), 16),
+    demoProjectorMute: normalizeBoolArray(projStates.map(p=>p?.mute===true), 16)
+  };
+  cfg.demo_amp_mutes = {1: state.demoAmp1Mutes, 2: state.demoAmp2Mutes, 3: state.demoAmp3Mutes};
+  cfg.demo_projector_on = state.demoProjectorOn;
+  cfg.demo_projector_mute = state.demoProjectorMute;
+  persistSharedUiState(state);
+}
+
+function applySharedUiStateFromConfig(cfgObj){
+  const nextDemo = cfgObj?.demo_mode === true;
+  const nextStartupMode = normalizeStartupMode(cfgObj?.startup_mode);
+  const nextLanguage = normalizeLanguage(cfgObj?.language);
+  const nextCameraViewMode = normalizeCameraViewMode(cfgObj?.camera_view_mode);
+  const nextProjectorCount = normalizeProjectorCount(cfgObj?.projector_count);
+  const nextPixeraOctoCount = normalizePixeraOctoCount(cfgObj?.pixera_octo_count);
+  const nextAmpCount = normalizeAmpCount(cfgObj?.amp_count);
+  const demoRuntime = extractDemoRuntimeState(cfgObj);
+  const incomingDemoRuntimeFingerprint = getDemoRuntimeFingerprint(demoRuntime);
+  const localDemoRuntimeFingerprint = getDemoRuntimeFingerprint({
+    amp1: ampMutes[1],
+    amp2: ampMutes[2],
+    amp3: ampMutes[3],
+    projOn: projStates.map(p=>p?.on===true),
+    projMute: projStates.map(p=>p?.mute===true)
+  });
+  const demoChanged = nextDemo !== demoMode;
+  const startupChanged = nextStartupMode !== startupMode;
+  const languageChanged = nextLanguage !== currentLang;
+  const cameraModeChanged = nextCameraViewMode !== cameraViewMode;
+  const projectorCountChanged = nextProjectorCount !== Number(cfg?.projector_count||16);
+  const pixeraOctoCountChanged = nextPixeraOctoCount !== Number(cfg?.pixera_octo_count??2);
+  const ampCountChanged = nextAmpCount !== Number(cfg?.amp_count??2);
+  const incomingProjectorStates = normalizeProjectorControlStates(cfgObj?.projector_control_states);
+  const incomingProjectorStatusUpdatedAt = Number(cfgObj?.projector_status_updated_at) || 0;
+
+  if(demoChanged) demoMode = nextDemo;
+  if(startupChanged) startupMode = nextStartupMode;
+  if(languageChanged) currentLang = nextLanguage;
+  if(cameraModeChanged) cameraViewMode = nextCameraViewMode;
+
+  cfgObj.camera_view_mode = nextCameraViewMode;
+  cfgObj.projector_count = nextProjectorCount;
+  cfgObj.pixera_octo_count = nextPixeraOctoCount;
+  cfgObj.amp_count = nextAmpCount;
+
+  localStorage.setItem('demoMode', demoMode ? '1' : '0');
+  localStorage.setItem('startupMode', startupMode);
+  localStorage.setItem('lang', currentLang);
+  localStorage.setItem('cameraViewMode', cameraViewMode);
+
+  if(languageChanged){
+    translatePage();
+    updateLanguageSettingsUI();
+    if(typeof buildProjGrid === 'function') buildProjGrid();
+    if(typeof buildMonProjGrid === 'function') buildMonProjGrid(true);
+    if(typeof buildAmpChannels === 'function') [1,2,3].forEach(n=>buildAmpChannels(n));
+    if(typeof renderLog === 'function') renderLog();
+    if(typeof renderErrors === 'function') renderErrors();
+  }
+
+  updateDemoSettingsUI();
+  updateStartupModeSettingsUI();
+  updateCameraModeUI();
+  updateViewModeUI();
+
+  if(demoChanged){
+    if(demoMode){
+      seedDemoAudioState();
+      stopCameraPreviewStream();
+      applyDemoMode();
+    }else{
+      pollAll();
+      pollD40Status();
+      updateCameraPreviewStreamState();
+    }
+  }
+
+  if(cameraModeChanged){
+    cameraPreviewIntervalMs = cameraViewMode==='stream' ? CAMERA_PREVIEW_INTERVAL_STREAM_MS : CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS;
+    stopCameraPreviewStream();
+    if(cameraViewMode!=='stream') clearAllCameraStreamImages();
+    updateCameraPreviewStreamState();
+    if(cameraViewMode==='stream') prewarmCameraStreams();
+    if(isCameraPreviewStreamActive()) cameraPreviewTick();
+  }
+
+  if(projectorCountChanged){
+    applyProjectorIpConfig();
+    if(typeof updateProjectorRangeSettingsUI === 'function') updateProjectorRangeSettingsUI();
+    if(typeof buildProjGrid === 'function') buildProjGrid();
+    if(typeof buildMonProjGrid === 'function') buildMonProjGrid(true);
+  }
+
+  if(pixeraOctoCountChanged){
+    applyPixeraOctoSettingsUI();
+  }
+
+  if(ampCountChanged){
+    applyAmpSettingsUI();
+  }
+
+  if(incomingProjectorStatusUpdatedAt > projectorStatusSyncUpdatedAt){
+    projectorStatusSyncUpdatedAt = incomingProjectorStatusUpdatedAt;
+    projectorStatusLastPersistedFingerprint = projectorControlStatesFingerprint(incomingProjectorStates);
+    for(let i=0;i<16;i++) projectorControlStates[i] = incomingProjectorStates[i];
+    if(typeof buildProjGrid === 'function') buildProjGrid();
+    if(typeof buildMonProjGrid === 'function') buildMonProjGrid(true);
+  }
+
+  if(demoMode && incomingDemoRuntimeFingerprint !== localDemoRuntimeFingerprint && incomingDemoRuntimeFingerprint !== sharedUiStateLastAppliedDemoRuntimeFingerprint){
+    sharedUiStateLastAppliedDemoRuntimeFingerprint = incomingDemoRuntimeFingerprint;
+    applyDemoRuntimeState(demoRuntime);
+  }
+}
+
+async function persistSharedUiState(changes={}){
+  const payload = {};
+  if(Object.prototype.hasOwnProperty.call(changes,'demoMode')) payload.demoMode = changes.demoMode;
+  if(Object.prototype.hasOwnProperty.call(changes,'startupMode')) payload.startupMode = changes.startupMode;
+  if(Object.prototype.hasOwnProperty.call(changes,'language')) payload.language = changes.language;
+  if(Object.prototype.hasOwnProperty.call(changes,'cameraViewMode')) payload.cameraViewMode = changes.cameraViewMode;
+  if(Object.prototype.hasOwnProperty.call(changes,'projectorCount')) payload.projectorCount = changes.projectorCount;
+  if(Object.prototype.hasOwnProperty.call(changes,'pixeraOctoCount')) payload.pixeraOctoCount = changes.pixeraOctoCount;
+  if(Object.prototype.hasOwnProperty.call(changes,'ampCount')) payload.ampCount = changes.ampCount;
+  if(Object.prototype.hasOwnProperty.call(changes,'demoAmp1Mutes')) payload.demoAmp1Mutes = changes.demoAmp1Mutes;
+  if(Object.prototype.hasOwnProperty.call(changes,'demoAmp2Mutes')) payload.demoAmp2Mutes = changes.demoAmp2Mutes;
+  if(Object.prototype.hasOwnProperty.call(changes,'demoAmp3Mutes')) payload.demoAmp3Mutes = changes.demoAmp3Mutes;
+  if(Object.prototype.hasOwnProperty.call(changes,'demoProjectorOn')) payload.demoProjectorOn = changes.demoProjectorOn;
+  if(Object.prototype.hasOwnProperty.call(changes,'demoProjectorMute')) payload.demoProjectorMute = changes.demoProjectorMute;
+  if(Object.prototype.hasOwnProperty.call(changes,'projectorControlStates')) payload.projectorControlStates = changes.projectorControlStates;
+  if(Object.prototype.hasOwnProperty.call(changes,'projectorStatusUpdatedAt')) payload.projectorStatusUpdatedAt = changes.projectorStatusUpdatedAt;
+  try{
+    await invoke('save_ui_state', payload);
+  }catch(e){
+    console.warn('[save_ui_state]', e);
+  }
+}
+
+function computeSharedUiStateFingerprint(state){
+  return `${state.demoMode?'1':'0'}|${state.startupMode}|${state.language}|${state.cameraViewMode}|${state.projectorCount}|${state.pixeraOctoCount}|${state.ampCount}|${state.demoAmp1Mutes.join('')}|${state.demoAmp2Mutes.join('')}|${state.demoAmp3Mutes.join('')}|${state.demoProjectorOn.join('')}|${state.demoProjectorMute.join('')}`;
+}
+
+function getCurrentSharedUiState(){
+  const demoRuntime = demoMode
+    ? {
+        demoAmp1Mutes: normalizeBoolArray(ampMutes[1], 4),
+        demoAmp2Mutes: normalizeBoolArray(ampMutes[2], 4),
+        demoAmp3Mutes: normalizeBoolArray(ampMutes[3], 4),
+        demoProjectorOn: normalizeBoolArray(projStates.map(p=>p?.on===true), 16),
+        demoProjectorMute: normalizeBoolArray(projStates.map(p=>p?.mute===true), 16)
+      }
+    : extractDemoRuntimeState(cfg);
+  return {
+    demoMode: demoMode === true,
+    startupMode: normalizeStartupMode(startupMode),
+    language: normalizeLanguage(currentLang),
+    cameraViewMode: normalizeCameraViewMode(cameraViewMode),
+    projectorCount: normalizeProjectorCount(cfg?.projector_count),
+    pixeraOctoCount: normalizePixeraOctoCount(cfg?.pixera_octo_count),
+    ampCount: normalizeAmpCount(cfg?.amp_count),
+    demoAmp1Mutes: demoRuntime.amp1 || demoRuntime.demoAmp1Mutes,
+    demoAmp2Mutes: demoRuntime.amp2 || demoRuntime.demoAmp2Mutes,
+    demoAmp3Mutes: demoRuntime.amp3 || demoRuntime.demoAmp3Mutes,
+    demoProjectorOn: demoRuntime.projOn || demoRuntime.demoProjectorOn,
+    demoProjectorMute: demoRuntime.projMute || demoRuntime.demoProjectorMute
+  };
+}
+
+async function syncSharedUiStateNow(){
+  if(sharedUiStateSyncInFlight) return;
+  sharedUiStateSyncInFlight = true;
+  try{
+    const latestCfg = await invoke('get_config');
+    if(latestCfg && typeof latestCfg === 'object'){
+      cfg = {...cfg, ...latestCfg};
+      applySharedUiStateFromConfig(cfg);
+    }
+  }catch{}
+  finally{ sharedUiStateSyncInFlight = false; }
+}
+
+function queueInputDrivenSharedStateSync(){
+  if(sharedUiStateInputSyncTimer) clearTimeout(sharedUiStateInputSyncTimer);
+  sharedUiStateInputSyncTimer = setTimeout(()=>{
+    // Generic input events should never write global state implicitly.
+    // They only pull latest shared state for fast cross-client convergence.
+    syncSharedUiStateNow();
+  }, 260);
+}
+
+function attachSharedUiInputSyncHooks(){
+  const trigger = ()=>{ queueInputDrivenSharedStateSync(); };
+  document.addEventListener('input', trigger, true);
+  document.addEventListener('change', trigger, true);
+  document.addEventListener('keyup', (e)=>{
+    if(e.key === 'Enter' || e.key === ' ') trigger();
+  }, true);
+  window.addEventListener('focus', ()=>{ syncSharedUiStateNow(); });
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) syncSharedUiStateNow();
+  });
+}
+
+function startSharedUiStateSync(){
+  if(sharedUiStateSyncTimer) clearInterval(sharedUiStateSyncTimer);
+  sharedUiStateSyncTimer = setInterval(syncSharedUiStateNow, 1200);
+}
+
 function setStartupMode(mode){
   if(mode !== 'admin' && mode !== 'viewer') return;
-  startupMode = mode;
+  startupMode = normalizeStartupMode(mode);
   localStorage.setItem('startupMode', startupMode);
+  cfg.startup_mode = startupMode;
+  persistSharedUiState({startupMode: startupMode});
+  sharedUiStateLastPersistedFingerprint = computeSharedUiStateFingerprint(getCurrentSharedUiState());
   updateStartupModeSettingsUI();
   addLogT('info', startupMode === 'viewer' ? 'startup_mode_saved_viewer' : 'startup_mode_saved_admin');
 }
@@ -2597,11 +3702,11 @@ function updateViewModeUI(){
     status.textContent = viewModeLocked ? locales[currentLang].view_mode_status_locked : locales[currentLang].view_mode_status_unlocked;
   }
   if(error) error.textContent = '';
-  if(codeInput) codeInput.value = '';
   // Show view-mode-banner for view mode; full lockscreen is handled by updateEmergencyLockUI
   const vmBanner = document.getElementById('view-mode-banner');
   vmBanner?.classList.toggle('show', viewModeLocked && !emergencyLockActive);
   updateLockIndicators();
+  if(typeof updateMobileTestHome === 'function') updateMobileTestHome();
 }
 
 function closeViewModeUnlockDialog(){
@@ -2629,6 +3734,25 @@ function openViewModeUnlockDialog(){
 }
 window.openViewModeUnlockDialog = openViewModeUnlockDialog;
 
+function resetViewModeUnlockInputs(){
+  const fullInput = document.getElementById('view-lock-code-input');
+  const fullError = document.getElementById('view-lock-error');
+  const smallInput = document.getElementById('view-lock-code-input-small');
+  const smallError = document.getElementById('view-lock-error-small');
+  if(fullInput) fullInput.value = '';
+  if(smallInput) smallInput.value = '';
+  if(fullError) fullError.textContent = '';
+  if(smallError) smallError.textContent = '';
+}
+
+function showUnlockCodeErrorVisual(input){
+  if(!input) return;
+  input.classList.remove('unlock-input-error');
+  void input.offsetWidth;
+  input.classList.add('unlock-input-error');
+  setTimeout(()=>input.classList.remove('unlock-input-error'), 360);
+}
+
 function enableViewMode(){
   if(viewModeLocked) return;
   viewModeLocked = true;
@@ -2649,6 +3773,7 @@ function activateEmergencyLock(){
     addLogT('info', 'view_mode_enabled_log');
   }
   if(!wasEmergencyActive){
+    resetViewModeUnlockInputs();
     void muteAllD40ForEmergency();
   }
   updateViewModeUI();
@@ -2660,6 +3785,7 @@ function disableViewMode(){
   localStorage.setItem('viewModeLocked', '0');
   emergencyLockActive = false;
   localStorage.setItem('emergencyLockActive', '0');
+  resetViewModeUnlockInputs();
   document.getElementById('view-lock-dialog-backdrop')?.classList.remove('show');
   document.getElementById('view-unlock-small-backdrop')?.classList.remove('show');
   updateViewModeUI();
@@ -2683,6 +3809,7 @@ window.confirmViewModeUnlock=()=>{
   const code = String(input?.value || '').trim();
   if(code !== VIEW_MODE_PIN){
     if(error) error.textContent = locales[currentLang].view_mode_wrong_code;
+    showUnlockCodeErrorVisual(input);
     input?.focus();
     input?.select?.();
     return;
@@ -2699,14 +3826,27 @@ function normalizeTelegramAlertEvents(alertEvents){
     if(!v) continue;
     if(!cleaned.includes(v)) cleaned.push(v);
   }
+  if(cleaned.includes('offline')){
+    ['janitza_offline','ups_offline','nas_offline','poe_switch_offline','rutx_offline','pixera_offline'].forEach((k)=>{
+      if(!cleaned.includes(k)) cleaned.push(k);
+    });
+  }
   return cleaned.length ? cleaned : [...TELEGRAM_ALERT_EVENT_DEFAULTS];
 }
 
 function applyTelegramAlertEventsToUI(alertEvents){
   const selected = normalizeTelegramAlertEvents(alertEvents);
   const eventMap = {
-    'tg-event-offline': 'offline',
-    'tg-event-ups': 'ups_battery',
+    'tg-event-janitza-offline': 'janitza_offline',
+    'tg-event-janitza-asymmetry': 'janitza_asymmetry',
+    'tg-event-janitza-overfreq': 'janitza_overfrequency',
+    'tg-event-janitza-underfreq': 'janitza_underfrequency',
+    'tg-event-ups-offline': 'ups_offline',
+    'tg-event-ups-battery': 'ups_battery',
+    'tg-event-nas-offline': 'nas_offline',
+    'tg-event-poe-offline': 'poe_switch_offline',
+    'tg-event-rutx-offline': 'rutx_offline',
+    'tg-event-pixera-offline': 'pixera_offline',
     'tg-event-trigger-missed': 'trigger_missed',
     'tg-event-timeline': 'timeline_error',
     'tg-event-emergency': 'emergency',
@@ -2721,8 +3861,16 @@ function applyTelegramAlertEventsToUI(alertEvents){
 
 function collectTelegramAlertEventsFromUI(){
   const eventMap = {
-    'tg-event-offline': 'offline',
-    'tg-event-ups': 'ups_battery',
+    'tg-event-janitza-offline': 'janitza_offline',
+    'tg-event-janitza-asymmetry': 'janitza_asymmetry',
+    'tg-event-janitza-overfreq': 'janitza_overfrequency',
+    'tg-event-janitza-underfreq': 'janitza_underfrequency',
+    'tg-event-ups-offline': 'ups_offline',
+    'tg-event-ups-battery': 'ups_battery',
+    'tg-event-nas-offline': 'nas_offline',
+    'tg-event-poe-offline': 'poe_switch_offline',
+    'tg-event-rutx-offline': 'rutx_offline',
+    'tg-event-pixera-offline': 'pixera_offline',
     'tg-event-trigger-missed': 'trigger_missed',
     'tg-event-timeline': 'timeline_error',
     'tg-event-emergency': 'emergency',
@@ -2808,56 +3956,6 @@ async function sendTelegramTest(){
 }
 window.sendTelegramTest = sendTelegramTest;
 
-function telegramAlertSampleMessage(kind){
-  const samples = {
-    trigger_missed: 'MISSED EVENT: Trigger not fired for cue 12',
-    timeline_error: 'Timeline error: OnTimelineError while executing show block',
-    offline: 'NAS ist offline!',
-    ups_battery: 'UPS hat auf Batteriebetrieb gewechselt - Runtime: 00:12:34',
-    emergency: 'Emergency stop ausgelost',
-    panic: 'PANIC: watchdog timeout',
-    keyword_match: 'Netzproblem erkannt: ueberfrequenz auf Phase L1'
-  };
-  return samples[kind] || samples.trigger_missed;
-}
-
-async function simulateTelegramAlertEvent(){
-  const statusEl = document.getElementById('tg-save-status');
-  const kind = String(document.getElementById('tg-alert-test-kind')?.value || 'trigger_missed');
-  const message = telegramAlertSampleMessage(kind);
-
-  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent=locales[currentLang].telegram_simulating_alarm; }
-  try {
-    await invoke('append_app_log', {level: 'error', message, timestampMs: Date.now()});
-    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent=t('telegram_alarm_simulated',{kind}); }
-  } catch(e){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=t('status_error_with_detail',{error:e}); }
-  }
-}
-window.simulateTelegramAlertEvent = simulateTelegramAlertEvent;
-
-async function simulateSelectedTelegramAlertEvents(){
-  const statusEl = document.getElementById('tg-save-status');
-  const selected = collectTelegramAlertEventsFromUI();
-  if(!selected.length){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=locales[currentLang].telegram_no_events_selected; }
-    return;
-  }
-
-  if(statusEl){ statusEl.style.color='var(--muted)'; statusEl.textContent=t('telegram_simulating_events',{count:selected.length}); }
-  try {
-    for(let i = 0; i < selected.length; i++){
-      const kind = selected[i];
-      const message = telegramAlertSampleMessage(kind);
-      await invoke('append_app_log', {level: 'error', message, timestampMs: Date.now() + i});
-    }
-    if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent=t('telegram_events_simulated',{count:selected.length}); }
-  } catch(e){
-    if(statusEl){ statusEl.style.color='#fca5a5'; statusEl.textContent=t('status_error_with_detail',{error:e}); }
-  }
-}
-window.simulateSelectedTelegramAlertEvents = simulateSelectedTelegramAlertEvents;
-
 // ── AnyDesk Settings PIN-protection (PIN 8048) ─────────────────────────────
 function openAnyDeskSettings(){
   const pin = String(document.getElementById('ad-pin-input')?.value || '').trim();
@@ -2935,9 +4033,12 @@ function addLogT(type,key,vars={},opts={}){
 }
 
 function applyDemoMode(){
+  if(pixeraMasterMuted===null) pixeraMasterMuted=false;
+  pixeraMasterMuteSource='demo';
+  setPixeraMasterMuteUi();
+  const octoCount=getPixeraOctoCount();
+  const ampNumbers=getConfiguredAmpNumbers();
   const demoOnlineIds = [
-    ['sb-d40-01','amp1-dot','mon-amp1','amp1-online','sys-d40-01'],
-    ['sb-d40-02','amp2-dot','mon-amp2','amp2-online','sys-d40-02'],
     ['sb-pixera','mon-director','sys-pixera'],
     ['sb-nas','mon-nas','nas-dot','sys-nas','nas-status'],
     ['sb-poe','mon-poe','sys-poe','net-poe-dot','net-poe-status'],
@@ -2945,24 +4046,40 @@ function applyDemoMode(){
     ['sb-ups','mon-ups','ups-dot'],
     ['mon-janitza','janitza-dot','sb-janitza'],
     ['mon-cam1','cam1-dot','cam1-status','sb-cam1'],
-    ['mon-cam2','cam2-dot','cam2-status','sb-cam2'],
-    ['mon-octo1','sys-octo1'],
-    ['mon-octo2','sys-octo2']
+    ['mon-cam2','cam2-dot','cam2-status','sb-cam2']
   ];
-  ['amp1','amp2','pixera','nas','poe','rutx','ups','janitza','cam1','cam2','octo1','octo2'].forEach(key=>{deviceState[key]=true;});
+  ampNumbers.forEach(n=>{
+    demoOnlineIds.push([
+      `sb-d40-0${n}`,
+      `amp${n}-dot`,
+      `mon-amp${n}`,
+      `amp${n}-online`,
+      `sys-d40-0${n}`
+    ]);
+  });
+  if(octoCount>=1) demoOnlineIds.push(['mon-octo1','sys-octo1']);
+  if(octoCount>=2) demoOnlineIds.push(['mon-octo2','sys-octo2']);
+  ['pixera','nas','poe','rutx','ups','janitza','cam1','cam2'].forEach(key=>{deviceState[key]=true;});
+  [1,2,3].forEach(n=>{deviceState[`amp${n}`]=ampNumbers.includes(n);});
+  deviceState.octo1 = octoCount>=1;
+  deviceState.octo2 = octoCount>=2;
   projectorOnlineStates.fill(true);
-  ['overlay-amp1','overlay-amp2','overlay-nas','overlay-poe','overlay-rutx','overlay-ups','overlay-janitza','overlay-cam1','overlay-cam2'].forEach(id=>{
+  ['overlay-amp1','overlay-amp2','overlay-amp3','overlay-nas','overlay-poe','overlay-rutx','overlay-ups','overlay-janitza','overlay-cam1','overlay-cam2'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.classList.remove('show');
   });
   demoOnlineIds.forEach(ids=>setStatus(ids,true));
   updateShowNavBadge(true);
   updateProjectorsNavBadge();
-  updateAudioNavBadge(true,true);
+  updateAudioNavBadge(getConfiguredAmpNumbers().map(()=>true));
   updateCamerasNavBadge(true,true);
   updateNasNavBadge(true);
   updateNetworkNavBadge(true,true);
-  updateMonitoringNavBadge([true,true,true,true,true,true,true,true,true,true,true,true,...projectorOnlineStates]);
+  const ampStates=ampNumbers.map(()=>true);
+  const octoStates=[];
+  if(octoCount>=1) octoStates.push(true);
+  if(octoCount>=2) octoStates.push(true);
+  updateMonitoringNavBadge([true,...ampStates,true,true,true,true,true,true,true,...octoStates,...projectorOnlineStates]);
   buildProjGrid();
   buildMonProjGrid(true);
   updateProjectorMonitoringGrid();
@@ -2980,8 +4097,7 @@ function applyDemoMode(){
   const demoRutxIp = document.getElementById('net-rutx-ip'); if(demoRutxIp) demoRutxIp.textContent = '10.144.22.18';
   const demoRutxUp = document.getElementById('net-rutx-mobile-uptime'); if(demoRutxUp) demoRutxUp.textContent = '3d 09h 41m';
 
-  buildAmpChannels(1);
-  buildAmpChannels(2);
+  for(const n of [1,2,3]) buildAmpChannels(n);
 
   const tlName = document.getElementById('tl-name'); if(tlName) tlName.textContent = locales[currentLang].demo_show_name;
   const drBadge = document.getElementById('dr-badge'); if(drBadge) drBadge.textContent = locales[currentLang].demo_show_name;
@@ -3053,14 +4169,19 @@ function applyDemoMode(){
 function seedDemoAudioState(){
   ampMutes[1] = [false,false,false,false];
   ampMutes[2] = [false,false,false,false];
+  ampMutes[3] = [false,false,false,false];
   ampGains[1] = ['+1.0 dB','+0.5 dB','0.0 dB','-1.5 dB'];
   ampGains[2] = ['+1.5 dB','+1.0 dB','-0.5 dB','-2.0 dB'];
+  ampGains[3] = ['+1.0 dB','+0.5 dB','0.0 dB','-1.0 dB'];
 }
 
 function setDemoMode(enabled){
   const wasDemoMode = demoMode;
   demoMode = enabled;
+  cfg.demo_mode = demoMode;
   localStorage.setItem('demoMode', demoMode ? '1' : '0');
+  persistSharedUiState({demoMode: demoMode});
+  sharedUiStateLastPersistedFingerprint = computeSharedUiStateFingerprint(getCurrentSharedUiState());
   updateDemoSettingsUI();
   addLogT('info', demoMode ? 'demo_mode_enabled_log' : 'demo_mode_disabled_log');
   if(demoMode){
@@ -3070,6 +4191,7 @@ function setDemoMode(enabled){
   } else {
     pollAll();
     pollD40Status();
+    pollPixeraMasterMuteStatus(true);
     updateCameraPreviewStreamState();
   }
 }
@@ -3155,6 +4277,8 @@ window.setCameraViewMode=(mode)=>{
   if(mode!=='snapshot' && mode!=='stream') return;
   if(cameraViewMode===mode) return;
   cameraViewMode=mode;
+  cfg.camera_view_mode = cameraViewMode;
+  persistSharedUiState({cameraViewMode: cameraViewMode});
   localStorage.setItem('cameraViewMode', cameraViewMode);
   cameraPreviewIntervalMs = cameraViewMode==='stream' ? CAMERA_PREVIEW_INTERVAL_STREAM_MS : CAMERA_PREVIEW_INTERVAL_SNAPSHOT_MS;
   updateCameraModeUI();
@@ -3182,6 +4306,210 @@ function updateProjectorRangeSettingsUI(){
   const input=document.getElementById('projector-count-input');
   if(!input) return;
   input.value=String(Math.max(1,Math.min(16,Number(cfg.projector_count||16))));
+}
+
+function getAmpCount(){
+  return normalizeAmpCount(cfg?.amp_count);
+}
+
+function getAmpIp(n){
+  const key = `d40_0${n}_ip`;
+  const fallback = `192.168.1.${50+n}`;
+  return String(cfg?.[key] || fallback).trim();
+}
+
+function getJanitzaIp(){
+  return String(cfg?.power_disp_ip || '').trim();
+}
+
+function getUpsIp(){
+  return String(cfg?.ups_ip || '').trim();
+}
+
+function getNasIp(){
+  return String(cfg?.nas_ip || '').trim();
+}
+
+function getPoeIp(){
+  return String(cfg?.poe_switch_ip || DEFAULT_POE_IP).trim();
+}
+
+function getRutxIp(){
+  return String(cfg?.rutx50_ip || DEFAULT_RUTX50_IP).trim();
+}
+
+window.getAmpIp=getAmpIp;
+window.getJanitzaIp=getJanitzaIp;
+window.getUpsIp=getUpsIp;
+window.getNasIp=getNasIp;
+window.getPoeIp=getPoeIp;
+window.getRutxIp=getRutxIp;
+
+function getConfiguredAmpNumbers(){
+  return Array.from({length:getAmpCount()},(_,i)=>i+1);
+}
+
+function updateAmpCountSettingsUI(){
+  const input=document.getElementById('amp-count-input');
+  if(!input) return;
+  input.value=String(getAmpCount());
+}
+
+function applyAmpSettingsUI(){
+  const count=getAmpCount();
+  updateAmpCountSettingsUI();
+
+  for(const n of [1,2,3]){
+    const visible=n<=count;
+    const ids=[
+      `amp${n}-section`,
+      `mon-amp${n}-row`,
+      `sys-d40-0${n}-row`,
+      `sb-d40-0${n}-item`
+    ];
+    for(const id of ids){
+      const el=document.getElementById(id);
+      if(el) el.style.display=visible?'':'none';
+    }
+    if(!visible){
+      const overlay=document.getElementById(`overlay-amp${n}`);
+      if(overlay) overlay.classList.remove('show');
+      setStatus([
+        `sb-d40-0${n}`,
+        `amp${n}-dot`,
+        `mon-amp${n}`,
+        `amp${n}-online`,
+        `sys-d40-0${n}`
+      ], false);
+      deviceState[`amp${n}`]=false;
+    }
+  }
+
+  updateAudioNavBadge(getConfiguredAmpNumbers().map(n=>Boolean(deviceState[`amp${n}`])));
+}
+
+function getPixeraOctoCount(){
+  return normalizePixeraOctoCount(cfg?.pixera_octo_count);
+}
+
+function getPixeraOctoScanTargets(octoIndex){
+  const octoCount=getPixeraOctoCount();
+  const octo1Ip=String(cfg?.pixera_octo1_ip||'').trim();
+  const octo2Ip=String(cfg?.pixera_octo2_ip||'').trim();
+  const unique=[];
+  const push=(ip)=>{
+    if(!ip) return;
+    if(unique.includes(ip)) return;
+    unique.push(ip);
+  };
+
+  if(octoIndex===1){
+    push(octo1Ip);
+    if(octoCount===1) push(octo2Ip);
+    return unique;
+  }
+  if(octoIndex===2 && octoCount>=2){
+    push(octo2Ip);
+    return unique;
+  }
+  return unique;
+}
+
+function getResolvedPixeraOctoHost(octoIndex){
+  return String(_resolvedPixeraOctoHosts?.[octoIndex]||'').trim();
+}
+
+function setResolvedPixeraOctoHost(octoIndex, host){
+  _resolvedPixeraOctoHosts[octoIndex]=String(host||'').trim();
+}
+
+function formatPixeraIpList(hosts){
+  const unique=[];
+  for(const host of Array.isArray(hosts)?hosts:[]){
+    const value=String(host||'').trim();
+    if(!value) continue;
+    if(unique.includes(value)) continue;
+    unique.push(value);
+  }
+  return unique.length?unique.join(' / '):'--';
+}
+
+function getPixeraServerDisplayName(serverKey){
+  const directorIp=String(cfg?.pixera_ip||'').trim();
+  if(serverKey==='director'){
+    return `Director (IP: ${formatPixeraIpList([directorIp])})`;
+  }
+
+  if(serverKey==='octo1'){
+    const resolvedHost=getResolvedPixeraOctoHost(1);
+    const hosts=resolvedHost?[resolvedHost]:getPixeraOctoScanTargets(1);
+    return `Octo 01 (IP: ${formatPixeraIpList(hosts)})`;
+  }
+
+  if(serverKey==='octo2'){
+    const resolvedHost=getResolvedPixeraOctoHost(2);
+    const hosts=resolvedHost?[resolvedHost]:getPixeraOctoScanTargets(2);
+    return `Octo 02 (IP: ${formatPixeraIpList(hosts)})`;
+  }
+
+  return String(serverKey||'').trim();
+}
+
+function setSnmpTimestamp(elementId){
+  const el=document.getElementById(elementId);
+  if(el) el.textContent=new Date().toLocaleTimeString('de-CH');
+}
+
+function updatePixeraSystemServerLabels(){
+  const labels=[
+    ['sys-pixera-label', getPixeraServerDisplayName('director')],
+    ['mon-director-label', getPixeraServerDisplayName('director')],
+    ['sys-octo1-label', getPixeraServerDisplayName('octo1')],
+    ['mon-octo1-label', getPixeraServerDisplayName('octo1')],
+    ['sys-octo2-label', getPixeraServerDisplayName('octo2')],
+    ['mon-octo2-label', getPixeraServerDisplayName('octo2')]
+  ];
+  for(const [id,text] of labels){
+    const el=document.getElementById(id);
+    if(el) el.textContent=text;
+  }
+}
+
+async function pingAnyPixeraOctoTarget(targets, port, options={}){
+  let lastError=null;
+  for(const host of targets){
+    try{
+      const online=await tcpPing(host,port,options);
+      if(online===true) return {online:true, host};
+    }catch(e){
+      lastError=e;
+    }
+  }
+  if(options?.throwOnFail && lastError) throw lastError;
+  return {online:false, host:targets[0]||''};
+}
+
+function applyPixeraOctoSettingsUI(){
+  const count=getPixeraOctoCount();
+  const input=document.getElementById('pixera-octo-count-input');
+  if(input) input.value=String(count);
+
+  if(count<1) setResolvedPixeraOctoHost(1, '');
+  if(count<2) setResolvedPixeraOctoHost(2, '');
+
+  const rows=[
+    ['mon-octo1-row','sys-octo1-row'],
+    ['mon-octo2-row','sys-octo2-row']
+  ];
+  rows.forEach((ids,idx)=>{
+    const visible=idx<count;
+    for(const id of ids){
+      const el=document.getElementById(id);
+      if(el) el.style.display=visible?'':'none';
+    }
+  });
+
+  updatePixeraSystemServerLabels();
 }
 
 async function persistSiteMetadata(locationName, anydeskAddress){
@@ -3446,19 +4774,68 @@ window.commitProjectorCountFromInput=()=>{
 window.setProjectorCount=(value)=>{
   const num=Math.max(1,Math.min(16,Number(value||16)));
   cfg.projector_count=num;
-  localStorage.setItem('projector_count_override', String(num));
+  persistSharedUiState({projectorCount: num});
   applyProjectorIpConfig();
   buildProjGrid();
   buildMonProjGrid(true);
+  updateProjectorRangeSettingsUI();
   addLogT('info', 'projector_count_saved',{count:num});
 };
+
+window.commitPixeraOctoCountFromInput=()=>{
+  const input=document.getElementById('pixera-octo-count-input');
+  setPixeraOctoCount(input?.value);
+};
+
+window.setPixeraOctoCount=(value)=>{
+  const num=normalizePixeraOctoCount(value);
+  cfg.pixera_octo_count=num;
+  persistSharedUiState({pixeraOctoCount: num});
+  applyPixeraOctoSettingsUI();
+  addLogT('info', 'pixera_octo_count_saved',{count:num});
+};
+
+window.commitAmpCountFromInput=()=>{
+  const input=document.getElementById('amp-count-input');
+  setAmpCount(input?.value);
+};
+
+window.setAmpCount=(value)=>{
+  const num=normalizeAmpCount(value);
+  cfg.amp_count=num;
+  persistSharedUiState({ampCount: num});
+  applyAmpSettingsUI();
+  addLogT('info', 'amp_count_saved',{count:num});
+};
+
+function refreshDeviceWebGuiBadges(){
+  const setChipText=(id,ip)=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=`IP: ${String(ip||'').trim()||'—'}`;
+  };
+  setChipText('amp1-ip-chip',getAmpIp(1));
+  setChipText('amp2-ip-chip',getAmpIp(2));
+  setChipText('amp3-ip-chip',getAmpIp(3));
+  setChipText('janitza-ip-chip',cfg.power_disp_ip);
+  setChipText('ups-ip-chip',cfg.ups_ip);
+  setChipText('poe-ip-chip',cfg.poe_switch_ip||DEFAULT_POE_IP);
+  setChipText('rutx-ip-chip',cfg.rutx50_ip||DEFAULT_RUTX50_IP);
+  setChipText('cam1-ip-chip',cfg.cam_01_ip);
+  setChipText('cam2-ip-chip',cfg.cam_02_ip);
+  setChipText('nas-ip-chip',cfg.nas_ip);
+}
 
 // ============================================================
 // INIT
 // ============================================================
 async function init(){
+  applyUiMode();
+  renderMobileNav();
   sessionStartMs=Date.now();
   cfg=await loadConfigWithFallback();
+  applySharedUiStateFromConfig(cfg);
+  sharedUiStateLastPersistedFingerprint = computeSharedUiStateFingerprint(getCurrentSharedUiState());
+  attachSharedUiInputSyncHooks();
   cfg.pixera_api_root = (cfg.pixera_api_root||'erwer').toString();
   cfg.pixera_pjlink_module = (cfg.pixera_pjlink_module||'PJ_Link__16ch').toString();
   cfg.pixera_scheduler_module = (cfg.pixera_scheduler_module||DEFAULT_PIXERA_SCHEDULER_MODULE).toString();
@@ -3467,25 +4844,28 @@ async function init(){
   }
   _schedulerModuleResolved='';
   cfg.pixera_octo_port = Number(cfg.pixera_octo_port || 4000);
+  cfg.pixera_octo_count = normalizePixeraOctoCount(cfg.pixera_octo_count);
+  cfg.amp_count = normalizeAmpCount(cfg.amp_count);
+  cfg.d40_03_ip = String(cfg.d40_03_ip || '192.168.1.53').trim();
   cfg.poe_switch_ip = cfg.poe_switch_ip || DEFAULT_POE_IP;
   cfg.rutx50_ip = cfg.rutx50_ip || DEFAULT_RUTX50_IP;
   cfg.nas_snmp_port = Number(cfg.nas_snmp_port || 161);
   cfg.nas_snmp_community = cfg.nas_snmp_community || 'projektil';
+  _pixeraHubModuleResolved='';
   await resolveAppVersion();
-  const storedProjectorCount=Number(localStorage.getItem('projector_count_override')||'');
-  if(Number.isFinite(storedProjectorCount) && storedProjectorCount>=1 && storedProjectorCount<=16){
-    cfg.projector_count=storedProjectorCount;
-  }else{
-    cfg.projector_count=Math.max(1,Math.min(16,Number(cfg.projector_count||16)));
-  }
+  cfg.projector_count=Math.max(1,Math.min(16,Number(cfg.projector_count||16)));
   viewModeLocked = startupMode === 'viewer';
   emergencyLockActive = false;
   localStorage.setItem('viewModeLocked', viewModeLocked ? '1' : '0');
   localStorage.setItem('emergencyLockActive', '0');
   applyProjectorIpConfig();
+  applyPixeraOctoSettingsUI();
+  applyAmpSettingsUI();
   applyVenueName();
   translatePage();
   await loadPersistedLogs();
+  updateMobileTestHome();
+  startPersistedSystemLogSync();
   updateStartupModeSettingsUI();
   updateViewModeUI();
   updateEmergencyLockUI();
@@ -3496,39 +4876,56 @@ async function init(){
   if(poeIpEl) poeIpEl.textContent=`IP: ${cfg.poe_switch_ip} · SNMP ${cfg.poe_switch_snmp_port||161}`;
   const rutxIpEl=document.getElementById('overlay-rutx-ip');
   if(rutxIpEl) rutxIpEl.textContent=`IP: ${cfg.rutx50_ip} · SNMP ${cfg.rutx50_snmp_port||161}`;
-  buildProjGrid(); buildMonProjGrid(); buildAmpChannels(1); buildAmpChannels(2);
+  refreshDeviceWebGuiBadges();
+  buildProjGrid(); buildMonProjGrid(); buildAmpChannels(1); buildAmpChannels(2); buildAmpChannels(3);
+  setPixeraMasterMuteUi();
   addLogT('info','app_started');
   addLogT('info','network_polling');
   updateCameraModeUI();
-  if(cameraViewMode==='stream') setTimeout(()=>{ prewarmCameraStreams(); }, 250);
+  await syncHostClock();
+  if(isTauri && cameraViewMode==='stream') setTimeout(()=>{ prewarmCameraStreams(); }, 250);
   startClock();
   switchTab(currentTab, document.querySelector(`[data-tab="${currentTab}"]`));
+  setInterval(updateMobileTestHome, 1000);
   let startupFailedConnections=[];
   if(demoMode){
     applyDemoMode();
     closeStartupOverlay();
   } else {
     showStartupOverlay();
-    startupFailedConnections=await runStartupConnectivityChecks();
-    startupFailedConnections.forEach(item=>{
-      addError(t('startup_connection_offline',{
-        name:item.name,
-        host:item.host,
-        port:item.port,
-        reason:item.reason,
-        durationMs:item.durationMs
-      }),{showBanner:false});
-    });
-    await syncProjectorsFromPjLink();
-    await detectProjectorModelsOnStartup();
-    finalizeStartupScreen(startupFailedConnections);
+    if(isTauri){
+      startupFailedConnections=await runStartupConnectivityChecks();
+      startupFailedConnections.forEach(item=>{
+        addError(t('startup_connection_offline',{
+          name:item.name,
+          host:item.host,
+          port:item.port,
+          reason:item.reason,
+          durationMs:item.durationMs
+        }),{showBanner:false});
+      });
+      await syncProjectorsFromPjLink();
+      await detectProjectorModelsOnStartup();
+      finalizeStartupScreen(startupFailedConnections);
+    } else {
+      startupSetProgress(1,1,'Initialisiere WebGUI...');
+      const detail=document.getElementById('startup-detail');
+      if(detail) detail.textContent='Schnellstart im Browser aktiv.';
+      finalizeStartupScreen([]);
+      setTimeout(async()=>{
+        try{ await syncProjectorsFromPjLink(); }catch{}
+      },0);
+    }
     await pollAll();
     await pollD40Status();
+    await pollPixeraMasterMuteStatus(true);
   }
   setInterval(pollAll,10000);
   setInterval(enforceProtocolFreshnessTimeouts,1000);
   setInterval(pollD40Status,5000);
+  setInterval(pollPixeraMasterMuteStatus,5000);
   setInterval(syncProjectorsFromPjLink,5000);
+  startSharedUiStateSync();
   setInterval(pollLocalBatteryStatus,LOCAL_BATTERY_POLL_INTERVAL_MS);
   await pollLocalBatteryStatus();
   // 1 s tick: clock + cursor (cursor only fires when a dayrun timeline is playing)
@@ -3539,6 +4936,8 @@ async function init(){
   setInterval(pollSchedulerNextEvent,10000);
   // 30 s tick: upcoming events schedule card
   setInterval(pollSchedulerUpcoming,30000);
+  // Keep web/mobile realtime aligned with host clock.
+  setInterval(syncHostClock,60000);
   await pollSchedulerNextEvent();
   await pollSchedulerUpcoming();
   _renderLastTriggeredEvent();
@@ -3640,14 +5039,40 @@ window.switchTab=(id,el)=>{
   if(id==='network'){pollPoeSwitchData();pollRutx50Data();}
   if(id==='cameras' && cameraViewMode==='stream') prewarmCameraStreams();
   updateCameraPreviewStreamState();
+  closeMobileMoreMenu();
+  if(typeof updateMobileNavActive === 'function') updateMobileNavActive();
 };
 
 // ============================================================
 // CLOCK
 // ============================================================
 let pixeraTimeActive=false;
+async function syncHostClock(){
+  if(hostClockSyncInFlight) return;
+  hostClockSyncInFlight=true;
+  const t0=Date.now();
+  try{
+    const serverMs=Number(await invoke('get_server_time_ms',{}));
+    const t1=Date.now();
+    if(Number.isFinite(serverMs)&&serverMs>0){
+      const midpoint=(t0+t1)/2;
+      hostClockOffsetMs=Math.round(serverMs-midpoint);
+      hostClockSynced=true;
+    }
+  }catch(_e){
+    // Keep local clock when host sync is unavailable.
+  }finally{
+    hostClockSyncInFlight=false;
+  }
+}
+
+function nowForRealtime(){
+  const base=Date.now();
+  return hostClockSynced ? (base+hostClockOffsetMs) : base;
+}
+
 function clockTick(){
-  const n=new Date(),p=v=>String(v).padStart(2,'0');
+  const n=new Date(nowForRealtime()),p=v=>String(v).padStart(2,'0');
   const t=`${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
   const sb=document.getElementById('sb-time');if(sb)sb.textContent=t;
   const tb=document.getElementById('tb-clock');if(tb)tb.textContent=t;
@@ -3667,10 +5092,12 @@ function setStatus(ids,online,labelOn=locales[currentLang].online||'Online',labe
   }
 }
 
-function updateAudioNavBadge(amp1Online, amp2Online){
+function updateAudioNavBadge(ampStates){
   const el=document.getElementById('nav-audio-b');
   if(!el) return;
-  el.style.background = (amp1Online && amp2Online) ? 'var(--green)' : 'var(--red)';
+  const states=Array.isArray(ampStates)?ampStates:[Boolean(ampStates)];
+  const allOnline=states.length>0 && states.every(Boolean);
+  el.style.background = allOnline ? 'var(--green)' : 'var(--red)';
 }
 
 function setNavBadge(id, online){
@@ -3732,6 +5159,34 @@ function normalizeProjectorControlState(state){
   return 'unknown';
 }
 
+function normalizeProjectorControlStates(values){
+  const out = Array.from({length:16}, ()=> 'unknown');
+  if(!Array.isArray(values)) return out;
+  for(let i=0;i<Math.min(16, values.length);i++){
+    out[i] = normalizeProjectorControlState(values[i]);
+  }
+  return out;
+}
+
+function projectorControlStatesFingerprint(values){
+  return normalizeProjectorControlStates(values).join('|');
+}
+
+function persistProjectorStatusSync(force=false){
+  const states = normalizeProjectorControlStates(projectorControlStates);
+  const fp = projectorControlStatesFingerprint(states);
+  if(!force && fp === projectorStatusLastPersistedFingerprint) return;
+  projectorStatusLastPersistedFingerprint = fp;
+  const updatedAt = Date.now();
+  projectorStatusSyncUpdatedAt = updatedAt;
+  cfg.projector_control_states = states.slice(0,16);
+  cfg.projector_status_updated_at = updatedAt;
+  persistSharedUiState({
+    projectorControlStates: states,
+    projectorStatusUpdatedAt: updatedAt
+  });
+}
+
 function getProjectorStatusState(index){
   const controlState = normalizeProjectorControlState(projectorControlStates[index]);
   if(controlState !== 'unknown') return controlState;
@@ -3751,9 +5206,11 @@ function startProjectorTransition(index, turnOn){
   const targetState=turnOn?'online':'standby';
   projectorTransitionTargets[index]=targetState;
   projectorControlStates[index]=turnOn?'startup':'cooldown';
+  persistProjectorStatusSync(true);
   projectorTransitionTimers[index]=setTimeout(()=>{
     if(projectorTransitionTargets[index]===targetState){
       projectorControlStates[index]='error';
+      persistProjectorStatusSync(true);
       addError(t('projector_transition_timeout',{
         index:index+1,
         seconds:PROJECTOR_TRANSITION_TIMEOUT_MS/1000,
@@ -4083,6 +5540,7 @@ async function pollPoeSwitchData(){
       const freeEl=document.getElementById('net-poe-free'); if(freeEl) freeEl.textContent='—';
       return;
     }
+    setSnmpTimestamp('net-poe-ts');
     const detectedModel=String(data.detected_model||'').trim();
     const model=(detectedModel && detectedModel.toLowerCase()!=='unknown')
       ? detectedModel
@@ -4125,6 +5583,7 @@ async function pollRutx50Data(){
       const upEl=document.getElementById('net-rutx-mobile-uptime'); if(upEl) upEl.textContent='—';
       return;
     }
+    setSnmpTimestamp('net-rutx-ts');
     const detectedModel=String(data.detected_model||'').trim();
     const model=(detectedModel && detectedModel.toLowerCase()!=='unknown')
       ? detectedModel
@@ -4169,6 +5628,8 @@ async function pollNasData(){
       port:Number(cfg.nas_snmp_port||161)
     });
     if(!data) return;
+
+    setSnmpTimestamp('nas-ts');
 
     const temp=Number(data.system_temp_c||0);
     const tEl=document.getElementById('nas-temp');
@@ -4236,8 +5697,15 @@ async function pollNasData(){
 // ============================================================
 // PROJECTOR GRID
 // ============================================================
+window.openProjectorWebGui=(index)=>{
+  const ip=String(projStates[index]?.ip||'').trim();
+  if(!ip || ip==='0.0.0.0') return;
+  openDeviceWebGui(ip);
+};
+
 function buildProjGrid(){
   const g=document.getElementById('proj-grid');if(!g)return;g.innerHTML='';
+  const mobileLike = activeUiMode === 'mobile' || activeUiMode === 'mobile-test';
   projStates.forEach((p,i)=>{
     if(!p.ip || p.ip==='' || p.ip==='0.0.0.0') return;
     const n=String(i+1).padStart(2,'0');
@@ -4254,7 +5722,11 @@ function buildProjGrid(){
     section.className='device-section';
     const card=document.createElement('div');
     card.className=`proj-card${isSelected?' selected':''}${projectorSelectionMode?' selectable':''}`;
-    card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="event.stopPropagation();projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="event.stopPropagation();projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button class="shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div>`;
+    if(mobileLike){
+      card.innerHTML=`<div class="proj-mobile-top"><div class="proj-mobile-title"><div class="proj-mobile-name">PJ-${n}</div><div class="proj-mobile-model">${p.model||'Unknown Model'}</div></div><span style="width:12px;height:12px;border-radius:50%;background:${dotBg};display:block;flex-shrink:0"></span></div><div class="proj-mobile-meta"><span class="proj-mobile-chip">${displayIpLabel}</span><span class="proj-mobile-chip">Lamp ${lampHoursTxt} h</span><div class="proj-mobile-chip status"><span class="proj-mobile-link ${moduleOnline?'online':''}"><span class="proj-mobile-link-dot"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-mobile-actions"><button class="btn-g" onclick="event.stopPropagation();projOn(${i})">${locales[currentLang].projector_on}</button><button class="btn-o" onclick="event.stopPropagation();projOff(${i})">${locales[currentLang].projector_off}</button><button class="proj-shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div><div class="proj-webgui-row"><span style="font-size:10px;color:var(--muted)">WebGUI</span><button class="device-webgui-chip" data-view-allow onclick="event.stopPropagation();window.openProjectorWebGui(${i})">Open</button></div>`;
+    } else {
+      card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="event.stopPropagation();projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="event.stopPropagation();projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button class="shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div><div class="proj-webgui-row"><span style="font-size:10px;color:var(--muted)">WebGUI</span><button class="device-webgui-chip" data-view-allow onclick="event.stopPropagation();window.openProjectorWebGui(${i})">Open</button></div>`;
+    }
     card.addEventListener('click',()=>{ if(projectorSelectionMode) toggleProjectorSelection(i); });
     const overlay=document.createElement('div');
     overlay.className='offline-overlay'+(moduleOnline?'':' show');
@@ -4264,6 +5736,7 @@ function buildProjGrid(){
     section.appendChild(overlay);
     g.appendChild(section);
   });
+  updateProjectorResponsiveLayout();
   updateProjectorSelectionSummary();
   syncProjectorSelectedActionsVisibility();
 }
@@ -4423,13 +5896,24 @@ async function setProjectorPowerOn(index){
     addError(t('projector_no_ip_configured',{index:index+1}));
     return;
   }
+  if(demoMode){
+    clearProjectorTransition(index);
+    projStates[index].on=true;
+    projectorControlStates[index]='online';
+    projectorOnlineStates[index]=true;
+    persistDemoRuntimeState();
+    persistProjectorStatusSync(true);
+    return;
+  }
   try{
     startProjectorTransition(index,true);
     await pjLinkSetProjectorPower(index,true);
     projStates[index].on=true;
+    if(demoMode) persistDemoRuntimeState();
   }catch(e){
     clearProjectorTransition(index);
     projectorControlStates[index]='error';
+    persistProjectorStatusSync(true);
     addError(t('projector_power_on_failed',{index:index+1,error:e}));
     throw e;
   }
@@ -4441,13 +5925,24 @@ async function setProjectorPowerOff(index){
     addError(t('projector_no_ip_configured',{index:index+1}));
     return;
   }
+  if(demoMode){
+    clearProjectorTransition(index);
+    projStates[index].on=false;
+    projectorControlStates[index]='standby';
+    projectorOnlineStates[index]=true;
+    persistDemoRuntimeState();
+    persistProjectorStatusSync(true);
+    return;
+  }
   try{
     startProjectorTransition(index,false);
     await pjLinkSetProjectorPower(index,false);
     projStates[index].on=false;
+    if(demoMode) persistDemoRuntimeState();
   }catch(e){
     clearProjectorTransition(index);
     projectorControlStates[index]='error';
+    persistProjectorStatusSync(true);
     addError(t('projector_power_off_failed',{index:index+1,error:e}));
     throw e;
   }
@@ -4458,9 +5953,15 @@ async function setProjectorMuted(index, muted){
     addError(t('projector_no_ip_configured',{index:index+1}));
     return;
   }
+  if(demoMode){
+    projStates[index].mute=muted;
+    persistDemoRuntimeState();
+    return;
+  }
   try{
     await pjLinkSetProjectorShutter(index,muted);
     projStates[index].mute=muted;
+    if(demoMode) persistDemoRuntimeState();
   }catch(e){
     addError(t('projector_shutter_failed',{index:index+1,error:e}));
     throw e;
@@ -4541,9 +6042,12 @@ function buildMonProjGrid(forceRebuild=false){
 // ============================================================
 // AMP CHANNELS
 // ============================================================
-const ampMutes={1:[false,false,false,false],2:[false,false,false,false]};
-const ampGains={1:['-- dB','-- dB','-- dB','-- dB'],2:['-- dB','-- dB','-- dB','-- dB']};
-const ampCmdPending={1:false,2:false};let pollTimeoutId=null;
+const ampMutes={1:[false,false,false,false],2:[false,false,false,false],3:[false,false,false,false]};
+const ampGains={1:['-- dB','-- dB','-- dB','-- dB'],2:['-- dB','-- dB','-- dB','-- dB'],3:['-- dB','-- dB','-- dB','-- dB']};
+const ampCmdPending={1:false,2:false,3:false};let pollTimeoutId=null;
+let pixeraMasterMuted=null;
+let pixeraMasterMuteBusy=false;
+let pixeraMasterMuteSource='';
 const gainDialogState={amp:1,channel:0,current:0};
 
 function setAmpCommandPending(n){
@@ -4595,7 +6099,7 @@ window.confirmGainDialog = async () => {
     closeGainDialog();
     return;
   }
-  const ip = n === 1 ? cfg.d40_01_ip : cfg.d40_02_ip;
+  const ip = getAmpIp(n);
   setAmpCommandPending(n);
   try {
     await invoke('d40_set_gain', { ip, channel: ch, current, target });
@@ -4615,12 +6119,12 @@ async function pollD40Status(){
     applyDemoMode();
     return;
   }
-  for (const n of [1, 2]) {
+  for (const n of getConfiguredAmpNumbers()) {
     if (ampCmdPending[n]) {
       console.log(`Skipping poll for AMP ${n} (command pending)`);
       continue;
     }
-    const ip = n === 1 ? cfg.d40_01_ip : cfg.d40_02_ip;
+    const ip = getAmpIp(n);
     try {
       const result = await invoke('d40_status', { ip });
       if (!result || !result.channels) continue;
@@ -4659,43 +6163,44 @@ function buildAmpChannels(n){
 
 window.toggleMute=async(n,ch)=>{
   ampMutes[n][ch]=!ampMutes[n][ch];
-  const ip=n===1?cfg.d40_01_ip:cfg.d40_02_ip;
+  const ip=getAmpIp(n);
   const cmd=`${ampMutes[n][ch]?'mute':'unmute'}_${'ABCD'[ch]}`;
   setAmpCommandPending(n);
   await invoke('d40_command',{ip,command:cmd});
+  if(demoMode) persistDemoRuntimeState();
   addLog('info',`AMP 0${n}: ${cmd}`);
   buildAmpChannels(n);
 };
 
 window.d40MuteAll=async n=>{
   ampMutes[n]=[true,true,true,true];
-  const ip=n===1?cfg.d40_01_ip:cfg.d40_02_ip;
+  const ip=getAmpIp(n);
   setAmpCommandPending(n);
   await invoke('d40_command',{ip,command:'mute_all'});
+  if(demoMode) persistDemoRuntimeState();
   addLog('info',`AMP 0${n}: mute_all`);
   buildAmpChannels(n);
 };
 
 window.d40UnmuteAll=async n=>{
   ampMutes[n]=[false,false,false,false];
-  const ip=n===1?cfg.d40_01_ip:cfg.d40_02_ip;
+  const ip=getAmpIp(n);
   setAmpCommandPending(n);
   await invoke('d40_command',{ip,command:'unmute_all'});
+  if(demoMode) persistDemoRuntimeState();
   addLog('info',`AMP 0${n}: unmute_all`);
   buildAmpChannels(n);
 };
 
 async function muteAllD40ForEmergency(){
-  const amps = [
-    { n: 1, ip: cfg?.d40_01_ip },
-    { n: 2, ip: cfg?.d40_02_ip }
-  ];
+  const amps = getConfiguredAmpNumbers().map(n=>({n,ip:getAmpIp(n)}));
 
   amps.forEach(({ n }) => {
     ampMutes[n] = [true, true, true, true];
     setAmpCommandPending(n);
     buildAmpChannels(n);
   });
+  if(demoMode) persistDemoRuntimeState();
 
   const results = await Promise.allSettled(
     amps.map(async ({ n, ip }) => {
@@ -4737,8 +6242,15 @@ window.triggerPowerOff=async()=>{
     addError(t('scheduler_poweroff_failed',{error:e}));
   }
 };
-window.confirmEmergency=()=>{
+window.confirmEmergency=async()=>{
   activateEmergencyLock();
+  const companionUrl = getCompanionEmergencyPressUrl();
+  const companionOk = await triggerCompanionEmergencyPress();
+  if(companionOk){
+    addLog('info', `Companion emergency press sent: ${companionUrl}`);
+  } else {
+    addError(`Companion emergency press failed: ${companionUrl}`);
+  }
   switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
   addLogT('error','emergency_triggered');
   addError(`${locales[currentLang].emergency_description} ${locales[currentLang].emergency_hotline_lock_title}: ${cfg?.hotline||document.getElementById('em-hotline')?.textContent||''}`.trim());
@@ -4773,9 +6285,7 @@ window.camHome=async(cam)=>{
 
 window.camOpenWeb=(cam)=>{
   const ip=cameraIp(cam);
-  const url=`http://${ip}/live/index.html`;
-  invoke('open_external_url',{url})
-    .catch(()=>window.open(url,'_blank','noopener,noreferrer'));
+  openDeviceWebGui(ip);
 };
 
 window.camReloadStream=async(cam)=>{
@@ -5024,6 +6534,8 @@ let errorIdCounter=1;
 const MAX_LOG_ENTRIES_UI=2000;
 const MAX_ERROR_ENTRIES_UI=1000;
 let persistedLogsLoaded=false;
+let persistedSystemLogSyncTimer=null;
+let persistedSystemLogSyncInFlight=false;
 let sessionStartMs=Date.now();
 
 function formatLogTime(ts, withDate=false){
@@ -5032,7 +6544,6 @@ function formatLogTime(ts, withDate=false){
 }
 
 async function persistAppLog(type,msg,ts){
-  if(!isTauri) return;
   try{
     await invoke('append_app_log',{level:type,message:String(msg||''),timestampMs:Number(ts)||Date.now()});
   }catch(e){
@@ -5041,7 +6552,7 @@ async function persistAppLog(type,msg,ts){
 }
 
 async function loadPersistedLogs(){
-  if(!isTauri || persistedLogsLoaded) return;
+  if(persistedLogsLoaded) return;
   persistedLogsLoaded=true;
   try{
     const data=await invoke('load_app_logs',{limit:2000});
@@ -5088,6 +6599,38 @@ async function loadPersistedLogs(){
   }
 }
 
+async function refreshPersistedSystemLog(){
+  if(!persistedLogsLoaded || persistedSystemLogSyncInFlight) return;
+  persistedSystemLogSyncInFlight=true;
+  try{
+    const data=await invoke('load_app_logs',{limit:2000});
+    const systemEntries=Array.isArray(data?.system)?data.system:[];
+    logs.length=0;
+    for(const entry of systemEntries){
+      const ts=Number(entry?.timestamp_ms)||Date.now();
+      logs.push({
+        type:String(entry?.level||'info').toLowerCase()==='error'?'error':'info',
+        msg:String(entry?.message||''),
+        ts,
+        time:formatLogTime(ts,false)
+      });
+      if(logs.length>=MAX_LOG_ENTRIES_UI) break;
+    }
+    renderLog();
+  }catch(_e){
+    // Ignore transient refresh errors to keep UI quiet.
+  }finally{
+    persistedSystemLogSyncInFlight=false;
+  }
+}
+
+function startPersistedSystemLogSync(){
+  if(persistedSystemLogSyncTimer) clearInterval(persistedSystemLogSyncTimer);
+  persistedSystemLogSyncTimer=setInterval(()=>{
+    refreshPersistedSystemLog();
+  },3000);
+}
+
 function addLog(type,msg,opts={}){
   const ts=Number(opts.timestampMs)||Date.now();
   const persist=opts.persist!==false;
@@ -5129,6 +6672,7 @@ function updateErrorBadge(){
   const nc=document.getElementById('err-nav-count');if(nc){nc.textContent=c;nc.classList.toggle('show',c>0);}
   document.getElementById('tb-warn-count').textContent=c;
   if(c===0){document.getElementById('tb-warn-pill')?.classList.remove('show');document.getElementById('warn-banner')?.classList.remove('show');}
+  if(typeof updateMobileTestHome === 'function') updateMobileTestHome();
 }
 
 function isUpsErrorMessage(msg){
@@ -5170,6 +6714,7 @@ function renderLog(){
   const el=document.getElementById('system-log');if(!el)return;
   el.innerHTML=logs.map(l=>`<div style="background:rgba(96,165,250,.06);border-left:3px solid ${l.type==='error'?'var(--red)':'var(--blue)'};border-radius:4px;padding:6px 8px"><div style="font-family:var(--mono);color:#6b7280;font-size:10px;margin-bottom:1px">${l.time}</div><div style="color:#d4d0f0;font-size:11px">${localizeLogMessage(l.msg)}</div></div>`).join('');
   const cnt=document.getElementById('log-count');if(cnt)cnt.textContent=locales[currentLang].log_entries.replace('{count}', logs.length);
+  if(typeof updateMobileTestHome === 'function') updateMobileTestHome();
 }
 function renderErrors(){
   const el=document.getElementById('active-errors');if(!el)return;
@@ -5206,18 +6751,30 @@ async function pollAll(){
   }
   await syncProjectorsFromPjLink();
 
-  const d1=await tcpPing(cfg.d40_01_ip,80),d2=await tcpPing(cfg.d40_02_ip,80);
-  setDeviceOnline('amp1',d1,'D40 AMP 01 (IP: 192.168.1.51)','overlay-amp1');
-  setDeviceOnline('amp2',d2,'D40 AMP 02 (IP: 192.168.1.52)','overlay-amp2');
-  setStatus(['sb-d40-01','amp1-dot','mon-amp1','amp1-online','sys-d40-01'],d1);
-  setStatus(['sb-d40-02','amp2-dot','mon-amp2','amp2-online','sys-d40-02'],d2);
+  const ampOnlineStates=[];
+  for(const n of [1,2,3]){
+    const enabled=n<=getAmpCount();
+    const ampOnline=enabled ? await tcpPing(getAmpIp(n),80) : false;
+    ampOnlineStates.push(ampOnline);
+    setDeviceOnline(`amp${n}`, ampOnline, `D40 AMP 0${n} (IP: ${getAmpIp(n)})`, `overlay-amp${n}`);
+    setStatus([
+      `sb-d40-0${n}`,
+      `amp${n}-dot`,
+      `mon-amp${n}`,
+      `amp${n}-online`,
+      `sys-d40-0${n}`
+    ], ampOnline);
+  }
+  updateAudioNavBadge(getConfiguredAmpNumbers().map(n=>ampOnlineStates[n-1]));
 
-  if(!getPixeraDirectorOnline()){
+  const pixeraPort=Number(cfg.pixera_port||1338);
+  const directorOnline=await tcpPing(cfg.pixera_ip,pixeraPort);
+  setPixeraDirectorReachability(directorOnline);
+  if(directorOnline && !getPixeraApiOnline()){
     try{ await pixeraApiCall(buildPixeraPaths('Pixera.Timelines.getTimelines'),[]); }catch(e){}
   }
-  const directorOnline=getPixeraDirectorOnline();
-  setDeviceOnline('pixera',directorOnline,'Pixera Director (IP: 192.168.1.31)',null);
-  setPixeraDirectorUi(directorOnline);
+  const pixeraApiOnline=getPixeraApiOnline();
+  setPixeraDirectorUi(directorOnline,pixeraApiOnline);
 
   const nas=await tcpPing(cfg.nas_ip,cfg.nas_port);
   setDeviceOnline('nas',nas,'Synology NAS (IP: 192.168.1.21)','overlay-nas');
@@ -5256,15 +6813,32 @@ async function pollAll(){
   updateCamerasNavBadge(c1,c2);
 
   const octoPort=Number(cfg.pixera_octo_port||4000);
-  const [octo1Ping,octo2Ping]=await Promise.all([
-    tcpPing(cfg.pixera_octo1_ip,octoPort),
-    tcpPing(cfg.pixera_octo2_ip,octoPort)
-  ]);
-  setDeviceOnline('octo1',octo1Ping,'Pixera Octo 01 (IP: 192.168.1.32)',null);
-  setDeviceOnline('octo2',octo2Ping,'Pixera Octo 02 (IP: 192.168.1.33)',null);
-  setStatus(['mon-octo1','sys-octo1'],octo1Ping);
-  setStatus(['mon-octo2','sys-octo2'],octo2Ping);
-  updateMonitoringNavBadge([directorOnline,d1,d2,nas,poe,rutx,ups,jan,c1,c2,octo1Ping,octo2Ping,...projectorOnlineStates]);
+  const octoCount=getPixeraOctoCount();
+  let octo1Ping=false;
+  let octo2Ping=false;
+  if(octoCount>=1){
+    const octo1Result=await pingAnyPixeraOctoTarget(getPixeraOctoScanTargets(1),octoPort);
+    octo1Ping=octo1Result.online;
+    setResolvedPixeraOctoHost(1, octo1Ping ? octo1Result.host : '');
+  }else{
+    setResolvedPixeraOctoHost(1, '');
+  }
+  if(octoCount>=2){
+    const octo2Result=await pingAnyPixeraOctoTarget(getPixeraOctoScanTargets(2),octoPort);
+    octo2Ping=octo2Result.online;
+    setResolvedPixeraOctoHost(2, octo2Ping ? octo2Result.host : '');
+  }else{
+    setResolvedPixeraOctoHost(2, '');
+  }
+  updatePixeraSystemServerLabels();
+  setDeviceOnline('octo1',octoCount>=1?octo1Ping:false,getPixeraServerDisplayName('octo1'),null);
+  setDeviceOnline('octo2',octoCount>=2?octo2Ping:false,getPixeraServerDisplayName('octo2'),null);
+  setStatus(['mon-octo1','sys-octo1'],octoCount>=1?octo1Ping:false);
+  setStatus(['mon-octo2','sys-octo2'],octoCount>=2?octo2Ping:false);
+  const octoStates=[];
+  if(octoCount>=1) octoStates.push(octo1Ping);
+  if(octoCount>=2) octoStates.push(octo2Ping);
+  updateMonitoringNavBadge([directorOnline,...getConfiguredAmpNumbers().map(n=>ampOnlineStates[n-1]),nas,poe,rutx,ups,jan,c1,c2,...octoStates,...projectorOnlineStates]);
 }
 
 // ============================================================
@@ -5287,6 +6861,7 @@ let _nextEventRttSamples=[];
 let _nextEventLastName='';
 let _lastTriggeredEventName='';
 let _lastTriggeredEventTsMs=0;
+let _pixeraDirectorOnline=false;
 let _pixeraApiOnline=false;
 let _pixeraApiConsecutiveOk=0;
 let _pixeraApiConsecutiveFail=0;
@@ -5319,20 +6894,45 @@ async function runStartupConnectivityChecks(){
   const poePingPort=Number(cfg.poe_switch_ping_port||443);
   const rutxPingPort=Number(cfg.rutx50_ping_port||443);
   const octoPort=Number(cfg.pixera_octo_port||4000);
+  const octoCount=getPixeraOctoCount();
+  const ampChecks=getConfiguredAmpNumbers().map(n=>({
+    name:`D40 AMP 0${n}`,
+    host:getAmpIp(n),
+    port:80,
+    run:()=>tcpPing(getAmpIp(n),80,{throwOnFail:true})
+  }));
   const checks=[
     {name:'Pixera Director', host:cfg.pixera_ip, port:pixeraPort, run:()=>tcpPing(cfg.pixera_ip,pixeraPort,{throwOnFail:true})},
-    {name:'D40 AMP 01', host:cfg.d40_01_ip, port:80, run:()=>tcpPing(cfg.d40_01_ip,80,{throwOnFail:true})},
-    {name:'D40 AMP 02', host:cfg.d40_02_ip, port:80, run:()=>tcpPing(cfg.d40_02_ip,80,{throwOnFail:true})},
+    ...ampChecks,
     {name:'NAS', host:cfg.nas_ip, port:nasPort, run:()=>tcpPing(cfg.nas_ip,nasPort,{throwOnFail:true})},
     {name:'PoE Switch', host:cfg.poe_switch_ip||DEFAULT_POE_IP, port:poePingPort, run:()=>tcpPing(cfg.poe_switch_ip||DEFAULT_POE_IP,poePingPort,{throwOnFail:true})},
     {name:'RUTX50', host:cfg.rutx50_ip||DEFAULT_RUTX50_IP, port:rutxPingPort, run:()=>tcpPing(cfg.rutx50_ip||DEFAULT_RUTX50_IP,rutxPingPort,{throwOnFail:true})},
     {name:'UPS', host:cfg.ups_ip, port:443, run:()=>tcpPing(cfg.ups_ip,443,{throwOnFail:true})},
     {name:'Janitza', host:cfg.power_disp_ip, port:80, run:()=>tcpPing(cfg.power_disp_ip,80,{throwOnFail:true})},
     {name:'Cam 01', host:cfg.cam_01_ip, port:80, run:()=>tcpPing(cfg.cam_01_ip,80,{throwOnFail:true})},
-    {name:'Cam 02', host:cfg.cam_02_ip, port:80, run:()=>tcpPing(cfg.cam_02_ip,80,{throwOnFail:true})},
-    {name:'Pixera Octo 01', host:cfg.pixera_octo1_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo1_ip,octoPort,{throwOnFail:true})},
-    {name:'Pixera Octo 02', host:cfg.pixera_octo2_ip, port:octoPort, run:()=>tcpPing(cfg.pixera_octo2_ip,octoPort,{throwOnFail:true})}
+    {name:'Cam 02', host:cfg.cam_02_ip, port:80, run:()=>tcpPing(cfg.cam_02_ip,80,{throwOnFail:true})}
   ];
+  if(octoCount>=1){
+    const octo1Targets=getPixeraOctoScanTargets(1);
+    checks.push({
+      name:octoCount===1?'Pixera Octo 01':'Pixera Octo 01',
+      host:octo1Targets.join(' / '),
+      port:octoPort,
+      run:async()=>{
+        const result=await pingAnyPixeraOctoTarget(octo1Targets,octoPort,{throwOnFail:true});
+        if(result.online) return true;
+        throw new Error('Timeout oder keine Antwort');
+      }
+    });
+  }
+  if(octoCount>=2){
+    const octo2Targets=getPixeraOctoScanTargets(2);
+    checks.push({name:'Pixera Octo 02', host:octo2Targets.join(' / '), port:octoPort, run:async()=>{
+      const result=await pingAnyPixeraOctoTarget(octo2Targets,octoPort,{throwOnFail:true});
+      if(result.online) return true;
+      throw new Error('Timeout oder keine Antwort');
+    }});
+  }
 
   // Include all configured projectors in startup checks via PJLink port.
   // Offline projectors are collected in `failed` and written to the error log later.
@@ -5417,18 +7017,35 @@ function finalizeStartupScreen(failed){
   setTimeout(closeStartupOverlay,450);
 }
 
-function setPixeraDirectorUi(online){
-  setStatus(['sb-pixera','sys-pixera','mon-director'],online);
+function setPixeraDirectorUi(directorOnline=getPixeraDirectorOnline(), apiOnline=getPixeraApiOnline()){
+  setStatus(['sb-pixera','sys-pixera','mon-director'],directorOnline);
   const sbPixera=document.getElementById('sb-pixera-state');
-  if(sbPixera) sbPixera.textContent=online?locales[currentLang].online:locales[currentLang].offline;
+  if(sbPixera) sbPixera.textContent=directorOnline?locales[currentLang].online:locales[currentLang].offline;
   const sbTl=document.getElementById('sb-tl-status');
-  if(sbTl) sbTl.textContent=online?locales[currentLang].pixera_connected:locales[currentLang].pixera_disconnected;
-  updateShowNavBadge(online);
-  updateAudioNavBadge(Boolean(deviceState.amp1), Boolean(deviceState.amp2));
+  if(sbTl) sbTl.textContent=apiOnline?locales[currentLang].pixera_api_connected:locales[currentLang].pixera_api_disconnected;
+  updateShowNavBadge(apiOnline);
+  updateAudioNavBadge(getConfiguredAmpNumbers().map(n=>Boolean(deviceState[`amp${n}`])));
+  if(typeof updateMobileTestHome === 'function') updateMobileTestHome();
 }
 
 function getPixeraDirectorOnline(){
+  return _pixeraDirectorOnline;
+}
+
+function getPixeraApiOnline(){
   return _pixeraApiOnline;
+}
+
+function setPixeraDirectorReachability(online){
+  _pixeraDirectorOnline=online===true;
+  setDeviceOnline('pixera_director',_pixeraDirectorOnline,getPixeraServerDisplayName('director'),null);
+  if(!_pixeraDirectorOnline && _pixeraApiOnline){
+    _pixeraApiConsecutiveOk=0;
+    _pixeraApiConsecutiveFail=0;
+    _pixeraApiOnline=false;
+    setDeviceOnline('pixera_api',false,'Pixera API (ws_avio)',null);
+  }
+  setPixeraDirectorUi(_pixeraDirectorOnline,_pixeraApiOnline);
 }
 
 function markPixeraApiSuccess(){
@@ -5436,8 +7053,8 @@ function markPixeraApiSuccess(){
   _pixeraApiConsecutiveOk+=1;
   if(!_pixeraApiOnline && _pixeraApiConsecutiveOk>=1){
     _pixeraApiOnline=true;
-    setDeviceOnline('pixera',true,'Pixera Director (IP: 192.168.1.31)',null);
-    setPixeraDirectorUi(true);
+    setDeviceOnline('pixera_api',true,'Pixera API (ws_avio)',null);
+    setPixeraDirectorUi(_pixeraDirectorOnline,true);
   }
 }
 
@@ -5446,8 +7063,8 @@ function markPixeraApiFailure(){
   _pixeraApiConsecutiveFail+=1;
   if(_pixeraApiOnline && _pixeraApiConsecutiveFail>=3){
     _pixeraApiOnline=false;
-    setDeviceOnline('pixera',false,'Pixera Director (IP: 192.168.1.31)',null);
-    setPixeraDirectorUi(false);
+    setDeviceOnline('pixera_api',false,'Pixera API (ws_avio)',null);
+    setPixeraDirectorUi(_pixeraDirectorOnline,false);
   }
 }
 
@@ -5488,35 +7105,31 @@ function normalizePixeraResult(result){
   return result;
 }
 
+function isDirectorConnectivityError(err){
+  const msg=String(err||'').toLowerCase();
+  if(!msg) return false;
+  return (
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('websocket error') ||
+    msg.includes('verbindung geschlossen') ||
+    msg.includes('connection closed') ||
+    msg.includes('send failed') ||
+    msg.includes('receive failed') ||
+    msg.includes('refused') ||
+    msg.includes('10061') ||
+    msg.includes('host unreachable') ||
+    msg.includes('network is unreachable')
+  );
+}
+
 function pixeraApiRequest(address, params=[], timeoutMs=3500, host=cfg.pixera_ip, port=cfg.pixera_port){
-  return new Promise((resolve,reject)=>{
-    let done=false;
-    const sequence=Math.floor(Date.now()%1000000000);
-    const ws=new WebSocket(`ws://${host}:${Number(port||1338)}${PIXERA_API_WS_PATH}`, PIXERA_API_WS_PROTOCOL);
-    const cleanup=(err,val)=>{
-      if(done) return;
-      done=true;
-      clearTimeout(timer);
-      try{ ws.close(); }catch{}
-      if(err) reject(err); else resolve(val);
-    };
-    const timer=setTimeout(()=>cleanup(new Error(`Pixera API timeout: ${address}`)), timeoutMs);
-    ws.onopen=()=>{
-      try{
-        ws.send(JSON.stringify({type:'Request',sequence,address,params}));
-      }catch(e){
-        cleanup(e);
-      }
-    };
-    ws.onerror=()=>cleanup(new Error(`Pixera API websocket error: ${host}:${port}`));
-    ws.onmessage=(event)=>{
-      try{
-        const data=JSON.parse(event.data);
-        if(Number(data.sequence)===sequence) cleanup(null,data.result);
-      }catch(e){
-        cleanup(e);
-      }
-    };
+  return invokeStrict('pixera_api_request', {
+    address,
+    params,
+    timeoutMs,
+    host,
+    port: Number(port || 1338)
   });
 }
 
@@ -5526,6 +7139,7 @@ async function pixeraApiCall(paths, params=[], host=cfg.pixera_ip, port=cfg.pixe
   const candidates=Array.isArray(paths)?paths:[paths];
   const shouldTrackDirectorApi = host===cfg.pixera_ip && Number(port||1338)===Number(cfg.pixera_port||1338);
   let lastError=null;
+  let sawConnectivityFailure=false;
   for(const path of candidates){
     try{
       const result=await pixeraApiRequest(path,params,3500,host,port);
@@ -5538,10 +7152,11 @@ async function pixeraApiCall(paths, params=[], host=cfg.pixera_ip, port=cfg.pixe
       if(shouldTrackDirectorApi) markPixeraApiSuccess();
       return normalized;
     }catch(e){
+      if(shouldTrackDirectorApi && isDirectorConnectivityError(e)) sawConnectivityFailure=true;
       lastError=e;
     }
   }
-  if(shouldTrackDirectorApi) markPixeraApiFailure();
+  if(shouldTrackDirectorApi && sawConnectivityFailure) markPixeraApiFailure();
   throw lastError||new Error('Pixera API call failed');
 }
 
@@ -5554,6 +7169,7 @@ async function syncProjectorsFromPjLink(){
   if(demoMode) return;
   if(pjlinkSyncInFlight) return;
   if(projectorPowerCommandActive) return;  // Pause polling during power commands
+  const prevStatusFingerprint = projectorControlStatesFingerprint(projectorControlStates);
   pjlinkSyncInFlight=true;
   applyProjectorIpConfig();
   let anyOk=false;
@@ -5633,6 +7249,9 @@ async function syncProjectorsFromPjLink(){
   buildMonProjGrid(true);
   updateProjectorMonitoringGrid();
   updateProjectorsNavBadge();
+  if(projectorControlStatesFingerprint(projectorControlStates) !== prevStatusFingerprint){
+    persistProjectorStatusSync();
+  }
 }
 
 async function detectProjectorModelsOnStartup(){
@@ -5664,6 +7283,37 @@ async function pjLinkCall(methodName, params=[]){
   return pixeraApiCall(modulePaths(moduleName, methodName), params);
 }
 
+async function hubCall(methodNames, params=[], options={}){
+  const allowEmpty = options?.allowEmpty !== false;
+  const moduleCandidates=[];
+  const pushCandidate=(name)=>{
+    const value=String(name||'').trim();
+    if(!value) return;
+    if(moduleCandidates.some(existing=>existing.toLowerCase()===value.toLowerCase())) return;
+    moduleCandidates.push(value);
+  };
+
+  pushCandidate(DEFAULT_PIXERA_HUB_MODULE);
+  pushCandidate(_pixeraHubModuleResolved);
+  pushCandidate(cfg?.pixera_hub_module);
+  for(const fallback of FALLBACK_PIXERA_HUB_MODULES) pushCandidate(fallback);
+
+  const methodCandidates=Array.isArray(methodNames)?methodNames:[methodNames];
+  let firstError=null;
+  for(const moduleName of moduleCandidates){
+    for(const methodName of methodCandidates){
+      try{
+        const result=await pixeraApiCall(modulePaths(moduleName, methodName), params, cfg.pixera_ip, cfg.pixera_port, {allowEmpty});
+        if(_pixeraHubModuleResolved!==moduleName) _pixeraHubModuleResolved=moduleName;
+        return result;
+      }catch(e){
+        if(!firstError) firstError=e;
+      }
+    }
+  }
+  throw firstError||new Error('Pixera hub call failed');
+}
+
 async function schedulerCall(methodName, params=[], options={}){
   const allowEmpty = options?.allowEmpty !== false;
   const candidates=[];
@@ -5674,7 +7324,7 @@ async function schedulerCall(methodName, params=[], options={}){
     candidates.push(value);
   };
 
-  // Always prefer V21 first; older module names are only fallback.
+  // Prefer current scheduler module first; older names are fallback.
   pushCandidate(DEFAULT_PIXERA_SCHEDULER_MODULE);
   pushCandidate(_schedulerModuleResolved);
   pushCandidate(cfg?.pixera_scheduler_module);
@@ -5694,6 +7344,240 @@ async function schedulerCall(methodName, params=[], options={}){
   if(firstError) throw firstError;
   throw new Error(`Scheduler call failed for ${methodName} on modules: ${candidates.join(', ')}`);
 }
+
+const PIXERA_AUDIO_MASTER_MUTE_CHANNEL=0;
+
+function buildPixeraMethodPathCandidates(methodName){
+  const raw=[
+    ...buildPixeraPaths(methodName),
+    ...buildPixeraPaths(`Pixera.Utility.${methodName}`),
+    ...buildPixeraPaths(`Pixera.${methodName}`)
+  ];
+  const deduped=[];
+  for(const p of raw){
+    const v=String(p||'').trim();
+    if(!v) continue;
+    if(deduped.some(existing=>existing.toLowerCase()===v.toLowerCase())) continue;
+    deduped.push(v);
+  }
+  return deduped;
+}
+
+async function pixeraOfficialGetAudioMasterMute(channel=PIXERA_AUDIO_MASTER_MUTE_CHANNEL){
+  const channelCandidates=[];
+  const pushChannel=(value)=>{
+    const num=Number(value);
+    if(!Number.isFinite(num)) return;
+    if(channelCandidates.includes(num)) return;
+    channelCandidates.push(num);
+  };
+  pushChannel(channel);
+  pushChannel(1);
+  pushChannel(0);
+
+  let lastError=null;
+  for(const ch of channelCandidates){
+    try{
+      const raw=await pixeraApiCall(
+        buildPixeraMethodPathCandidates('getAudioMasterMute'),
+        [ch],
+        cfg.pixera_ip,
+        cfg.pixera_port,
+        {allowEmpty:false}
+      );
+      return { raw, channel: ch };
+    }catch(e){
+      lastError=e;
+    }
+  }
+  throw lastError||new Error('getAudioMasterMute lieferte keinen gueltigen Wert');
+}
+
+async function pixeraOfficialSetAudioMasterMute(state, channel=PIXERA_AUDIO_MASTER_MUTE_CHANNEL){
+  const channelCandidates=[];
+  const pushChannel=(value)=>{
+    const num=Number(value);
+    if(!Number.isFinite(num)) return;
+    if(channelCandidates.includes(num)) return;
+    channelCandidates.push(num);
+  };
+  pushChannel(channel);
+  pushChannel(1);
+  pushChannel(0);
+
+  let lastError=null;
+  for(const ch of channelCandidates){
+    try{
+      await pixeraApiCall(
+        buildPixeraMethodPathCandidates('setAudioMasterMute'),
+        [ch, !!state],
+        cfg.pixera_ip,
+        cfg.pixera_port,
+        {allowEmpty:true}
+      );
+      return ch;
+    }catch(e){
+      lastError=e;
+    }
+  }
+  throw lastError||new Error('setAudioMasterMute fehlgeschlagen');
+}
+
+async function pixeraOfficialToggleAudioMasterMute(channel=PIXERA_AUDIO_MASTER_MUTE_CHANNEL){
+  const channelCandidates=[];
+  const pushChannel=(value)=>{
+    const num=Number(value);
+    if(!Number.isFinite(num)) return;
+    if(channelCandidates.includes(num)) return;
+    channelCandidates.push(num);
+  };
+  pushChannel(channel);
+  pushChannel(1);
+  pushChannel(0);
+
+  let lastError=null;
+  for(const ch of channelCandidates){
+    try{
+      await pixeraApiCall(
+        buildPixeraMethodPathCandidates('toggleAudioMasterMute'),
+        [ch],
+        cfg.pixera_ip,
+        cfg.pixera_port,
+        {allowEmpty:true}
+      );
+      return ch;
+    }catch(e){
+      lastError=e;
+    }
+  }
+  throw lastError||new Error('toggleAudioMasterMute fehlgeschlagen');
+}
+
+function parsePixeraMuteState(value){
+  if(value===true || value===false) return value;
+  if(typeof value==='number') return value!==0;
+  if(typeof value==='string'){
+    const s=value.trim().toLowerCase();
+    if(!s) return null;
+    if(s==='1' || s==='true' || s==='on' || s==='mute' || s==='muted') return true;
+    if(s==='0' || s==='false' || s==='off' || s==='unmute' || s==='unmuted') return false;
+    if(s.includes('unmuted')) return false;
+    if(s.includes('muted')) return true;
+    if((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))){
+      try{return parsePixeraMuteState(JSON.parse(s));}catch(_e){return null;}
+    }
+    return null;
+  }
+  if(Array.isArray(value)){
+    for(const item of value){
+      const parsed=parsePixeraMuteState(item);
+      if(parsed!==null) return parsed;
+    }
+    return null;
+  }
+  if(value && typeof value==='object'){
+    const keys=['muted','isMuted','masterMuted','masterMute','mute','state','value','result'];
+    for(const key of keys){
+      if(Object.prototype.hasOwnProperty.call(value,key)){
+        const parsed=parsePixeraMuteState(value[key]);
+        if(parsed!==null) return parsed;
+      }
+    }
+  }
+  return null;
+}
+
+function setPixeraMasterMuteUi(){
+  const pill=document.getElementById('pixera-master-mute-status-pill');
+  const text=document.getElementById('pixera-master-mute-status-text');
+  const btn=document.getElementById('pixera-master-mute-toggle-btn');
+  const meta=document.getElementById('pixera-master-mute-meta');
+  if(!pill || !text || !btn || !meta) return;
+
+  if(pixeraMasterMuteBusy){
+    text.textContent='Lade...';
+    pill.className='pill pill-o';
+    btn.disabled=true;
+    btn.textContent='Bitte warten...';
+  } else if(pixeraMasterMuted===true){
+    text.textContent='Gemutet';
+    pill.className='pill pill-o';
+    btn.disabled=false;
+    btn.textContent='Unmute';
+  } else if(pixeraMasterMuted===false){
+    text.textContent='Unmuted';
+    pill.className='pill pill-g';
+    btn.disabled=false;
+    btn.textContent='Mute';
+  } else {
+    text.textContent='Unbekannt';
+    pill.className='pill pill-r';
+    btn.disabled=false;
+    btn.textContent='Status laden';
+  }
+
+  meta.textContent = `API: ${pixeraMasterMuteSource || '—'}`;
+}
+
+window.pollPixeraMasterMuteStatus=async(force=false)=>{
+  if(pixeraMasterMuteBusy && !force) return;
+  if(demoMode){
+    if(pixeraMasterMuted===null) pixeraMasterMuted=false;
+    pixeraMasterMuteSource='demo';
+    setPixeraMasterMuteUi();
+    return;
+  }
+  pixeraMasterMuteBusy=true;
+  setPixeraMasterMuteUi();
+  try{
+    const { raw, channel } = await pixeraOfficialGetAudioMasterMute();
+    const parsed=parsePixeraMuteState(raw);
+    if(parsed===null) throw new Error(`Ungueltiger Master-Mute-Status: ${JSON.stringify(raw)}`);
+    pixeraMasterMuted=parsed;
+    pixeraMasterMuteSource=`official:getAudioMasterMute(ch=${channel})`;
+  }catch(e){
+    pixeraMasterMuted=null;
+    pixeraMasterMuteSource=`error: ${String(e||'unknown')}`;
+  }finally{
+    pixeraMasterMuteBusy=false;
+    setPixeraMasterMuteUi();
+  }
+};
+
+window.togglePixeraMasterMute=async()=>{
+  if(pixeraMasterMuteBusy) return;
+  const targetMuted = !(pixeraMasterMuted===true);
+  if(demoMode){
+    pixeraMasterMuted=targetMuted;
+    pixeraMasterMuteSource='demo';
+    setPixeraMasterMuteUi();
+    addLog('info',`Pixera Master Mute (Demo): ${targetMuted?'ON':'OFF'}`);
+    return;
+  }
+
+  pixeraMasterMuteBusy=true;
+  setPixeraMasterMuteUi();
+  try{
+    const channel = await pixeraOfficialSetAudioMasterMute(targetMuted);
+    pixeraMasterMuted=targetMuted;
+    pixeraMasterMuteSource=`official:setAudioMasterMute(ch=${channel})`;
+    addLog('info',`Pixera Master Mute: ${targetMuted?'ON':'OFF'} (official:setAudioMasterMute ch=${channel})`);
+    await window.pollPixeraMasterMuteStatus(true);
+  }catch(e){
+    try{
+      const channel = await pixeraOfficialToggleAudioMasterMute();
+      pixeraMasterMuted=targetMuted;
+      pixeraMasterMuteSource=`official:toggleAudioMasterMute(ch=${channel})`;
+      addLog('info',`Pixera Master Mute: ${targetMuted?'ON':'OFF'} (official:toggleAudioMasterMute ch=${channel})`);
+      await window.pollPixeraMasterMuteStatus(true);
+    }catch(toggleErr){
+      addError(`Pixera Master Mute Fehler: ${e} | Toggle-Fallback Fehler: ${toggleErr}`);
+    }
+  }finally{
+    pixeraMasterMuteBusy=false;
+    setPixeraMasterMuteUi();
+  }
+};
 
 async function schedulerWarmupV21(){
   try{ await schedulerCall('ref'); }catch{}
@@ -6168,8 +8052,76 @@ async function pollSchedulerUpcoming(){
 
 window.restartPixeraServer=async(serverKey)=>{
   if(demoMode) return;
-  const map={director:'Pixera Director (IP: 192.168.1.31)',octo1:'Pixera Octo 01 (IP: 192.168.1.32)',octo2:'Pixera Octo 02 (IP: 192.168.1.33)'};
-  addError(t('pixera_restart_not_implemented',{server:map[serverKey]||serverKey}));
+
+  const resolveTarget=async()=>{
+    if(serverKey==='director'){
+      return {
+        hubIndex:1,
+        host:String(cfg?.pixera_ip||'').trim(),
+        label:getPixeraServerDisplayName('director')
+      };
+    }
+
+    const octoCount=getPixeraOctoCount();
+    if(serverKey==='octo1'){
+      if(octoCount<1) return {status:'unavailable'};
+      if(octoCount===1){
+        const result=await pingAnyPixeraOctoTarget(getPixeraOctoScanTargets(1), Number(cfg?.pixera_octo_port||4000));
+        if(!result.online || !result.host) return {status:'unresolved'};
+        const host=String(result.host||'').trim();
+        const octo1Ip=String(cfg?.pixera_octo1_ip||'').trim();
+        const octo2Ip=String(cfg?.pixera_octo2_ip||'').trim();
+        const hubIndex=host===octo1Ip?2:(host===octo2Ip?3:0);
+        if(!hubIndex) return {status:'unresolved'};
+        setResolvedPixeraOctoHost(1, host);
+        updatePixeraSystemServerLabels();
+        return {status:'ok', hubIndex, host, label:getPixeraServerDisplayName('octo1')};
+      }
+
+      const host=String(cfg?.pixera_octo1_ip||'').trim();
+      setResolvedPixeraOctoHost(1, host);
+      updatePixeraSystemServerLabels();
+      return {status:'ok', hubIndex:2, host, label:getPixeraServerDisplayName('octo1')};
+    }
+
+    if(serverKey==='octo2'){
+      if(octoCount<2) return {status:'unavailable'};
+      const host=String(cfg?.pixera_octo2_ip||'').trim();
+      setResolvedPixeraOctoHost(2, host);
+      updatePixeraSystemServerLabels();
+      return {status:'ok', hubIndex:3, host, label:getPixeraServerDisplayName('octo2')};
+    }
+
+    return {status:'unavailable'};
+  };
+
+  try{
+    const target=await resolveTarget();
+    const label=getPixeraServerDisplayName(serverKey);
+    if(target?.status==='unavailable'){
+      addError(t('pixera_restart_unavailable',{server:label}));
+      return;
+    }
+    if(target?.status==='unresolved' || !target?.host){
+      addError(t('pixera_restart_target_unresolved',{server:label}));
+      return;
+    }
+
+    await hubCall([
+      `Single_Hub.ForceReboot_${target.hubIndex}`,
+      `ForceReboot_${target.hubIndex}`
+    ]);
+    addLogT('info','pixera_restart_sent',{
+      server:target.label,
+      hubIndex:target.hubIndex,
+      host:target.host
+    });
+  }catch(e){
+    addError(t('pixera_restart_failed',{
+      server:getPixeraServerDisplayName(serverKey),
+      error:e
+    }));
+  }
 };
 
 window.pixeraPlay=async()=>{
@@ -6223,6 +8175,9 @@ window.addEventListener('unhandledrejection',(ev)=>{
     console.error('[Error in unhandledrejection handler]',e);
   }
 });
+
+window.addEventListener('resize', scheduleUiModeRefresh);
+window.addEventListener('orientationchange', scheduleUiModeRefresh);
 
 init().catch((e)=>{
   const reason = String(e?.message || e || locales[currentLang].unknown_init_error);

@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 #![recursion_limit = "256"]
 mod oca;
 use base64::{engine::general_purpose, Engine as _};
@@ -20,6 +20,13 @@ use std::thread;
 use std::time::Duration;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use chrono::{Local, TimeZone};
+use futures_util::{SinkExt, StreamExt};
+use tiny_http::{Header, Method, Response, Server, StatusCode};
+use tokio::time::timeout;
+use tokio_tungstenite::connect_async;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::http::HeaderValue;
+use tokio_tungstenite::tungstenite::Message;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
@@ -34,6 +41,8 @@ static CAMERA_STREAMS: OnceLock<Mutex<HashMap<String, CameraStreamHandle>>> = On
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static FFMPEG_SETUP_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 const CAMERA_MJPEG_PORT: u16 = 41777;
+const LAN_WEB_PORT: u16 = 41778;
+const WEBGUI_INDEX_HTML: &str = include_str!("../../frontend/index.html");
 const CAMERA_STREAM_IDLE_TIMEOUT_SECS: u64 = 90;
 const CAMERA_STREAM_STALE_TIMEOUT_SECS: u64 = 60;
 const CAMERA_STREAM_FIRST_FRAME_TIMEOUT_SECS: u64 = 20;
@@ -46,6 +55,11 @@ const LOG_PRUNE_INTERVAL_MS: u64 = 12 * 60 * 60 * 1000;
 static APP_LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
 static LAST_LOG_PRUNE_MS: OnceLock<Mutex<u64>> = OnceLock::new();
 static TELEGRAM_LAST_SENT: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+
+fn current_webgui_index_html() -> String {
+    let disk_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../frontend/index.html");
+    fs::read_to_string(disk_path).unwrap_or_else(|_| WEBGUI_INDEX_HTML.to_string())
+}
 
 const TELEGRAM_MIN_REPEAT_MS: u64 = 60_000;
 
@@ -220,7 +234,7 @@ fn classify_error_category(message: &str) -> &'static str {
 
 fn normalize_text(input: &str) -> String {
     input
-        .to_ascii_lowercase()
+    .to_lowercase()
         .replace('ä', "ae")
         .replace('ö', "oe")
         .replace('ü', "ue")
@@ -230,7 +244,7 @@ fn normalize_text(input: &str) -> String {
 fn detect_country_code_from_location(location: &str) -> Option<&'static str> {
     let l = normalize_text(location);
 
-    let city_matchers: [(&str, &[&str]); 10] = [
+    let city_matchers: [(&str, &[&str]); 11] = [
         ("CH", &["luzern", "lucerne", "zuerich", "zurich", "bern", "basel", "lausanne", "lugano", "st. gallen", "winterthur"]),
         ("FR", &["paris", "lyon", "marseille", "toulouse", "lille", "strasbourg"]),
         ("DE", &["berlin", "muenchen", "munich", "hamburg", "koeln", "cologne", "frankfurt"]),
@@ -240,6 +254,7 @@ fn detect_country_code_from_location(location: &str) -> Option<&'static str> {
         ("NL", &["amsterdam", "rotterdam", "den haag", "the hague", "utrecht"]),
         ("BE", &["brussels", "bruessel", "bruxelles", "antwerp", "antwerpen", "gent", "ghent"]),
         ("GB", &["london", "manchester", "birmingham", "edinburgh", "glasgow"]),
+        ("CZ", &["prague", "praha", "prag"]),
         ("US", &["new york", "nyc", "los angeles", "chicago"]),
     ];
 
@@ -291,6 +306,21 @@ fn country_code_to_flag_emoji(code: &str) -> Option<String> {
         out.push(char::from_u32(base + offset)?);
     }
     Some(out)
+}
+
+fn format_telegram_location_label(location: &str) -> String {
+    let country = detect_country_code_from_location(location);
+    let flag = country
+        .and_then(country_code_to_flag_emoji)
+        .unwrap_or_else(|| "📍".to_string());
+
+    if cfg!(target_os = "windows") {
+        if let Some(cc) = country {
+            return format!("{} [{}] {}", flag, cc, location);
+        }
+    }
+
+    format!("{}{}", flag, location)
 }
 
 fn format_human_datetime(timestamp_ms: u64) -> String {
@@ -373,7 +403,10 @@ fn telegram_event_enabled(cfg: &serde_json::Value, event_key: &str) -> bool {
             arr.iter()
                 .filter_map(|v| v.as_str())
                 .map(|s| s.trim().to_ascii_lowercase())
-                .any(|v| v == event_key)
+                .any(|v| {
+                    v == event_key
+                        || (event_key.ends_with("_offline") && v == "offline")
+                })
         })
         .unwrap_or(true)
 }
@@ -402,6 +435,46 @@ fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<S
 
     if m.contains("offline!") || m.contains(" ist offline") {
         push("offline");
+        if m.contains("janitza") {
+            push("janitza_offline");
+        }
+        if m.contains("ups") {
+            push("ups_offline");
+        }
+        if m.contains("nas") {
+            push("nas_offline");
+        }
+        if m.contains("poe") || m.contains("switch") {
+            push("poe_switch_offline");
+        }
+        if m.contains("rutx") || m.contains("router") {
+            push("rutx_offline");
+        }
+        if m.contains("pixera") || m.contains("director") || m.contains("octo") {
+            push("pixera_offline");
+        }
+    }
+
+    if m.contains("snmp-werte von switch") || m.contains("snmp values") && m.contains("switch") {
+        push("poe_switch_offline");
+    }
+    if m.contains("snmp-werte von router") || m.contains("snmp values") && (m.contains("router") || m.contains("rutx")) {
+        push("rutx_offline");
+    }
+    if m.contains("snmp-werte von nas") || m.contains("snmp values") && m.contains("nas") {
+        push("nas_offline");
+    }
+
+    if m.contains("phasen-unsymmetrie") || m.contains("asymmetrie") || m.contains("asymmetry") {
+        push("janitza_asymmetry");
+    }
+
+    if m.contains("ueberfrequenz") || m.contains("uberfrequenz") || m.contains("overfrequency") {
+        push("janitza_overfrequency");
+    }
+
+    if m.contains("unterfrequenz") || m.contains("underfrequency") {
+        push("janitza_underfrequency");
     }
 
     if m.contains("batteriebetrieb") || m.contains("battery mode") || m.contains("akku warnung") {
@@ -452,15 +525,12 @@ fn telegram_rate_limited(fingerprint: &str, timestamp_ms: u64) -> bool {
 fn build_telegram_alarm_text(cfg: &serde_json::Value, message: &str, timestamp_ms: u64) -> String {
     let location = cfg["location_name"].as_str().unwrap_or("Standort unbekannt").trim();
     let location = if location.is_empty() { "Standort unbekannt" } else { location };
-    let country = detect_country_code_from_location(location);
-    let flag = country
-        .and_then(country_code_to_flag_emoji)
-        .unwrap_or_else(|| "📍".to_string());
+    let location_label = format_telegram_location_label(location);
     let anydesk = cfg["anydesk_address"].as_str().unwrap_or("").trim();
 
     let message_clean = strip_runtime_from_message(message);
     let mut lines = vec![
-        format!("🚨{}{}🚨", flag, location),
+        format!("🚨{}🚨", location_label),
         format_human_datetime(timestamp_ms),
         message_clean,
     ];
@@ -485,10 +555,7 @@ fn build_telegram_alarm_text(cfg: &serde_json::Value, message: &str, timestamp_m
 fn build_telegram_resolved_text(cfg: &serde_json::Value, message: &str, timestamp_ms: u64) -> String {
     let location = cfg["location_name"].as_str().unwrap_or("Standort unbekannt").trim();
     let location = if location.is_empty() { "Standort unbekannt" } else { location };
-    let country = detect_country_code_from_location(location);
-    let flag = country
-        .and_then(country_code_to_flag_emoji)
-        .unwrap_or_else(|| "📍".to_string());
+    let location_label = format_telegram_location_label(location);
 
     let resolved = strip_resolution_prefix(message);
     let text = if resolved.is_empty() {
@@ -498,9 +565,8 @@ fn build_telegram_resolved_text(cfg: &serde_json::Value, message: &str, timestam
     };
 
     format!(
-        "✅{}{}✅\n{}\n{}",
-        flag,
-        location,
+        "✅{}✅\n{}\n{}",
+        location_label,
         format_human_datetime(timestamp_ms),
         text
     )
@@ -755,7 +821,12 @@ fn install_ffmpeg_runtime(app: &AppHandle) -> Result<String, String> {
         FFMPEG_RUNTIME_DOWNLOAD_URL,
         zip_path_str.replace('\\', "\\\\")
     );
-    let download = Command::new("powershell")
+    let mut download_cmd = Command::new("powershell");
+    #[cfg(target_os = "windows")]
+    {
+        download_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let download = download_cmd
         .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &download_script])
         .output()
         .map_err(|e| format!("FFmpeg Download konnte nicht gestartet werden: {}", e))?;
@@ -777,7 +848,12 @@ fn install_ffmpeg_runtime(app: &AppHandle) -> Result<String, String> {
         zip_path_str.replace('\\', "\\\\"),
         extract_root_str.replace('\\', "\\\\")
     );
-    let extract = Command::new("powershell")
+    let mut extract_cmd = Command::new("powershell");
+    #[cfg(target_os = "windows")]
+    {
+        extract_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let extract = extract_cmd
         .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &extract_script])
         .output()
         .map_err(|e| format!("FFmpeg Extract konnte nicht gestartet werden: {}", e))?;
@@ -1160,7 +1236,7 @@ fn start_camera_mjpeg_server() {
     }
 
     thread::spawn(|| {
-        let listener = match TcpListener::bind(("127.0.0.1", CAMERA_MJPEG_PORT)) {
+        let listener = match TcpListener::bind(("0.0.0.0", CAMERA_MJPEG_PORT)) {
             Ok(l) => l,
             Err(e) => {
                 eprintln!("MJPEG server bind error: {}", e);
@@ -1339,14 +1415,17 @@ async fn http_ping(ip: String, port: u16) -> Result<String, String> {
 fn system_get_battery_status() -> Result<serde_json::Value, String> {
     #[cfg(target_os = "windows")]
     {
-        let output = Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-Command",
-                "Get-CimInstance Win32_Battery | Select-Object EstimatedChargeRemaining,BatteryStatus | ConvertTo-Json -Compress",
-            ])
-            .output()
-            .map_err(|e| e.to_string())?;
+        let mut battery_cmd = Command::new("powershell");
+        battery_cmd.args([
+            "-NoProfile",
+            "-Command",
+            "Get-CimInstance Win32_Battery | Select-Object EstimatedChargeRemaining,BatteryStatus | ConvertTo-Json -Compress",
+        ]);
+        #[cfg(target_os = "windows")]
+        {
+            battery_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        let output = battery_cmd.output().map_err(|e| e.to_string())?;
 
         if !output.status.success() {
             return Err("Battery query failed".to_string());
@@ -2512,8 +2591,13 @@ fn open_external_url(url: String) -> Result<bool, String> {
 
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
-            .args(["/C", "start", "", &url])
+        let mut open_cmd = Command::new("rundll32");
+        #[cfg(target_os = "windows")]
+        {
+            open_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        open_cmd
+            .args(["url.dll,FileProtocolHandler", &url])
             .spawn()
             .map_err(|e| format!("Konnte Browser nicht öffnen: {}", e))?;
         return Ok(true);
@@ -2532,15 +2616,51 @@ fn open_external_url(url: String) -> Result<bool, String> {
     Err("Diese Plattform wird für URL-Open nicht unterstützt".to_string())
 }
 
+#[tauri::command]
+fn companion_press_emergency_button(url: String) -> Result<bool, String> {
+    let target_url = if url.trim().is_empty() {
+        "http://192.168.1.42:8000/api/location/1/2/0/press".to_string()
+    } else {
+        url
+    };
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| format!("Companion-Client konnte nicht erstellt werden: {}", e))?;
+
+    client
+        .post(&target_url)
+        .send()
+        .and_then(|response| response.error_for_status())
+        .map_err(|e| format!("Companion emergency press fehlgeschlagen: {}", e))?;
+
+    Ok(true)
+}
+
 fn default_config_json() -> serde_json::Value {
     serde_json::json!({
+        "demo_mode": false,
+        "startup_mode": "admin",
+        "language": "de",
+        "camera_view_mode": "snapshot",
+        "demo_amp_mutes": {
+            "1": [false, false, false, false],
+            "2": [false, false, false, false],
+            "3": [false, false, false, false]
+        },
+        "demo_projector_on": [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        "demo_projector_mute": [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        "projector_control_states": ["unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown"],
+        "projector_status_updated_at": 0,
         "pixera_ip": "192.168.1.31", "pixera_port": 1338,
         "pixera_octo1_ip": "192.168.1.32", "pixera_octo2_ip": "192.168.1.33",
         "pixera_octo_port": 4000,
+        "pixera_octo_count": 2,
         "pixera_api_root": "erwer",
         "pixera_pjlink_module": "PJ_Link__16ch",
-        "pixera_scheduler_module": "Projektil_EventScheduler_V21",
-        "d40_01_ip": "192.168.1.51", "d40_02_ip": "192.168.1.52", "d40_oca_port": 50014,
+        "pixera_scheduler_module": "Projektil_EventScheduler_V2_7",
+        "d40_01_ip": "192.168.1.51", "d40_02_ip": "192.168.1.52", "d40_03_ip": "192.168.1.53", "amp_count": 2, "d40_oca_port": 50014,
         "nas_ip": "192.168.1.21", "nas_port": 5000,
         "nas_snmp_port": 161, "nas_snmp_community": "projektil",
         "poe_switch_ip": "192.168.1.11", "poe_switch_name": "", "poe_switch_ping_port": 443,
@@ -2558,8 +2678,16 @@ fn default_config_json() -> serde_json::Value {
             "bot_token": "",
             "chat_id": "",
             "alert_events": [
-                "offline",
+                "janitza_offline",
+                "janitza_asymmetry",
+                "janitza_overfrequency",
+                "janitza_underfrequency",
+                "ups_offline",
                 "ups_battery",
+                "nas_offline",
+                "poe_switch_offline",
+                "rutx_offline",
+                "pixera_offline",
                 "trigger_missed",
                 "timeline_error",
                 "emergency",
@@ -2596,6 +2724,15 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     if !obj.contains_key("pixera_octo_port") {
         obj.insert("pixera_octo_port".to_string(), serde_json::json!(4000));
     }
+    if !obj.contains_key("pixera_octo_count") {
+        obj.insert("pixera_octo_count".to_string(), serde_json::json!(2));
+    }
+    if !obj.contains_key("amp_count") {
+        obj.insert("amp_count".to_string(), serde_json::json!(2));
+    }
+    if !obj.contains_key("d40_03_ip") {
+        obj.insert("d40_03_ip".to_string(), serde_json::json!("192.168.1.53"));
+    }
     if !obj.contains_key("pixera_api_root") {
         obj.insert("pixera_api_root".to_string(), serde_json::json!("erwer"));
     }
@@ -2605,8 +2742,51 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     if !obj.contains_key("pixera_scheduler_module") {
         obj.insert(
             "pixera_scheduler_module".to_string(),
-            serde_json::json!("Projektil_EventScheduler_V21"),
+            serde_json::json!("Projektil_EventScheduler_V2_7"),
         );
+    }
+    if !obj.contains_key("demo_mode") {
+        obj.insert("demo_mode".to_string(), serde_json::json!(false));
+    }
+    if !obj.contains_key("startup_mode") {
+        obj.insert("startup_mode".to_string(), serde_json::json!("admin"));
+    }
+    if !obj.contains_key("language") {
+        obj.insert("language".to_string(), serde_json::json!("de"));
+    }
+    if !obj.contains_key("camera_view_mode") {
+        obj.insert("camera_view_mode".to_string(), serde_json::json!("snapshot"));
+    }
+    if !obj.contains_key("demo_amp_mutes") {
+        obj.insert(
+            "demo_amp_mutes".to_string(),
+            serde_json::json!({
+                "1": [false, false, false, false],
+                "2": [false, false, false, false],
+                "3": [false, false, false, false]
+            }),
+        );
+    }
+    if !obj.contains_key("demo_projector_on") {
+        obj.insert(
+            "demo_projector_on".to_string(),
+            serde_json::json!([false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]),
+        );
+    }
+    if !obj.contains_key("demo_projector_mute") {
+        obj.insert(
+            "demo_projector_mute".to_string(),
+            serde_json::json!([false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]),
+        );
+    }
+    if !obj.contains_key("projector_control_states") {
+        obj.insert(
+            "projector_control_states".to_string(),
+            serde_json::json!(["unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]),
+        );
+    }
+    if !obj.contains_key("projector_status_updated_at") {
+        obj.insert("projector_status_updated_at".to_string(), serde_json::json!(0));
     }
 
     let telegram = obj
@@ -2626,8 +2806,16 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
             t.insert(
                 "alert_events".to_string(),
                 serde_json::json!([
-                    "offline",
+                    "janitza_offline",
+                    "janitza_asymmetry",
+                    "janitza_overfrequency",
+                    "janitza_underfrequency",
+                    "ups_offline",
                     "ups_battery",
+                    "nas_offline",
+                    "poe_switch_offline",
+                    "rutx_offline",
+                    "pixera_offline",
                     "trigger_missed",
                     "timeline_error",
                     "emergency",
@@ -2667,6 +2855,18 @@ fn config_path_candidates() -> Vec<PathBuf> {
     }
 
     if let Ok(cwd) = std::env::current_dir() {
+        // During `tauri dev` the cwd is often `<repo>/src-tauri`.
+        // Writing UI sync state into that file triggers the dev watcher and restarts endlessly.
+        if cwd
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.eq_ignore_ascii_case("src-tauri"))
+            .unwrap_or(false)
+        {
+            if let Some(parent) = cwd.parent() {
+                out.push(parent.join("config.json"));
+            }
+        }
         out.push(cwd.join("config.json"));
     }
 
@@ -2681,8 +2881,28 @@ fn config_path_candidates() -> Vec<PathBuf> {
     dedup
 }
 
+fn is_src_tauri_config_path(path: &Path) -> bool {
+    let is_config = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.eq_ignore_ascii_case("config.json"))
+        .unwrap_or(false);
+    if !is_config {
+        return false;
+    }
+    path.parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .map(|n| n.eq_ignore_ascii_case("src-tauri"))
+        .unwrap_or(false)
+}
+
 fn read_config_json_from_disk() -> Option<(PathBuf, serde_json::Value)> {
     for path in config_path_candidates() {
+        // Never treat src-tauri/config.json as runtime state file.
+        if is_src_tauri_config_path(&path) {
+            continue;
+        }
         let content = match fs::read_to_string(&path) {
             Ok(v) => v,
             Err(_) => continue,
@@ -2702,6 +2922,9 @@ fn resolve_config_write_path() -> PathBuf {
     }
 
     for path in config_path_candidates() {
+        if is_src_tauri_config_path(&path) {
+            continue;
+        }
         if let Some(parent) = path.parent() {
             if parent.as_os_str().is_empty() {
                 return path;
@@ -2773,6 +2996,121 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, alert
 }
 
 #[tauri::command]
+fn save_ui_state(
+    demo_mode: Option<bool>,
+    startup_mode: Option<String>,
+    language: Option<String>,
+    camera_view_mode: Option<String>,
+    projector_count: Option<u8>,
+    pixera_octo_count: Option<u8>,
+    amp_count: Option<u8>,
+    demo_amp1_mutes: Option<Vec<bool>>,
+    demo_amp2_mutes: Option<Vec<bool>>,
+    demo_amp3_mutes: Option<Vec<bool>>,
+    demo_projector_on: Option<Vec<bool>>,
+    demo_projector_mute: Option<Vec<bool>>,
+    projector_control_states: Option<Vec<String>>,
+    projector_status_updated_at: Option<u64>,
+) -> Result<bool, String> {
+    let mut cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
+
+    if let Some(obj) = cfg.as_object_mut() {
+        if let Some(enabled) = demo_mode {
+            obj.insert("demo_mode".to_string(), serde_json::json!(enabled));
+        }
+        if let Some(mode_raw) = startup_mode {
+            let normalized = mode_raw.trim().to_ascii_lowercase();
+            let mode = if normalized == "viewer" { "viewer" } else { "admin" };
+            obj.insert("startup_mode".to_string(), serde_json::json!(mode));
+        }
+        if let Some(lang_raw) = language {
+            let normalized = lang_raw.trim().to_ascii_lowercase();
+            let lang = if normalized == "en" { "en" } else { "de" };
+            obj.insert("language".to_string(), serde_json::json!(lang));
+        }
+        if let Some(camera_mode_raw) = camera_view_mode {
+            let normalized = camera_mode_raw.trim().to_ascii_lowercase();
+            let mode = if normalized == "stream" { "stream" } else { "snapshot" };
+            obj.insert("camera_view_mode".to_string(), serde_json::json!(mode));
+        }
+        if let Some(count_raw) = projector_count {
+            let clamped = count_raw.clamp(1, 16);
+            obj.insert("projector_count".to_string(), serde_json::json!(clamped));
+        }
+        if let Some(count_raw) = pixera_octo_count {
+            let clamped = count_raw.clamp(0, 2);
+            obj.insert("pixera_octo_count".to_string(), serde_json::json!(clamped));
+        }
+        if let Some(count_raw) = amp_count {
+            let clamped = count_raw.clamp(1, 3);
+            obj.insert("amp_count".to_string(), serde_json::json!(clamped));
+        }
+        if demo_amp1_mutes.is_some() || demo_amp2_mutes.is_some() || demo_amp3_mutes.is_some() {
+            let entry = obj
+                .entry("demo_amp_mutes".to_string())
+                .or_insert_with(|| serde_json::json!({"1": [false, false, false, false], "2": [false, false, false, false], "3": [false, false, false, false]}));
+            if let Some(amp) = entry.as_object_mut() {
+                if let Some(v) = demo_amp1_mutes {
+                    let mut out = vec![false; 4];
+                    for (idx, value) in v.into_iter().take(4).enumerate() {
+                        out[idx] = value;
+                    }
+                    amp.insert("1".to_string(), serde_json::json!(out));
+                }
+                if let Some(v) = demo_amp2_mutes {
+                    let mut out = vec![false; 4];
+                    for (idx, value) in v.into_iter().take(4).enumerate() {
+                        out[idx] = value;
+                    }
+                    amp.insert("2".to_string(), serde_json::json!(out));
+                }
+                if let Some(v) = demo_amp3_mutes {
+                    let mut out = vec![false; 4];
+                    for (idx, value) in v.into_iter().take(4).enumerate() {
+                        out[idx] = value;
+                    }
+                    amp.insert("3".to_string(), serde_json::json!(out));
+                }
+            }
+        }
+        if let Some(v) = demo_projector_on {
+            let mut out = vec![false; 16];
+            for (idx, value) in v.into_iter().take(16).enumerate() {
+                out[idx] = value;
+            }
+            obj.insert("demo_projector_on".to_string(), serde_json::json!(out));
+        }
+        if let Some(v) = demo_projector_mute {
+            let mut out = vec![false; 16];
+            for (idx, value) in v.into_iter().take(16).enumerate() {
+                out[idx] = value;
+            }
+            obj.insert("demo_projector_mute".to_string(), serde_json::json!(out));
+        }
+        if let Some(v) = projector_control_states {
+            let mut out = vec!["unknown".to_string(); 16];
+            for (idx, value) in v.into_iter().take(16).enumerate() {
+                let normalized = value.trim().to_ascii_lowercase();
+                out[idx] = match normalized.as_str() {
+                    "online" | "startup" | "cooldown" | "standby" | "offline" | "error" => normalized,
+                    _ => "unknown".to_string(),
+                };
+            }
+            obj.insert("projector_control_states".to_string(), serde_json::json!(out));
+        }
+        if let Some(v) = projector_status_updated_at {
+            obj.insert("projector_status_updated_at".to_string(), serde_json::json!(v));
+        }
+    }
+
+    write_config_json_to_disk(&cfg)?;
+    Ok(true)
+}
+
+#[tauri::command]
 fn telegram_send_test(bot_token: String, chat_id: String) -> Result<String, String> {
     let token = bot_token.trim().to_string();
     let chat  = chat_id.trim().to_string();
@@ -2780,31 +3118,27 @@ fn telegram_send_test(bot_token: String, chat_id: String) -> Result<String, Stri
         return Err("Bot-Token oder Chat-ID fehlt".to_string());
     }
     
-    // Load config for location and AnyDesk
     let mut cfg = read_config_json_from_disk()
         .map(|(_, json)| json)
         .unwrap_or_else(default_config_json);
     ensure_config_defaults(&mut cfg);
-    
-    // Build test message with formatted structure
+
     let timestamp_ms = now_timestamp_ms();
-    let location = cfg["location_name"].as_str().unwrap_or("Standort unbekannt").trim();
-    let location = if location.is_empty() { "Standort unbekannt" } else { location };
-    let country = detect_country_code_from_location(location);
-    let flag = country
-        .and_then(country_code_to_flag_emoji)
-        .unwrap_or_else(|| "📍".to_string());
+    let location = cfg["location_name"].as_str().unwrap_or("").trim();
+    let location = if location.is_empty() { "unbekannt" } else { location };
+    let location_label = format_telegram_location_label(location);
     let anydesk = cfg["anydesk_address"].as_str().unwrap_or("").trim();
-    
-    let anydesk_line = if anydesk.is_empty() { 
-        String::new() 
-    } else { 
-        format!("\nAnydeskadresse: <a href=\"anydesk://{}\">{}</a>", anydesk, anydesk) 
+    let anydesk_line = if anydesk.is_empty() {
+        "Anydeskadresse: nicht gesetzt".to_string()
+    } else {
+        format!("Anydeskadresse: <a href=\"anydesk://{}\">{}</a>", anydesk, anydesk)
     };
-    
+
     let text = format!(
-        "🧪{}{}🧪\n{}\nTest erfolgreich{}",
-        flag, location, format_human_datetime(timestamp_ms), anydesk_line
+        "🧪{}🧪\n{}\nTestnachricht\n{}",
+        location_label,
+        format_human_datetime(timestamp_ms),
+        anydesk_line
     );
     
     let url = format!("https://api.telegram.org/bot{}/sendMessage", token);
@@ -3213,6 +3547,88 @@ fn pjlink_set_shutter(ip: String, muted: bool, password: Option<String>) -> Resu
 }
 
 #[tauri::command]
+async fn pixera_api_request(
+    address: String,
+    params: Option<Vec<serde_json::Value>>,
+    host: Option<String>,
+    port: Option<u16>,
+    timeout_ms: Option<u64>,
+) -> Result<serde_json::Value, String> {
+    let cfg = get_config();
+    let target_host = host
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| cfg["pixera_ip"].as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+
+    let target_port = port
+        .or_else(|| cfg["pixera_port"].as_u64().map(|n| n as u16))
+        .unwrap_or(1338);
+
+    let timeout_value = timeout_ms.unwrap_or(3500).max(500);
+    let sequence = (now_timestamp_ms() % 1_000_000_000) as u64;
+    let ws_url = format!("ws://{}:{}/ws_avio", target_host, target_port);
+
+    let mut request = ws_url
+        .into_client_request()
+        .map_err(|e| format!("Pixera Request-Aufbau fehlgeschlagen: {}", e))?;
+    request
+        .headers_mut()
+        .insert("Sec-WebSocket-Protocol", HeaderValue::from_static("ws_avio"));
+
+    let connect = timeout(Duration::from_millis(timeout_value), connect_async(request))
+        .await
+        .map_err(|_| format!("Pixera API timeout: {}", address))?
+        .map_err(|e| format!("Pixera API websocket error: {}:{} ({})", target_host, target_port, e))?;
+
+    let (mut ws_stream, _) = connect;
+    let payload = serde_json::json!({
+        "type": "Request",
+        "sequence": sequence,
+        "address": address,
+        "params": params.unwrap_or_default()
+    });
+
+    ws_stream
+        .send(Message::Text(payload.to_string()))
+        .await
+        .map_err(|e| format!("Pixera API send failed: {}", e))?;
+
+    loop {
+        let message = timeout(Duration::from_millis(timeout_value), ws_stream.next())
+            .await
+            .map_err(|_| format!("Pixera API timeout: {}", address))?;
+
+        let Some(frame) = message else {
+            return Err("Pixera API Verbindung geschlossen".to_string());
+        };
+
+        let frame = frame.map_err(|e| format!("Pixera API receive failed: {}", e))?;
+
+        match frame {
+            Message::Text(text) => {
+                let json: serde_json::Value = serde_json::from_str(&text)
+                    .map_err(|e| format!("Pixera API ungültige JSON-Antwort: {}", e))?;
+                if json["sequence"].as_u64() == Some(sequence) {
+                    return Ok(json.get("result").cloned().unwrap_or(serde_json::Value::Null));
+                }
+            }
+            Message::Binary(bin) => {
+                let text = String::from_utf8(bin.to_vec())
+                    .map_err(|e| format!("Pixera API Binary UTF-8 Fehler: {}", e))?;
+                let json: serde_json::Value = serde_json::from_str(&text)
+                    .map_err(|e| format!("Pixera API ungültige JSON-Antwort: {}", e))?;
+                if json["sequence"].as_u64() == Some(sequence) {
+                    return Ok(json.get("result").cloned().unwrap_or(serde_json::Value::Null));
+                }
+            }
+            Message::Close(_) => return Err("Pixera API Verbindung geschlossen".to_string()),
+            Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => {}
+        }
+    }
+}
+
+#[tauri::command]
 fn get_config() -> serde_json::Value {
     if let Some((_path, mut json)) = read_config_json_from_disk() {
         ensure_config_defaults(&mut json);
@@ -3222,6 +3638,456 @@ fn get_config() -> serde_json::Value {
     let default_config = default_config_json();
     let _ = write_config_json_to_disk(&default_config);
     default_config
+}
+
+#[tauri::command]
+fn get_server_time_ms() -> u64 {
+    now_timestamp_ms()
+}
+
+fn app_handle_required() -> Result<AppHandle, String> {
+    APP_HANDLE
+        .get()
+        .cloned()
+        .ok_or_else(|| "AppHandle ist nicht initialisiert".to_string())
+}
+
+fn arg_value<'a>(args: &'a serde_json::Value, keys: &[&str]) -> Option<&'a serde_json::Value> {
+    keys.iter().find_map(|k| args.get(*k))
+}
+
+fn arg_string(args: &serde_json::Value, keys: &[&str]) -> Result<String, String> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| format!("Fehlender String-Parameter: {}", keys.join("/")))
+}
+
+fn arg_optional_string(args: &serde_json::Value, keys: &[&str]) -> Option<String> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+fn arg_bool(args: &serde_json::Value, keys: &[&str]) -> Result<bool, String> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| format!("Fehlender Bool-Parameter: {}", keys.join("/")))
+}
+
+fn arg_u8(args: &serde_json::Value, keys: &[&str]) -> Result<u8, String> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u8)
+        .ok_or_else(|| format!("Fehlender u8-Parameter: {}", keys.join("/")))
+}
+
+fn arg_optional_u8(args: &serde_json::Value, keys: &[&str]) -> Option<u8> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u8)
+}
+
+fn arg_u16(args: &serde_json::Value, keys: &[&str]) -> Result<u16, String> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u16)
+        .ok_or_else(|| format!("Fehlender u16-Parameter: {}", keys.join("/")))
+}
+
+fn arg_optional_u16(args: &serde_json::Value, keys: &[&str]) -> Option<u16> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u16)
+}
+
+fn arg_optional_u64(args: &serde_json::Value, keys: &[&str]) -> Option<u64> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_u64())
+}
+
+fn arg_f32(args: &serde_json::Value, keys: &[&str]) -> Result<f32, String> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_f64())
+        .map(|n| n as f32)
+        .ok_or_else(|| format!("Fehlender f32-Parameter: {}", keys.join("/")))
+}
+
+fn arg_optional_usize(args: &serde_json::Value, keys: &[&str]) -> Option<usize> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize)
+}
+
+fn arg_vec_string(args: &serde_json::Value, keys: &[&str]) -> Result<Vec<String>, String> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .ok_or_else(|| format!("Fehlender Array-Parameter: {}", keys.join("/")))
+}
+
+fn arg_optional_vec_string(args: &serde_json::Value, keys: &[&str]) -> Option<Vec<String>> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        })
+}
+
+fn arg_optional_vec_bool(args: &serde_json::Value, keys: &[&str]) -> Option<Vec<bool>> {
+    arg_value(args, keys)
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().map(|v| v.as_bool().unwrap_or(false)).collect::<Vec<_>>())
+}
+
+fn block_on_command<F, T>(future: F) -> Result<T, String>
+where
+    F: std::future::Future<Output = Result<T, String>>,
+{
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| format!("Tokio Runtime Fehler: {}", e))?;
+    rt.block_on(future)
+}
+
+fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_json::Value, String> {
+    match cmd {
+        "get_config" => Ok(get_config()),
+        "get_server_time_ms" => Ok(serde_json::json!(get_server_time_ms())),
+
+        "save_site_metadata" => Ok(serde_json::json!(save_site_metadata(
+            arg_string(args, &["locationName", "location_name"])? ,
+            arg_string(args, &["anydeskAddress", "anydesk_address"])?
+        )?)),
+
+        "save_telegram_config" => Ok(serde_json::json!(save_telegram_config(
+            arg_bool(args, &["enabled"])? ,
+            arg_string(args, &["botToken", "bot_token"])? ,
+            arg_string(args, &["chatId", "chat_id"])? ,
+            arg_optional_vec_string(args, &["alertEvents", "alert_events"])
+        )?)),
+
+        "telegram_send_test" => Ok(serde_json::json!(telegram_send_test(
+            arg_string(args, &["botToken", "bot_token"])? ,
+            arg_string(args, &["chatId", "chat_id"])?
+        )?)),
+
+        "append_app_log" => {
+            let app = app_handle_required()?;
+            Ok(serde_json::json!(append_app_log(
+                app,
+                arg_string(args, &["level"])? ,
+                arg_string(args, &["message"])? ,
+                arg_optional_u64(args, &["timestampMs", "timestamp_ms"])
+            )?))
+        },
+
+        "save_ui_state" => Ok(serde_json::json!(save_ui_state(
+            arg_value(args, &["demoMode", "demo_mode"]).and_then(|v| v.as_bool()),
+            arg_optional_string(args, &["startupMode", "startup_mode"]),
+            arg_optional_string(args, &["language", "lang"]),
+            arg_optional_string(args, &["cameraViewMode", "camera_view_mode"]),
+            arg_value(args, &["projectorCount", "projector_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,16) as u8),
+            arg_value(args, &["pixeraOctoCount", "pixera_octo_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(0,2) as u8),
+            arg_value(args, &["ampCount", "amp_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,3) as u8),
+            arg_optional_vec_bool(args, &["demoAmp1Mutes", "demo_amp1_mutes"]),
+            arg_optional_vec_bool(args, &["demoAmp2Mutes", "demo_amp2_mutes"]),
+            arg_optional_vec_bool(args, &["demoAmp3Mutes", "demo_amp3_mutes"]),
+            arg_optional_vec_bool(args, &["demoProjectorOn", "demo_projector_on"]),
+            arg_optional_vec_bool(args, &["demoProjectorMute", "demo_projector_mute"]),
+            arg_optional_vec_string(args, &["projectorControlStates", "projector_control_states"]),
+            arg_optional_u64(args, &["projectorStatusUpdatedAt", "projector_status_updated_at"])
+        )?)),
+
+        "load_app_logs" => {
+            let app = app_handle_required()?;
+            load_app_logs(app, arg_optional_usize(args, &["limit"]))
+        }
+
+        "open_external_url" => Ok(serde_json::json!(open_external_url(
+            arg_string(args, &["url"])?
+        )?)),
+
+        "http_ping" => Ok(serde_json::json!(block_on_command(http_ping(
+            arg_string(args, &["ip"])? ,
+            arg_u16(args, &["port"])?
+        ))?)),
+
+        "camera_ptz_command" => Ok(serde_json::json!(block_on_command(camera_ptz_command(
+            arg_string(args, &["ip"])? ,
+            arg_string(args, &["command"])?
+        ))?)),
+
+        "camera_snapshot" => {
+            let app = app_handle_required()?;
+            Ok(serde_json::json!(block_on_command(camera_snapshot(
+                app,
+                arg_string(args, &["ip"])? ,
+                arg_optional_u8(args, &["stream"])
+            ))?))
+        }
+
+        "camera_stream_frame" => Ok(serde_json::json!(block_on_command(camera_stream_frame(
+            arg_string(args, &["ip"])? ,
+            arg_optional_u8(args, &["stream"])
+        ))?)),
+
+        "camera_prepare_stream" => {
+            let app = app_handle_required()?;
+            Ok(serde_json::json!(camera_prepare_stream(
+                app,
+                arg_string(args, &["ip"])? ,
+                arg_optional_u8(args, &["stream"])
+            )?))
+        }
+
+        "camera_restart_stream" => Ok(serde_json::json!(camera_restart_stream(
+            arg_string(args, &["ip"])? ,
+            arg_optional_u8(args, &["stream"])
+        )?)),
+
+        "d40_command" => Ok(serde_json::json!(block_on_command(d40_command(
+            arg_string(args, &["ip"])? ,
+            arg_string(args, &["command"])?
+        ))?)),
+
+        "d40_ping" => Ok(serde_json::json!(block_on_command(d40_ping(
+            arg_string(args, &["ip"])?
+        ))?)),
+
+        "d40_status" => block_on_command(d40_status(arg_string(args, &["ip"])?)),
+
+        "d40_set_gain" => Ok(serde_json::json!(block_on_command(d40_set_gain(
+            arg_string(args, &["ip"])? ,
+            arg_u8(args, &["channel"])? ,
+            arg_f32(args, &["current"])? ,
+            arg_f32(args, &["target"])?
+        ))?)),
+
+        "system_get_battery_status" => system_get_battery_status(),
+
+        "ups_get_status" => block_on_command(ups_get_status(arg_string(args, &["ip"])?)),
+        "ups_get_power_mode" => block_on_command(ups_get_power_mode(arg_string(args, &["ip"])?)),
+        "ups_get_diagnostics" => block_on_command(ups_get_diagnostics(arg_string(args, &["ip"])?)),
+        "janitza_get_data" => block_on_command(janitza_get_data(arg_string(args, &["ip"])?)),
+
+        "poe_switch_get_status" => block_on_command(poe_switch_get_status(
+            arg_string(args, &["ip"])? ,
+            arg_optional_string(args, &["community"]),
+            arg_optional_u16(args, &["port"])
+        )),
+
+        "rutx50_get_status" => block_on_command(rutx50_get_status(
+            arg_string(args, &["ip"])? ,
+            arg_optional_string(args, &["community"]),
+            arg_optional_u16(args, &["port"])
+        )),
+
+        "nas_get_status" => block_on_command(nas_get_status(
+            arg_string(args, &["ip"])? ,
+            arg_optional_string(args, &["community"]),
+            arg_optional_u16(args, &["port"])
+        )),
+
+        "pjlink_poll_many" => pjlink_poll_many(
+            arg_vec_string(args, &["ips"])? ,
+            arg_optional_string(args, &["password"])
+        ),
+
+        "pjlink_detect_models" => pjlink_detect_models(
+            arg_vec_string(args, &["ips"])? ,
+            arg_optional_string(args, &["password"])
+        ),
+
+        "pjlink_set_power" => Ok(serde_json::json!(pjlink_set_power(
+            arg_string(args, &["ip"])? ,
+            arg_bool(args, &["on"])? ,
+            arg_optional_string(args, &["password"])
+        )?)),
+
+        "pjlink_set_shutter" => Ok(serde_json::json!(pjlink_set_shutter(
+            arg_string(args, &["ip"])? ,
+            arg_bool(args, &["muted"])? ,
+            arg_optional_string(args, &["password"])
+        )?)),
+
+        "pixera_api_request" => block_on_command(pixera_api_request(
+            arg_string(args, &["address"])? ,
+            arg_value(args, &["params"]).and_then(|v| v.as_array()).map(|arr| arr.to_vec()),
+            arg_optional_string(args, &["host"]),
+            arg_optional_u16(args, &["port"]),
+            arg_optional_u64(args, &["timeoutMs", "timeout_ms"])
+        )),
+
+        "minimize_window" => {
+            minimize_window(app_handle_required()?);
+            Ok(serde_json::json!(true))
+        }
+        "toggle_fullscreen" => {
+            toggle_fullscreen(app_handle_required()?);
+            Ok(serde_json::json!(true))
+        }
+        "hide_to_tray" => {
+            hide_to_tray(app_handle_required()?);
+            Ok(serde_json::json!(true))
+        }
+        "quit_app" => {
+            quit_app(app_handle_required()?);
+            Ok(serde_json::json!(true))
+        }
+
+        _ => Err(format!("Unbekannter Invoke-Command: {}", cmd)),
+    }
+}
+
+fn header(name: &str, value: &str) -> Option<Header> {
+    Header::from_bytes(name.as_bytes(), value.as_bytes()).ok()
+}
+
+fn respond_json(request: tiny_http::Request, status: u16, payload: &serde_json::Value) {
+    let body = payload.to_string();
+    let mut response = Response::from_string(body).with_status_code(StatusCode(status));
+    if let Some(h) = header("Content-Type", "application/json; charset=utf-8") {
+        response = response.with_header(h);
+    }
+    if let Some(h) = header("Access-Control-Allow-Origin", "*") {
+        response = response.with_header(h);
+    }
+    let _ = request.respond(response);
+}
+
+fn handle_lan_web_request(mut request: tiny_http::Request) {
+    let method = request.method().clone();
+    let path = request.url().split('?').next().unwrap_or("/").to_string();
+
+    if method == Method::Get && (path == "/" || path == "/index.html") {
+        let mut response = Response::from_string(current_webgui_index_html());
+        if let Some(h) = header("Content-Type", "text/html; charset=utf-8") {
+            response = response.with_header(h);
+        }
+        let _ = request.respond(response);
+        return;
+    }
+
+    if method == Method::Options && path == "/api/invoke" {
+        let mut response = Response::empty(StatusCode(204));
+        if let Some(h) = header("Access-Control-Allow-Origin", "*") {
+            response = response.with_header(h);
+        }
+        if let Some(h) = header("Access-Control-Allow-Methods", "POST, OPTIONS") {
+            response = response.with_header(h);
+        }
+        if let Some(h) = header("Access-Control-Allow-Headers", "Content-Type") {
+            response = response.with_header(h);
+        }
+        let _ = request.respond(response);
+        return;
+    }
+
+    if method == Method::Post && path == "/api/invoke" {
+        const MAX_INVOKE_BODY_BYTES: usize = 1024 * 1024;
+        let body_len = request.body_length();
+        let reader = request.as_reader();
+        let body: String;
+
+        if let Some(len) = body_len {
+            let len_usize = len as usize;
+            if len_usize > MAX_INVOKE_BODY_BYTES {
+                respond_json(request, 413, &serde_json::json!({"ok": false, "error": "Request-Body zu groß"}));
+                return;
+            }
+            let mut buf = vec![0_u8; len_usize];
+            if reader.read_exact(&mut buf).is_err() {
+                respond_json(request, 400, &serde_json::json!({"ok": false, "error": "Ungültiger Request-Body"}));
+                return;
+            }
+            body = match String::from_utf8(buf) {
+                Ok(v) => v,
+                Err(_) => {
+                    respond_json(request, 400, &serde_json::json!({"ok": false, "error": "Request-Body muss UTF-8 sein"}));
+                    return;
+                }
+            };
+        } else {
+            // Important: do not read unknown-length bodies here, it may block this single-threaded
+            // LAN HTTP loop indefinitely on some clients/transfer modes.
+            respond_json(request, 411, &serde_json::json!({"ok": false, "error": "Content-Length erforderlich"}));
+            return;
+        }
+
+        let payload: serde_json::Value = match serde_json::from_str(&body) {
+            Ok(v) => v,
+            Err(_) => {
+                respond_json(request, 400, &serde_json::json!({"ok": false, "error": "Ungültiges JSON"}));
+                return;
+            }
+        };
+
+        let cmd = payload
+            .get("cmd")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if cmd.is_empty() {
+            respond_json(request, 400, &serde_json::json!({"ok": false, "error": "Fehlender cmd-Parameter"}));
+            return;
+        }
+
+        let args = payload
+            .get("args")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
+
+        match remote_invoke_dispatch(&cmd, &args) {
+            Ok(data) => respond_json(request, 200, &serde_json::json!({"ok": true, "data": data})),
+            Err(err) => respond_json(request, 500, &serde_json::json!({"ok": false, "error": err})),
+        }
+        return;
+    }
+
+    if method == Method::Get && path == "/api/health" {
+        respond_json(request, 200, &serde_json::json!({
+            "ok": true,
+            "mode": "lan-webgui",
+            "port": LAN_WEB_PORT,
+            "camera_port": CAMERA_MJPEG_PORT
+        }));
+        return;
+    }
+
+    let response = Response::from_string("Not Found").with_status_code(StatusCode(404));
+    let _ = request.respond(response);
+}
+
+fn start_lan_web_server() {
+    static STARTED: OnceLock<()> = OnceLock::new();
+    if STARTED.set(()).is_err() {
+        return;
+    }
+
+    thread::spawn(|| {
+        let bind = format!("0.0.0.0:{}", LAN_WEB_PORT);
+        let server = match Server::http(&bind) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("LAN web server bind error: {}", e);
+                return;
+            }
+        };
+
+        for request in server.incoming_requests() {
+            thread::spawn(move || {
+                handle_lan_web_request(request);
+            });
+        }
+    });
 }
 
 fn main() {
@@ -3242,6 +4108,7 @@ fn main() {
                 }
             }
             start_camera_mjpeg_server();
+            start_lan_web_server();
             let sep       = tauri::menu::PredefinedMenuItem::separator(app)?;
             let show      = MenuItem::with_id(app, "show",      "PROJEKTIL öffnen", true, None::<&str>)?;
             let mute_all  = MenuItem::with_id(app, "mute_all",  "Alle Mute",         true, None::<&str>)?;
@@ -3290,9 +4157,10 @@ fn main() {
             system_get_battery_status,
             ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
+            pixera_api_request,
             minimize_window, toggle_fullscreen,
-            hide_to_tray, quit_app, open_external_url, append_app_log, load_app_logs, get_config,
-            save_site_metadata, save_telegram_config, telegram_send_test
+            hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
+            save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten");
