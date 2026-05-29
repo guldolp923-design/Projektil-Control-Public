@@ -2,10 +2,63 @@
   "anydesk_address": "1234567",
   "cam_01_ip": "192.168.1.22",
   "cam_02_ip": "192.168.1.23",
+  "camera_view_mode": "snapshot",
   "d40_01_ip": "192.168.1.51",
   "d40_02_ip": "192.168.1.52",
   "d40_oca_port": 50014,
+  "demo_amp_mutes": {
+    "1": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "2": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "demo_mode": false,
+  "demo_projector_mute": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "demo_projector_on": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
   "hotline": "+41 44 492 51 69",
+  "language": "de",
   "location_name": "Zürich, Testaufbau",
   "nas_ip": "192.168.1.21",
   "nas_port": 5000,
@@ -20,7 +73,17 @@
   "power_disp_ip": "192.168.1.5",
   "projector_count": 16,
   "projector_start": 101,
+  "startup_mode": "admin",
   "telegram": {
+    "alert_events": [
+      "offline",
+      "ups_battery",
+      "trigger_missed",
+      "timeline_error",
+      "emergency",
+      "panic",
+      "keyword_match"
+    ],
     "bot_token": "",
     "chat_id": "",
     "critical_error_keywords": [
