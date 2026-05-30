@@ -159,6 +159,20 @@ body.emergency-locked .sidebar-lock-indicator:hover{background:rgba(239,68,68,.1
 .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
 .card:last-child{margin-bottom:0}
 .card-title{font-size:13px;font-weight:600;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.pix-audio-controls{display:flex;gap:8px;flex-wrap:wrap}
+.pix-audio-ch-list{margin-top:10px;display:grid;gap:7px}
+.pix-audio-ch-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.02)}
+.pix-audio-ch-name{font-family:var(--mono);font-size:11px;color:#d7d2ff}
+.pix-audio-ch-vol{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.pix-audio-ch-empty{font-size:11px;color:var(--muted);padding:6px 0}
+.pix-audio-ch-gain{display:inline-flex;align-items:center;justify-content:center;min-width:64px;padding:3px 8px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);font-family:var(--mono);font-size:11px;color:#d7d2ff}
+.pix-audio-ch-btn-muted{background:#7f1d1d!important;border:1px solid #ef4444!important;color:#fff!important;animation:pixAudioMutedPulse 1s ease-in-out infinite}
+.pixera-testpattern-btn-active{background:#14532d!important;border-color:#16a34a!important;color:#dcfce7!important;box-shadow:0 0 0 1px rgba(34,197,94,.25),0 0 18px rgba(34,197,94,.16)}
+@keyframes pixAudioMutedPulse{
+  0%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}
+  70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}
+  100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}
+}
 .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--red)}
 .dot.on{background:var(--green)}
 .dot.warn{background:var(--orange)}
@@ -178,6 +192,7 @@ body.emergency-locked .sidebar-lock-indicator:hover{background:rgba(239,68,68,.1
 .btn-g{background:#14532d;border-color:var(--green)}.btn-g:hover{background:#15803d}
 .btn-r{background:#450a0a;border-color:var(--red)}.btn-r:hover{background:#7f1d1d}
 .btn-o{background:#431407;border-color:var(--orange)}
+.btn-red-pulse{animation:pixAudioMutedPulse 1s ease-in-out infinite}
 .gain-badge{display:inline-flex;align-items:center;justify-content:center;min-width:64px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:#fff;font-family:inherit;font-size:11px;cursor:pointer;transition:background .2s,border-color .2s}
 .gain-badge:hover{background:rgba(255,255,255,.08)}
 .gain-badge:active{transform:scale(.98)}
@@ -1039,17 +1054,6 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
 
     <!-- AUDIO -->
     <div class="tab-panel" id="tab-audio">
-      <div class="card" id="pixera-master-mute-card" style="margin-bottom:12px">
-        <div class="card-title" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
-          <span>Pixera Master Mute</span>
-          <span class="pill pill-r" id="pixera-master-mute-status-pill"><span class="dot" style="width:6px;height:6px"></span><span id="pixera-master-mute-status-text">Unbekannt</span></span>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" id="pixera-master-mute-toggle-btn" onclick="togglePixeraMasterMute()">Status laden</button>
-          <button class="btn" data-view-allow onclick="pollPixeraMasterMuteStatus(true)">Refresh</button>
-        </div>
-        <div id="pixera-master-mute-meta" style="margin-top:8px;font-size:10px;color:var(--muted);font-family:var(--mono)">API: —</div>
-      </div>
       <div class="g2" style="margin-bottom:12px">
         <div class="device-section" id="amp1-section">
           <div class="card">
@@ -1096,6 +1100,19 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
             <div class="offline-overlay-ip">IP: 192.168.1.53</div>
           </div>
         </div>
+      </div>
+      <div class="card" id="pixera-master-mute-card" style="margin-bottom:12px">
+        <div class="card-title" style="justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <span data-l10n-key="pixera_audio_title">Pixera Audio</span>
+          <span class="pill pill-r" id="pixera-master-mute-status-pill"><span class="dot" style="width:6px;height:6px"></span><span id="pixera-master-mute-status-text" data-l10n-key="pixera_unknown">Unbekannt</span></span>
+        </div>
+        <div class="pix-audio-controls">
+          <button class="btn btn-o" id="pixera-mute-all-btn" data-view-allow data-l10n-key="pixera_all_mute" onclick="pixeraMuteAllChannels()">Alle Mute</button>
+          <button class="btn btn-g" data-view-allow data-l10n-key="pixera_all_unmute" onclick="pixeraUnmuteAllChannels()">Alle Unmute</button>
+          <button class="btn" data-view-allow data-l10n-key="pixera_refresh" onclick="pollPixeraMasterMuteStatus(true)">Refresh</button>
+        </div>
+        <div id="pixera-master-mute-channel-count" style="margin-top:8px;font-size:10px;color:var(--muted);font-family:var(--mono)">Kanäle: -</div>
+        <div id="pixera-audio-channel-list" class="pix-audio-ch-list"></div>
       </div>
     </div>
 
@@ -1378,6 +1395,22 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
           <div class="offline-overlay-text" data-l10n-key="cam02_offline">CAM 02 — OFFLINE</div>
           <div class="offline-overlay-ip">IP: 192.168.1.23</div>
         </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title" data-l10n-key="pixera_testpattern_title">Pixera Testpattern</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px" data-l10n-key="pixera_testpattern_hint">Stoppt andere Timelines und ruft die Cue auf der Timeline Testpattern ab.</div>
+        <div class="preset-row">
+          <button class="btn" data-view-allow data-testpattern-cue="1" style="font-size:10px" onclick="triggerPixeraTestpatternCue(1)">UV-Map Color</button>
+          <button class="btn" data-view-allow data-testpattern-cue="2" style="font-size:10px" onclick="triggerPixeraTestpatternCue(2)">UV-Map Color Grid</button>
+          <button class="btn" data-view-allow data-testpattern-cue="3" style="font-size:10px" onclick="triggerPixeraTestpatternCue(3)">UV-Map Circle</button>
+          <button class="btn" data-view-allow data-testpattern-cue="4" style="font-size:10px" onclick="triggerPixeraTestpatternCue(4)">UV-Map Grid-A</button>
+          <button class="btn" data-view-allow data-testpattern-cue="5" style="font-size:10px" onclick="triggerPixeraTestpatternCue(5)">UV-Map Grid-B</button>
+          <button class="btn" data-view-allow data-testpattern-cue="6" style="font-size:10px" onclick="triggerPixeraTestpatternCue(6)">UV-Map Typo</button>
+          <button class="btn" data-view-allow data-testpattern-cue="7" style="font-size:10px" onclick="triggerPixeraTestpatternCue(7)">White</button>
+          <button class="btn" data-view-allow data-testpattern-cue="8" style="font-size:10px" onclick="triggerPixeraTestpatternCue(8)">Red</button>
+          <button class="btn" data-view-allow data-testpattern-cue="9" style="font-size:10px" onclick="triggerPixeraTestpatternCue(9)">Green</button>
+          <button class="btn" data-view-allow data-testpattern-cue="10" style="font-size:10px" onclick="triggerPixeraTestpatternCue(10)">Blue</button>
         </div>
       </div>
     </div>
@@ -2219,6 +2252,12 @@ const locales = {
     cam_mode_stream_hint: 'Flüssiger: schnellere Aktualisierung (mehr CPU/Netz).',
     cam_mode_snapshot_log: 'Kamera Vorschau-Modus: Snapshot',
     cam_mode_stream_log: 'Kamera Vorschau-Modus: Stream',
+    pixera_testpattern_title: 'Pixera Testpattern',
+    pixera_testpattern_hint: 'Stoppt andere Timelines und ruft die Cue auf der Timeline Testpattern ab.',
+    pixera_testpattern_missing: 'Timeline "Testpattern" wurde in Pixera nicht gefunden.',
+    pixera_testpattern_visible_timelines: 'Sichtbare Timelines: {names}',
+    pixera_testpattern_failed: 'Pixera Testpattern Cue fehlgeschlagen: {error}',
+    pixera_testpattern_triggered: 'Pixera Testpattern: Cue {cue} ({label}) ausgelöst',
     preset_1: 'Preset 1',
     preset_2: 'Preset 2',
     preset_3: 'Preset 3',
@@ -2243,6 +2282,27 @@ const locales = {
     realtime_label: 'Realtime',
     next_event_countdown_label: 'Countdown nächstes Event',
     technical_hotline_label: 'Technical Hotline',
+    pixera_audio_title: 'Pixera Audio',
+    pixera_all_mute: 'Alle stumm',
+    pixera_all_unmute: 'Alle entstummen',
+    pixera_refresh: 'Aktualisieren',
+    pixera_loading: 'Lade...',
+    pixera_mixed: 'Gemischt',
+    pixera_muted: 'Stumm',
+    pixera_unmuted: 'Nicht stumm',
+    pixera_unknown: 'Unbekannt',
+    pixera_channels_count: 'Kanäle: {all} erkannt, {used} genutzt',
+    pixera_no_channels_detected: 'Keine Kanäle erkannt (Refresh ausführen)',
+    pixera_no_channels_controllable: 'Keine steuerbaren Kanäle erkannt',
+    pixera_channel_gain_title: 'Gain für Kanal {channel} setzen',
+    pixera_channel_mute_title: 'Klicken zum Stummschalten',
+    pixera_channel_unmute_title: 'Klicken zum Entstummen',
+    pixera_gain_dialog_title: 'Pixera Kanal {channel} einstellen',
+    pixera_gain_dialog_subtitle: 'Aktuell: {value} dB',
+    pixera_gain_range_help: 'Wertebereich: -96.0 bis +10.0 dB. Schritte: 0.1 dB.',
+    pixera_gain_prompt: 'Gain für CH {channel} in dB',
+    pixera_invalid_gain: 'Ungültiger Gain-Wert',
+    pixera_invalid_range: 'Wert außerhalb des Bereichs -96.0 bis +10.0 dB.',
     all_mute: 'Alle Mute',
     all_unmute: 'Alle Unmute',
     all_off: 'All OFF',
@@ -2621,6 +2681,12 @@ const locales = {
     cam_mode_stream_hint: 'Smoother: faster refresh (more CPU/network).',
     cam_mode_snapshot_log: 'Camera preview mode: Snapshot',
     cam_mode_stream_log: 'Camera preview mode: Stream',
+    pixera_testpattern_title: 'Pixera Testpattern',
+    pixera_testpattern_hint: 'Stops other timelines and applies the cue on the Testpattern timeline.',
+    pixera_testpattern_missing: 'Timeline "Testpattern" was not found in Pixera.',
+    pixera_testpattern_visible_timelines: 'Visible timelines: {names}',
+    pixera_testpattern_failed: 'Pixera Testpattern cue failed: {error}',
+    pixera_testpattern_triggered: 'Pixera Testpattern: triggered cue {cue} ({label})',
     preset_1: 'Preset 1',
     preset_2: 'Preset 2',
     preset_3: 'Preset 3',
@@ -2645,6 +2711,27 @@ const locales = {
     realtime_label: 'Realtime',
     next_event_countdown_label: 'Next event countdown',
     technical_hotline_label: 'Technical Hotline',
+    pixera_audio_title: 'Pixera Audio',
+    pixera_all_mute: 'All Mute',
+    pixera_all_unmute: 'All Unmute',
+    pixera_refresh: 'Refresh',
+    pixera_loading: 'Loading...',
+    pixera_mixed: 'Mixed',
+    pixera_muted: 'Muted',
+    pixera_unmuted: 'Unmuted',
+    pixera_unknown: 'Unknown',
+    pixera_channels_count: 'Channels: {all} detected, {used} used',
+    pixera_no_channels_detected: 'No channels detected (run Refresh)',
+    pixera_no_channels_controllable: 'No controllable channels detected',
+    pixera_channel_gain_title: 'Set gain for channel {channel}',
+    pixera_channel_mute_title: 'Click to mute',
+    pixera_channel_unmute_title: 'Click to unmute',
+    pixera_gain_dialog_title: 'Set Pixera channel {channel}',
+    pixera_gain_dialog_subtitle: 'Current: {value} dB',
+    pixera_gain_range_help: 'Range: -96.0 to +10.0 dB. Step: 0.1 dB.',
+    pixera_gain_prompt: 'Gain for CH {channel} in dB',
+    pixera_invalid_gain: 'Invalid gain value',
+    pixera_invalid_range: 'Value out of range: -96.0 to +10.0 dB.',
     all_mute: 'All Mute',
     all_unmute: 'All Unmute',
     all_off: 'All OFF',
@@ -3078,6 +3165,12 @@ function translatePage(){
   }
   if(typeof updatePixeraSystemServerLabels === 'function'){
     updatePixeraSystemServerLabels();
+  }
+  if(typeof setPixeraMasterMuteUi === 'function'){
+    setPixeraMasterMuteUi();
+  }
+  if(typeof renderPixeraAudioChannelList === 'function'){
+    renderPixeraAudioChannelList();
   }
   if(typeof renderMobileNav === 'function'){
     renderMobileNav();
@@ -4033,6 +4126,8 @@ function addLogT(type,key,vars={},opts={}){
 }
 
 function applyDemoMode(){
+  const hasAmpDemoGains=[1,2,3].every(n=>Array.isArray(ampGains[n]) && ampGains[n].every(v=>Number.isFinite(parseFloat(String(v).replace('dB','').trim()))));
+  if(!hasAmpDemoGains) seedDemoAudioState();
   if(pixeraMasterMuted===null) pixeraMasterMuted=false;
   pixeraMasterMuteSource='demo';
   setPixeraMasterMuteUi();
@@ -4923,7 +5018,7 @@ async function init(){
   setInterval(pollAll,10000);
   setInterval(enforceProtocolFreshnessTimeouts,1000);
   setInterval(pollD40Status,5000);
-  setInterval(pollPixeraMasterMuteStatus,5000);
+  startPixeraMasterMutePolling();
   setInterval(syncProjectorsFromPjLink,5000);
   startSharedUiStateSync();
   setInterval(pollLocalBatteryStatus,LOCAL_BATTERY_POLL_INTERVAL_MS);
@@ -6047,8 +6142,56 @@ const ampGains={1:['-- dB','-- dB','-- dB','-- dB'],2:['-- dB','-- dB','-- dB','
 const ampCmdPending={1:false,2:false,3:false};let pollTimeoutId=null;
 let pixeraMasterMuted=null;
 let pixeraMasterMuteBusy=false;
+let pixeraMasterMuteMixed=false;
 let pixeraMasterMuteSource='';
-const gainDialogState={amp:1,channel:0,current:0};
+let pixeraAudioChannels=[];
+let pixeraAudioTargetLabel='';
+let pixeraMasterMutePollTimer=null;
+let pixeraMasterMutePollPromise=null;
+const gainDialogState={mode:'amp',amp:1,channel:0,current:0,min:-57.5,max:6.0,step:0.5};
+
+function formatGainValue(value){
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)} dB`;
+}
+
+function openGainDialog(options={}){
+  const {
+    mode='amp',
+    amp=1,
+    channel=0,
+    current=0,
+    min=-57.5,
+    max=6.0,
+    step=0.5,
+    title='',
+    subtitle='',
+    helpText=''
+  } = options;
+
+  gainDialogState.mode = mode;
+  gainDialogState.amp = amp;
+  gainDialogState.channel = channel;
+  gainDialogState.current = Number(current);
+  gainDialogState.min = Number(min);
+  gainDialogState.max = Number(max);
+  gainDialogState.step = Number(step);
+
+  const titleEl = document.getElementById('gain-dialog-title');
+  const subtitleEl = document.getElementById('gain-dialog-subtitle');
+  if(titleEl) titleEl.textContent = title;
+  if(subtitleEl) subtitleEl.textContent = subtitle;
+
+  const helpEl = document.querySelector('#gain-dialog .gain-dialog-label[data-l10n-key="gain_range_help"]');
+  if(helpEl && helpText) helpEl.textContent = helpText;
+
+  const input = document.getElementById('gain-dialog-input');
+  input.min = String(gainDialogState.min);
+  input.max = String(gainDialogState.max);
+  input.step = String(gainDialogState.step);
+  input.value = Number.isFinite(gainDialogState.current) ? gainDialogState.current.toFixed(1) : '0.0';
+  input.focus();
+  document.getElementById('gain-dialog-backdrop').classList.add('show');
+}
 
 function setAmpCommandPending(n){
   ampCmdPending[n]=true;
@@ -6057,21 +6200,49 @@ function setAmpCommandPending(n){
 }
 
 window.showGainDialog = (n, ch) => {
-  const currentTxt = ampGains[n][ch] || '-- dB';
-  const current = parseFloat(currentTxt.replace('dB','').trim());
+  let currentTxt = ampGains[n][ch] || '-- dB';
+  let current = parseFloat(currentTxt.replace('dB','').trim());
+  if (Number.isNaN(current) && demoMode) {
+    seedDemoAudioState();
+    currentTxt = ampGains[n][ch] || '-- dB';
+    current = parseFloat(currentTxt.replace('dB','').trim());
+  }
   if (Number.isNaN(current)) {
     alert(locales[currentLang].gain_not_available);
     return;
   }
-  gainDialogState.amp = n;
-  gainDialogState.channel = ch;
-  gainDialogState.current = current;
-  document.getElementById('gain-dialog-title').textContent = t('gain_dialog_title',{amp:n,channel:'ABCD'[ch]});
-  document.getElementById('gain-dialog-subtitle').textContent = t('gain_dialog_subtitle',{value:`${current >= 0 ? '+' : ''}${current.toFixed(1)}`});
-  const input = document.getElementById('gain-dialog-input');
-  input.value = current.toFixed(1);
-  input.focus();
-  document.getElementById('gain-dialog-backdrop').classList.add('show');
+  openGainDialog({
+    mode:'amp',
+    amp:n,
+    channel:ch,
+    current,
+    min:-57.5,
+    max:6.0,
+    step:0.5,
+    title:t('gain_dialog_title',{amp:n,channel:'ABCD'[ch]}),
+    subtitle:t('gain_dialog_subtitle',{value:`${current >= 0 ? '+' : ''}${current.toFixed(1)}`}),
+    helpText:t('gain_range_help')
+  });
+};
+
+window.showPixeraGainDialog = (channel) => {
+  if(pixeraMasterMuteBusy) return;
+  const ch=Number(channel);
+  if(!Number.isFinite(ch)) return;
+
+  const currentEntry=pixeraAudioChannels.find(item=>item.channel===ch);
+  const current=Number.isFinite(currentEntry?.volume) ? Number(currentEntry.volume) : 0;
+  openGainDialog({
+    mode:'pixera',
+    channel:ch,
+    current,
+    min:-96.0,
+    max:10.0,
+    step:0.1,
+    title:t('pixera_gain_dialog_title',{channel:String(ch).padStart(2,'0')}),
+    subtitle:t('pixera_gain_dialog_subtitle',{value:`${current >= 0 ? '+' : ''}${current.toFixed(1)}`}),
+    helpText:t('pixera_gain_range_help')
+  });
 };
 
 window.closeGainDialog = () => {
@@ -6079,31 +6250,48 @@ window.closeGainDialog = () => {
 };
 
 window.confirmGainDialog = async () => {
-  const n = gainDialogState.amp;
-  const ch = gainDialogState.channel;
-  const current = gainDialogState.current;
   const input = document.getElementById('gain-dialog-input');
   const raw = input.value.trim().replace(',', '.');
   const value = parseFloat(raw);
   if (Number.isNaN(value)) {
-    alert(locales[currentLang].invalid_number);
+    alert(gainDialogState.mode==='pixera' ? t('pixera_invalid_gain') : locales[currentLang].invalid_number);
     return;
   }
-  if (value < -57.5 || value > 6.0) {
-    alert(locales[currentLang].invalid_range);
+  if (value < gainDialogState.min || value > gainDialogState.max) {
+    alert(gainDialogState.mode==='pixera' ? t('pixera_invalid_range') : locales[currentLang].invalid_range);
     return;
   }
+
+  if(gainDialogState.mode==='pixera'){
+    closeGainDialog();
+    await window.setPixeraAudioChannelGain(gainDialogState.channel, value);
+    return;
+  }
+
+  const n = gainDialogState.amp;
+  const ch = gainDialogState.channel;
+  const current = gainDialogState.current;
   const target = Math.round(value * 2) / 2;
   const steps = Math.round((target - current) / 0.5);
   if (steps === 0) {
     closeGainDialog();
     return;
   }
+
+  if(demoMode){
+    ampGains[n][ch] = formatGainValue(target);
+    buildAmpChannels(n);
+    persistDemoRuntimeState();
+    addLogT('info', 'gain_set_log',{amp:n,channel:'ABCD'[ch],value:ampGains[n][ch]});
+    closeGainDialog();
+    return;
+  }
+
   const ip = getAmpIp(n);
   setAmpCommandPending(n);
   try {
     await invoke('d40_set_gain', { ip, channel: ch, current, target });
-    ampGains[n][ch] = `${target >= 0 ? '+' : ''}${target.toFixed(1)} dB`;
+    ampGains[n][ch] = formatGainValue(target);
     buildAmpChannels(n);
     setTimeout(() => pollD40Status(), 1200);
     addLogT('info', 'gain_set_log',{amp:n,channel:'ABCD'[ch],value:ampGains[n][ch]});
@@ -7137,6 +7325,7 @@ async function pixeraApiCall(paths, params=[], host=cfg.pixera_ip, port=cfg.pixe
   if(demoMode) return null;
   const allowEmpty = options?.allowEmpty !== false;
   const candidates=Array.isArray(paths)?paths:[paths];
+  const rootPrefix=(getPixeraApiRoot() || '') + '.';
   const shouldTrackDirectorApi = host===cfg.pixera_ip && Number(port||1338)===Number(cfg.pixera_port||1338);
   let lastError=null;
   let sawConnectivityFailure=false;
@@ -7145,6 +7334,15 @@ async function pixeraApiCall(paths, params=[], host=cfg.pixera_ip, port=cfg.pixe
       const result=await pixeraApiRequest(path,params,3500,host,port);
       const normalized=normalizePixeraResult(result);
       const isEmpty = normalized == null || (typeof normalized === 'string' && normalized.trim() === '');
+      const rootedEmptyWithFallback =
+        isEmpty &&
+        candidates.length>1 &&
+        rootPrefix!=='.' &&
+        String(path||'').startsWith(rootPrefix);
+      if(rootedEmptyWithFallback){
+        lastError = new Error(`Pixera API empty result on rooted path: ${path}`);
+        continue;
+      }
       if(!allowEmpty && isEmpty){
         lastError = new Error(`Pixera API empty result: ${path}`);
         continue;
@@ -7345,111 +7543,250 @@ async function schedulerCall(methodName, params=[], options={}){
   throw new Error(`Scheduler call failed for ${methodName} on modules: ${candidates.join(', ')}`);
 }
 
-const PIXERA_AUDIO_MASTER_MUTE_CHANNEL=0;
+const PIXERA_AUDIO_MASTER_MUTE_CHANNEL=1;
+const PIXERA_AUDIO_TARGET_CACHE_MS=10000;
+const PIXERA_AUDIO_CHANNEL_SCAN_MAX=16;
+const PIXERA_AUDIO_USED_VOLUME_THRESHOLD_DB=-90;
+const PIXERA_TESTPATTERN_TIMELINE_NAME='Testpattern';
+const PIXERA_TESTPATTERN_CUE_LABELS={1:'UV-Map Color',2:'UV-Map Color Grid',3:'UV-Map Circle',4:'UV-Map Grid-A',5:'UV-Map Grid-B',6:'UV-Map Typo',7:'White',8:'Red',9:'Green',10:'Blue'};
+let _pixeraAudioTargetCache=null;
+let _pixeraAudioTargetCacheTs=0;
+let pixeraTestpatternBusy=false;
+let pixeraActiveTestpatternCue=null;
 
-function buildPixeraMethodPathCandidates(methodName){
-  const raw=[
-    ...buildPixeraPaths(methodName),
-    ...buildPixeraPaths(`Pixera.Utility.${methodName}`),
-    ...buildPixeraPaths(`Pixera.${methodName}`)
-  ];
-  const deduped=[];
-  for(const p of raw){
-    const v=String(p||'').trim();
-    if(!v) continue;
-    if(deduped.some(existing=>existing.toLowerCase()===v.toLowerCase())) continue;
-    deduped.push(v);
+function buildPixeraMasterMuteChannelCandidates(channel){
+  const channelCandidates=[];
+  const pushChannel=(value)=>{
+    const num=Number(value);
+    if(!Number.isFinite(num)) return;
+    if(channelCandidates.includes(num)) return;
+    channelCandidates.push(num);
+  };
+  pushChannel(channel);
+  pushChannel(1);
+  pushChannel(0);
+  return channelCandidates;
+}
+
+async function pixeraFetchLiveSystems(){
+  const systems=await pixeraApiCall(
+    buildPixeraPaths('Pixera.LiveSystems.getLiveSystems'),
+    [],
+    cfg.pixera_ip,
+    cfg.pixera_port,
+    {allowEmpty:false}
+  );
+  if(!Array.isArray(systems) || systems.length===0){
+    throw new Error('Pixera.LiveSystems.getLiveSystems lieferte keine Systeme');
   }
-  return deduped;
+  return systems;
+}
+
+async function pixeraLiveSystemCall(systemHandle, methodName, args=[], allowEmpty=true){
+  if(!systemHandle || typeof systemHandle!=='object' || !systemHandle.address){
+    throw new Error('Ungueltiger LiveSystem-Handle');
+  }
+  const address=`${systemHandle.address}.${methodName}`;
+  const params=[systemHandle, ...args];
+  return pixeraApiCall([address], params, cfg.pixera_ip, cfg.pixera_port, {allowEmpty});
+}
+
+async function pixeraResolveAudioTarget(forceRefresh=false){
+  if(!forceRefresh && _pixeraAudioTargetCache && (Date.now()-_pixeraAudioTargetCacheTs)<PIXERA_AUDIO_TARGET_CACHE_MS){
+    return _pixeraAudioTargetCache;
+  }
+
+  const systems=await pixeraFetchLiveSystems();
+  const targetIp=String(cfg.pixera_ip||'').trim();
+  const candidates=[];
+
+  for(const system of systems){
+    if(!system || typeof system!=='object' || !system.address) continue;
+    let name='';
+    let ip='';
+    let state='';
+    try{ name=String(await pixeraLiveSystemCall(system, 'getName', [], false) ?? '').trim(); }catch(_e){}
+    try{ ip=String(await pixeraLiveSystemCall(system, 'getIp', [], false) ?? '').trim(); }catch(_e){}
+    try{ state=String(await pixeraLiveSystemCall(system, 'getState', [], false) ?? '').trim(); }catch(_e){}
+    candidates.push({ system, name, ip, state });
+  }
+
+  if(candidates.length===0) throw new Error('Keine gültigen LiveSystem-Kandidaten gefunden');
+
+  const stateIsOnline=(value)=>{
+    const s=String(value||'').trim().toLowerCase();
+    return s.includes('engine opened') || s.includes('online');
+  };
+
+  let selected=candidates.find(item=>item.ip===targetIp);
+  if(!selected) selected=candidates.find(item=>stateIsOnline(item.state));
+  if(!selected) selected=candidates[0];
+
+  _pixeraAudioTargetCache=selected;
+  _pixeraAudioTargetCacheTs=Date.now();
+  return selected;
+}
+
+function pixeraFormatAudioTarget(target){
+  if(!target) return 'unknown';
+  const parts=[];
+  if(target.name) parts.push(target.name);
+  if(target.ip) parts.push(target.ip);
+  if(target.state) parts.push(target.state);
+  return parts.join(' | ') || 'unknown';
+}
+
+async function pixeraReadAudioChannel(target, channel){
+  const mutedRaw=await pixeraLiveSystemCall(target.system, 'getAudioMasterMute', [channel], false);
+  const muted=parsePixeraMuteState(mutedRaw);
+  if(muted===null) throw new Error(`Pixera Kanal ${channel}: ungueltiger Mute-Wert ${JSON.stringify(mutedRaw)}`);
+
+  let volume=null;
+  try{
+    const volRaw=await pixeraLiveSystemCall(target.system, 'getAudioMasterVolume', [channel], false);
+    const volNum=Number(volRaw);
+    if(Number.isFinite(volNum)) volume=volNum;
+  }catch(_e){}
+
+  return { channel, muted, volume };
+}
+
+async function pixeraDetectAudioChannels(target){
+  const channels=[];
+  let missesAfterFirst=0;
+  for(let ch=0; ch<PIXERA_AUDIO_CHANNEL_SCAN_MAX; ch++){
+    try{
+      const item=await pixeraReadAudioChannel(target, ch);
+      channels.push(item);
+      missesAfterFirst=0;
+    }catch(_e){
+      if(channels.length===0) continue;
+      missesAfterFirst+=1;
+      if(missesAfterFirst>=2) break;
+    }
+  }
+  return channels;
+}
+
+async function pixeraRefreshAudioChannels(target){
+  if(!Array.isArray(pixeraAudioChannels) || pixeraAudioChannels.length===0){
+    return pixeraDetectAudioChannels(target);
+  }
+  const refreshed=[];
+  for(const item of pixeraAudioChannels){
+    const ch=Number(item?.channel);
+    if(!Number.isFinite(ch)) continue;
+    try{
+      refreshed.push(await pixeraReadAudioChannel(target, ch));
+    }catch(_e){
+      refreshed.push({ channel: ch, muted: item?.muted===true, volume: item?.volume ?? null });
+    }
+  }
+  return refreshed;
+}
+
+function pixeraComputeMasterMuteState(channels){
+  const valid=Array.isArray(channels) ? channels.filter(item=>typeof item?.muted==='boolean') : [];
+  if(valid.length===0) return { muted:null, mixed:false };
+  const allMuted=valid.every(item=>item.muted===true);
+  const allUnmuted=valid.every(item=>item.muted===false);
+  if(allMuted) return { muted:true, mixed:false };
+  if(allUnmuted) return { muted:false, mixed:false };
+  return { muted:null, mixed:true };
+}
+
+function isPixeraAudioChannelUsed(item){
+  if(!item || typeof item!=='object') return false;
+  if(item.muted===true) return true;
+  const vol=Number(item.volume);
+  if(Number.isFinite(vol) && vol>PIXERA_AUDIO_USED_VOLUME_THRESHOLD_DB) return true;
+  return false;
+}
+
+function getPixeraUsedAudioChannels(channels){
+  if(!Array.isArray(channels)) return [];
+  return channels.filter(isPixeraAudioChannelUsed);
+}
+
+function getPixeraControllableAudioChannels(channels){
+  const used=getPixeraUsedAudioChannels(channels);
+  return used.length>0 ? used : (Array.isArray(channels)?channels:[]);
 }
 
 async function pixeraOfficialGetAudioMasterMute(channel=PIXERA_AUDIO_MASTER_MUTE_CHANNEL){
-  const channelCandidates=[];
-  const pushChannel=(value)=>{
-    const num=Number(value);
-    if(!Number.isFinite(num)) return;
-    if(channelCandidates.includes(num)) return;
-    channelCandidates.push(num);
-  };
-  pushChannel(channel);
-  pushChannel(1);
-  pushChannel(0);
-
-  let lastError=null;
-  for(const ch of channelCandidates){
-    try{
-      const raw=await pixeraApiCall(
-        buildPixeraMethodPathCandidates('getAudioMasterMute'),
-        [ch],
-        cfg.pixera_ip,
-        cfg.pixera_port,
-        {allowEmpty:false}
-      );
-      return { raw, channel: ch };
-    }catch(e){
-      lastError=e;
-    }
+  const target=await pixeraResolveAudioTarget();
+  let channels=await pixeraRefreshAudioChannels(target);
+  if(!Array.isArray(channels) || channels.length===0){
+    channels=await pixeraDetectAudioChannels(target);
   }
-  throw lastError||new Error('getAudioMasterMute lieferte keinen gueltigen Wert');
+  if(!Array.isArray(channels) || channels.length===0){
+    throw new Error('Keine gültigen Audio-Kanäle gefunden');
+  }
+
+  const controllable=getPixeraControllableAudioChannels(channels);
+  const fallback=controllable[0] || channels[0];
+  const preferredCandidates=buildPixeraMasterMuteChannelCandidates(channel);
+  const selected=controllable.find(item=>preferredCandidates.includes(item.channel)) || fallback;
+  return { raw:selected.muted, channel:selected.channel, target, channels };
 }
 
 async function pixeraOfficialSetAudioMasterMute(state, channel=PIXERA_AUDIO_MASTER_MUTE_CHANNEL){
-  const channelCandidates=[];
-  const pushChannel=(value)=>{
-    const num=Number(value);
-    if(!Number.isFinite(num)) return;
-    if(channelCandidates.includes(num)) return;
-    channelCandidates.push(num);
-  };
-  pushChannel(channel);
-  pushChannel(1);
-  pushChannel(0);
+  const target=await pixeraResolveAudioTarget();
+  const channelCandidates=buildPixeraMasterMuteChannelCandidates(channel);
 
   let lastError=null;
   for(const ch of channelCandidates){
     try{
-      await pixeraApiCall(
-        buildPixeraMethodPathCandidates('setAudioMasterMute'),
-        [ch, !!state],
-        cfg.pixera_ip,
-        cfg.pixera_port,
-        {allowEmpty:true}
-      );
-      return ch;
+      await pixeraLiveSystemCall(target.system, 'setAudioMasterMute', [ch, !!state], true);
+      return { channel: ch, target };
     }catch(e){
       lastError=e;
     }
   }
+  _pixeraAudioTargetCache=null;
   throw lastError||new Error('setAudioMasterMute fehlgeschlagen');
 }
 
+async function pixeraSetAudioMasterMuteAll(state){
+  const target=await pixeraResolveAudioTarget();
+  let channels=await pixeraRefreshAudioChannels(target);
+  if(!channels.length) channels=await pixeraDetectAudioChannels(target);
+  if(!channels.length) throw new Error('Keine Audio-Kanäle für Master-Mute gefunden');
+
+  const controllable=getPixeraControllableAudioChannels(channels);
+  if(!controllable.length) throw new Error('Keine steuerbaren Audio-Kanäle gefunden');
+
+  const failed=[];
+  for(const item of controllable){
+    try{
+      await pixeraLiveSystemCall(target.system, 'setAudioMasterMute', [item.channel, !!state], true);
+    }catch(e){
+      failed.push({ channel:item.channel, error:String(e||'unknown') });
+    }
+  }
+  if(failed.length===controllable.length){
+    throw new Error(`Master-Mute fehlgeschlagen für alle Kanäle (${controllable.map(item=>item.channel).join(',')})`);
+  }
+  if(failed.length>0){
+    throw new Error(`Master-Mute teilweise fehlgeschlagen auf Kanälen: ${failed.map(item=>item.channel).join(', ')}`);
+  }
+  return { target, channels: controllable.map(item=>item.channel) };
+}
+
 async function pixeraOfficialToggleAudioMasterMute(channel=PIXERA_AUDIO_MASTER_MUTE_CHANNEL){
-  const channelCandidates=[];
-  const pushChannel=(value)=>{
-    const num=Number(value);
-    if(!Number.isFinite(num)) return;
-    if(channelCandidates.includes(num)) return;
-    channelCandidates.push(num);
-  };
-  pushChannel(channel);
-  pushChannel(1);
-  pushChannel(0);
+  const target=await pixeraResolveAudioTarget();
+  const channelCandidates=buildPixeraMasterMuteChannelCandidates(channel);
 
   let lastError=null;
   for(const ch of channelCandidates){
     try{
-      await pixeraApiCall(
-        buildPixeraMethodPathCandidates('toggleAudioMasterMute'),
-        [ch],
-        cfg.pixera_ip,
-        cfg.pixera_port,
-        {allowEmpty:true}
-      );
-      return ch;
+      await pixeraLiveSystemCall(target.system, 'toggleAudioMasterMute', [ch], true);
+      return { channel: ch, target };
     }catch(e){
       lastError=e;
     }
   }
+  _pixeraAudioTargetCache=null;
   throw lastError||new Error('toggleAudioMasterMute fehlgeschlagen');
 }
 
@@ -7490,91 +7827,319 @@ function parsePixeraMuteState(value){
 function setPixeraMasterMuteUi(){
   const pill=document.getElementById('pixera-master-mute-status-pill');
   const text=document.getElementById('pixera-master-mute-status-text');
-  const btn=document.getElementById('pixera-master-mute-toggle-btn');
-  const meta=document.getElementById('pixera-master-mute-meta');
-  if(!pill || !text || !btn || !meta) return;
+  const dot=pill?.querySelector('.dot');
+  const muteAllBtn=document.getElementById('pixera-mute-all-btn');
+  const countEl=document.getElementById('pixera-master-mute-channel-count');
+  if(!pill || !text || !countEl) return;
 
   if(pixeraMasterMuteBusy){
-    text.textContent='Lade...';
+    text.textContent=t('pixera_loading');
     pill.className='pill pill-o';
-    btn.disabled=true;
-    btn.textContent='Bitte warten...';
+    if(dot) dot.style.background='var(--orange)';
+    if(muteAllBtn) muteAllBtn.disabled=true;
+  } else if(pixeraMasterMuteMixed){
+    text.textContent=t('pixera_mixed');
+    pill.className='pill pill-o';
+    if(dot) dot.style.background='var(--orange)';
+    if(muteAllBtn) muteAllBtn.disabled=false;
   } else if(pixeraMasterMuted===true){
-    text.textContent='Gemutet';
+    text.textContent=t('pixera_muted');
     pill.className='pill pill-o';
-    btn.disabled=false;
-    btn.textContent='Unmute';
+    if(dot) dot.style.background='var(--orange)';
+    if(muteAllBtn) muteAllBtn.disabled=false;
   } else if(pixeraMasterMuted===false){
-    text.textContent='Unmuted';
+    text.textContent=t('pixera_unmuted');
     pill.className='pill pill-g';
-    btn.disabled=false;
-    btn.textContent='Mute';
+    if(dot) dot.style.background='var(--green)';
+    if(muteAllBtn) muteAllBtn.disabled=false;
   } else {
-    text.textContent='Unbekannt';
+    text.textContent=t('pixera_unknown');
     pill.className='pill pill-r';
-    btn.disabled=false;
-    btn.textContent='Status laden';
+    if(dot) dot.style.background='var(--red)';
+    if(muteAllBtn) muteAllBtn.disabled=false;
   }
 
-  meta.textContent = `API: ${pixeraMasterMuteSource || '—'}`;
+  if(muteAllBtn){
+    const allMuteRed = pixeraMasterMuted===true || pixeraMasterMuteMixed===true;
+    muteAllBtn.className=`btn ${allMuteRed?'btn-r btn-red-pulse':'btn-o'}`;
+  }
+
+  const usedCount=getPixeraUsedAudioChannels(pixeraAudioChannels).length;
+  const allCount=pixeraAudioChannels.length;
+  countEl.textContent = t('pixera_channels_count', {
+    all: allCount || '-',
+    used: allCount ? usedCount : '-'
+  });
+}
+
+function renderPixeraAudioChannelList(){
+  const container=document.getElementById('pixera-audio-channel-list');
+  if(!container) return;
+  container.innerHTML='';
+
+  if(!Array.isArray(pixeraAudioChannels) || pixeraAudioChannels.length===0){
+    const empty=document.createElement('div');
+    empty.className='pix-audio-ch-empty';
+    empty.textContent=t('pixera_no_channels_detected');
+    container.appendChild(empty);
+    return;
+  }
+
+  const rows=getPixeraControllableAudioChannels(pixeraAudioChannels);
+  if(!rows.length){
+    const empty=document.createElement('div');
+    empty.className='pix-audio-ch-empty';
+    empty.textContent=t('pixera_no_channels_controllable');
+    container.appendChild(empty);
+    return;
+  }
+
+  for(const item of rows){
+    const row=document.createElement('div');
+    row.className='pix-audio-ch-row';
+
+    const name=document.createElement('div');
+    name.className='pix-audio-ch-name';
+    name.textContent=`CH ${String(item.channel).padStart(2,'0')}`;
+
+    const vol=document.createElement('button');
+    vol.className='gain-badge pix-audio-ch-gain';
+    vol.type='button';
+    vol.textContent=Number.isFinite(item.volume)
+      ? `Gain ${item.volume>=0?'+':''}${item.volume.toFixed(1)} dB`
+      : 'Gain — dB';
+    vol.title=t('pixera_channel_gain_title',{channel:item.channel});
+    vol.disabled=pixeraMasterMuteBusy;
+    vol.addEventListener('click',()=>window.showPixeraGainDialog(item.channel));
+
+    const btn=document.createElement('button');
+    btn.className=`btn ${item.muted===true?'pix-audio-ch-btn-muted':'btn-g'}`;
+    btn.style.justifySelf='end';
+    btn.style.fontSize='10px';
+    btn.textContent=item.muted===true?t('pixera_muted'):t('pixera_unmuted');
+    btn.title=item.muted===true?t('pixera_channel_unmute_title'):t('pixera_channel_mute_title');
+    btn.disabled=pixeraMasterMuteBusy;
+    btn.addEventListener('click',()=>window.togglePixeraAudioChannelMute(item.channel));
+
+    row.appendChild(name);
+    row.appendChild(vol);
+    row.appendChild(btn);
+    container.appendChild(row);
+  }
 }
 
 window.pollPixeraMasterMuteStatus=async(force=false)=>{
-  if(pixeraMasterMuteBusy && !force) return;
+  if(pixeraMasterMuteBusy){
+    if(!force) return pixeraMasterMutePollPromise;
+    if(pixeraMasterMutePollPromise){
+      try{ await pixeraMasterMutePollPromise; }catch(_e){}
+    }
+  }
+
+  const run = async()=>{
   if(demoMode){
     if(pixeraMasterMuted===null) pixeraMasterMuted=false;
+    pixeraMasterMuteMixed=false;
+    if(!pixeraAudioChannels.length){
+      pixeraAudioChannels=[
+        {channel:1, muted:false, volume:null},
+        {channel:2, muted:false, volume:null}
+      ];
+    }
     pixeraMasterMuteSource='demo';
+    renderPixeraAudioChannelList();
     setPixeraMasterMuteUi();
     return;
   }
   pixeraMasterMuteBusy=true;
   setPixeraMasterMuteUi();
+  renderPixeraAudioChannelList();
   try{
-    const { raw, channel } = await pixeraOfficialGetAudioMasterMute();
+    const { raw, channel, target, channels } = await pixeraOfficialGetAudioMasterMute();
+    pixeraAudioChannels=Array.isArray(channels)?channels:[];
+    pixeraAudioTargetLabel=pixeraFormatAudioTarget(target);
     const parsed=parsePixeraMuteState(raw);
-    if(parsed===null) throw new Error(`Ungueltiger Master-Mute-Status: ${JSON.stringify(raw)}`);
-    pixeraMasterMuted=parsed;
-    pixeraMasterMuteSource=`official:getAudioMasterMute(ch=${channel})`;
+    const computed=pixeraComputeMasterMuteState(pixeraAudioChannels);
+    pixeraMasterMuteMixed=computed.mixed;
+    if(parsed===null){
+      const rawSummary = raw==null ? 'empty' : JSON.stringify(raw);
+      pixeraMasterMuted=computed.muted;
+      pixeraMasterMuteSource=`official:getAudioMasterMute(ch=${channel}) @ ${pixeraAudioTargetLabel} returned ${rawSummary}`;
+    } else {
+      pixeraMasterMuted=computed.muted ?? parsed;
+      pixeraMasterMuteSource=`official:getAudioMasterMute(ch=${channel}) @ ${pixeraAudioTargetLabel}`;
+    }
   }catch(e){
-    pixeraMasterMuted=null;
+    pixeraMasterMuteMixed=false;
     pixeraMasterMuteSource=`error: ${String(e||'unknown')}`;
   }finally{
     pixeraMasterMuteBusy=false;
+    renderPixeraAudioChannelList();
     setPixeraMasterMuteUi();
+  }
+  };
+
+  pixeraMasterMutePollPromise=run();
+  try{
+    return await pixeraMasterMutePollPromise;
+  }finally{
+    pixeraMasterMutePollPromise=null;
   }
 };
 
+function startPixeraMasterMutePolling(){
+  if(pixeraMasterMutePollTimer) clearInterval(pixeraMasterMutePollTimer);
+  pixeraMasterMutePollTimer=setInterval(()=>{
+    void window.pollPixeraMasterMuteStatus(false);
+  },10000);
+}
+
 window.togglePixeraMasterMute=async()=>{
   if(pixeraMasterMuteBusy) return;
-  const targetMuted = !(pixeraMasterMuted===true);
+  const targetMuted = !(pixeraMasterMuted===true && !pixeraMasterMuteMixed);
   if(demoMode){
     pixeraMasterMuted=targetMuted;
+    pixeraMasterMuteMixed=false;
+    pixeraAudioChannels=pixeraAudioChannels.map(item=>({ ...item, muted: targetMuted }));
     pixeraMasterMuteSource='demo';
+    renderPixeraAudioChannelList();
     setPixeraMasterMuteUi();
-    addLog('info',`Pixera Master Mute (Demo): ${targetMuted?'ON':'OFF'}`);
+    addLog('info',`Pixera Master Mute (Demo, alle Kanäle): ${targetMuted?'ON':'OFF'}`);
     return;
   }
 
   pixeraMasterMuteBusy=true;
   setPixeraMasterMuteUi();
+  renderPixeraAudioChannelList();
   try{
-    const channel = await pixeraOfficialSetAudioMasterMute(targetMuted);
+    const { target, channels } = await pixeraSetAudioMasterMuteAll(targetMuted);
+    const targetLabel=pixeraFormatAudioTarget(target);
     pixeraMasterMuted=targetMuted;
-    pixeraMasterMuteSource=`official:setAudioMasterMute(ch=${channel})`;
-    addLog('info',`Pixera Master Mute: ${targetMuted?'ON':'OFF'} (official:setAudioMasterMute ch=${channel})`);
+    pixeraMasterMuteMixed=false;
+    pixeraMasterMuteSource=`official:setAudioMasterMute(all=${channels.join(',')}) @ ${targetLabel}`;
+    addLog('info',`Pixera Master Mute: ${targetMuted?'ON':'OFF'} (all channels: ${channels.join(',')}, target=${targetLabel})`);
     await window.pollPixeraMasterMuteStatus(true);
   }catch(e){
     try{
-      const channel = await pixeraOfficialToggleAudioMasterMute();
+      const { channel, target } = await pixeraOfficialToggleAudioMasterMute();
+      const targetLabel=pixeraFormatAudioTarget(target);
       pixeraMasterMuted=targetMuted;
-      pixeraMasterMuteSource=`official:toggleAudioMasterMute(ch=${channel})`;
-      addLog('info',`Pixera Master Mute: ${targetMuted?'ON':'OFF'} (official:toggleAudioMasterMute ch=${channel})`);
+      pixeraMasterMuteMixed=false;
+      pixeraMasterMuteSource=`official:toggleAudioMasterMute(ch=${channel}) @ ${targetLabel}`;
+      addLog('info',`Pixera Master Mute: ${targetMuted?'ON':'OFF'} (official:toggleAudioMasterMute ch=${channel}, target=${targetLabel})`);
       await window.pollPixeraMasterMuteStatus(true);
     }catch(toggleErr){
       addError(`Pixera Master Mute Fehler: ${e} | Toggle-Fallback Fehler: ${toggleErr}`);
     }
   }finally{
     pixeraMasterMuteBusy=false;
+    renderPixeraAudioChannelList();
+    setPixeraMasterMuteUi();
+  }
+};
+
+async function setPixeraAllChannelsMuted(state){
+  if(pixeraMasterMuteBusy) return;
+  pixeraMasterMuteBusy=true;
+  setPixeraMasterMuteUi();
+  renderPixeraAudioChannelList();
+  try{
+    const { target, channels } = await pixeraSetAudioMasterMuteAll(state);
+    const targetLabel=pixeraFormatAudioTarget(target);
+    pixeraMasterMuted=!!state;
+    pixeraMasterMuteMixed=false;
+    pixeraMasterMuteSource=`official:setAudioMasterMute(all=${channels.join(',')}) @ ${targetLabel}`;
+    addLog('info',`Pixera Master Mute: ${state?'ON':'OFF'} (all channels: ${channels.join(',')}, target=${targetLabel})`);
+    await window.pollPixeraMasterMuteStatus(true);
+  }catch(e){
+    addError(`Pixera ${state?'Mute':'Unmute'}-All Fehler: ${e}`);
+  }finally{
+    pixeraMasterMuteBusy=false;
+    renderPixeraAudioChannelList();
+    setPixeraMasterMuteUi();
+  }
+}
+
+window.pixeraMuteAllChannels=async()=>{
+  await setPixeraAllChannelsMuted(true);
+};
+
+window.pixeraUnmuteAllChannels=async()=>{
+  await setPixeraAllChannelsMuted(false);
+};
+
+window.togglePixeraAudioChannelMute=async(channel)=>{
+  if(pixeraMasterMuteBusy) return;
+  const ch=Number(channel);
+  if(!Number.isFinite(ch)) return;
+
+  const current=pixeraAudioChannels.find(item=>item.channel===ch);
+  const targetMuted=!(current?.muted===true);
+
+  if(demoMode){
+    pixeraAudioChannels=pixeraAudioChannels.map(item=>item.channel===ch?{...item, muted:targetMuted}:item);
+    const computed=pixeraComputeMasterMuteState(pixeraAudioChannels);
+    pixeraMasterMuted=computed.muted;
+    pixeraMasterMuteMixed=computed.mixed;
+    pixeraMasterMuteSource=`demo:channel ${ch}`;
+    renderPixeraAudioChannelList();
+    setPixeraMasterMuteUi();
+    return;
+  }
+
+  pixeraMasterMuteBusy=true;
+  setPixeraMasterMuteUi();
+  renderPixeraAudioChannelList();
+  try{
+    const { target } = await pixeraOfficialSetAudioMasterMute(targetMuted, ch);
+    const targetLabel=pixeraFormatAudioTarget(target);
+    pixeraMasterMuteSource=`official:setAudioMasterMute(ch=${ch}) @ ${targetLabel}`;
+    await window.pollPixeraMasterMuteStatus(true);
+  }catch(e){
+    addError(`Pixera Kanal-Mute Fehler (ch=${ch}): ${e}`);
+  }finally{
+    pixeraMasterMuteBusy=false;
+    renderPixeraAudioChannelList();
+    setPixeraMasterMuteUi();
+  }
+};
+
+window.setPixeraAudioChannelGain=async(channel, explicitValue)=>{
+  if(pixeraMasterMuteBusy) return;
+  const ch=Number(channel);
+  if(!Number.isFinite(ch)) return;
+
+  const value=Number(explicitValue);
+  if(!Number.isFinite(value)){
+    alert(t('pixera_invalid_gain'));
+    return;
+  }
+  const minGain=-96;
+  const maxGain=10;
+  const clipped=Math.max(minGain, Math.min(maxGain, value));
+
+  if(demoMode){
+    pixeraAudioChannels=pixeraAudioChannels.map(item=>item.channel===ch?{...item, volume:clipped}:item);
+    pixeraMasterMuteSource=`demo:setAudioMasterVolume(ch=${ch}, value=${clipped.toFixed(1)})`;
+    renderPixeraAudioChannelList();
+    setPixeraMasterMuteUi();
+    return;
+  }
+
+  pixeraMasterMuteBusy=true;
+  setPixeraMasterMuteUi();
+  renderPixeraAudioChannelList();
+  try{
+    const target=await pixeraResolveAudioTarget();
+    await pixeraLiveSystemCall(target.system, 'setAudioMasterVolume', [ch, clipped], true);
+    const targetLabel=pixeraFormatAudioTarget(target);
+    pixeraMasterMuteSource=`official:setAudioMasterVolume(ch=${ch}, value=${clipped.toFixed(1)}) @ ${targetLabel}`;
+    await window.pollPixeraMasterMuteStatus(true);
+  }catch(e){
+    addError(`Pixera Kanal-Gain Fehler (ch=${ch}): ${e}`);
+  }finally{
+    pixeraMasterMuteBusy=false;
+    renderPixeraAudioChannelList();
     setPixeraMasterMuteUi();
   }
 };
@@ -7597,6 +8162,118 @@ async function timelineHandleCall(handle, method){
   const addr=`${handle.address}.${method}`;
   return pixeraApiCall([addr],[handle]);
 }
+
+async function timelineHandleCallWithArgs(handle, method, args=[]){
+  const addr=`${handle.address}.${method}`;
+  return pixeraApiCall([addr],[handle, ...args]);
+}
+
+function normalizeTimelineName(value){
+  return String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+
+function renderPixeraTestpatternButtons(){
+  document.querySelectorAll('[data-testpattern-cue]').forEach(btn=>{
+    const cue=Number(btn.dataset.testpatternCue);
+    btn.classList.toggle('pixera-testpattern-btn-active', cue===pixeraActiveTestpatternCue);
+  });
+}
+
+async function getPixeraVisibleTimelineNames(){
+  const names=[];
+  if(Array.isArray(_tlHandleCache) && _tlHandleCache.length){
+    for(const handle of _tlHandleCache){
+      const name=_tlHandleNames.get(handle.address)||handle._name||'';
+      if(name) names.push(String(name));
+    }
+  }
+  if(names.length) return [...new Set(names)].sort((a,b)=>a.localeCompare(b));
+
+  try{
+    const raw=await pixeraApiCall(buildPixeraPaths('Pixera.Timelines.getTimelineNames'),[]);
+    if(Array.isArray(raw)) return [...new Set(raw.map(name=>String(name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    if(typeof raw==='string' && raw.trim()) return [raw.trim()];
+  }catch(_e){}
+
+  try{
+    await refreshTimelineHandles();
+  }catch(_e){}
+  if(Array.isArray(_tlHandleCache) && _tlHandleCache.length){
+    for(const handle of _tlHandleCache){
+      const name=_tlHandleNames.get(handle.address)||handle._name||'';
+      if(name) names.push(String(name));
+    }
+  }
+  return [...new Set(names)].sort((a,b)=>a.localeCompare(b));
+}
+
+async function getTimelineHandleByName(name, forceRefresh=false){
+  if(forceRefresh || !_tlHandleCache || Date.now()-_tlLastRefresh>TL_REFRESH_MS){
+    await refreshTimelineHandles();
+  }
+  const normalizedName=normalizeTimelineName(name);
+  const cached=Array.isArray(_tlHandleCache)
+    ? _tlHandleCache.find(handle=>normalizeTimelineName(_tlHandleNames.get(handle.address)||handle._name||'')===normalizedName)
+    : null;
+  if(cached) return cached;
+
+  const direct=await pixeraApiCall(buildPixeraPaths('Pixera.Timelines.getTimelineFromName'), [name]).catch(()=>null);
+  if(direct && typeof direct==='object' && direct.address){
+    direct._name=name;
+    if(Array.isArray(_tlHandleCache) && !_tlHandleCache.some(handle=>handle.address===direct.address)){
+      _tlHandleCache.push(direct);
+    }
+    _tlHandleNames.set(direct.address, name);
+    return direct;
+  }
+  return null;
+}
+
+async function stopPixeraTimelinesExcept(targetName){
+  await refreshTimelineHandles();
+  const normalizedTargetName=normalizeTimelineName(targetName);
+  const handles=Array.isArray(_tlHandleCache)?_tlHandleCache:[];
+  for(const handle of handles){
+    const handleName=_tlHandleNames.get(handle.address)||handle._name||'';
+    if(normalizeTimelineName(handleName)===normalizedTargetName) continue;
+    try{
+      await timelineHandleCall(handle,'stop');
+    }catch(_e){}
+  }
+}
+
+window.triggerPixeraTestpatternCue=async(cueNumber)=>{
+  const cue=Number(cueNumber);
+  const cueLabel=PIXERA_TESTPATTERN_CUE_LABELS[cue] || `Cue ${cue}`;
+  if(!Number.isFinite(cue)) return;
+  if(pixeraTestpatternBusy) return;
+
+  if(demoMode){
+    pixeraActiveTestpatternCue=cue;
+    renderPixeraTestpatternButtons();
+    addLogT('info','pixera_testpattern_triggered',{cue,label:cueLabel});
+    return;
+  }
+
+  pixeraTestpatternBusy=true;
+  try{
+    const targetTimeline=await getTimelineHandleByName(PIXERA_TESTPATTERN_TIMELINE_NAME, true);
+    if(!targetTimeline){
+      const visible=await getPixeraVisibleTimelineNames();
+      const list=visible.length ? visible.join(', ') : '—';
+      throw new Error(`${t('pixera_testpattern_missing')} ${t('pixera_testpattern_visible_timelines',{names:list})}`);
+    }
+    await stopPixeraTimelinesExcept(PIXERA_TESTPATTERN_TIMELINE_NAME);
+    await timelineHandleCallWithArgs(targetTimeline,'applyCueWithNumber',[cue]);
+    pixeraActiveTestpatternCue=cue;
+    renderPixeraTestpatternButtons();
+    addLogT('info','pixera_testpattern_triggered',{cue,label:cueLabel});
+  }catch(e){
+    addError(t('pixera_testpattern_failed',{error:e}));
+  }finally{
+    pixeraTestpatternBusy=false;
+  }
+};
 
 // Refresh the full timeline list + names (called at init and every 5 min).
 // Only names are fetched here; cursor/transport are polled separately.
