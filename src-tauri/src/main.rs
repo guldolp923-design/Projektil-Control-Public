@@ -2657,7 +2657,7 @@ fn default_config_json() -> serde_json::Value {
         "pixera_octo1_ip": "192.168.1.32", "pixera_octo2_ip": "192.168.1.33",
         "pixera_octo_port": 4000,
         "pixera_octo_count": 2,
-        "pixera_api_root": "erwer",
+        "pixera_api_root": "",
         "pixera_pjlink_module": "PJ_Link__16ch",
         "pixera_scheduler_module": "Projektil_EventScheduler_V2_7",
         "d40_01_ip": "192.168.1.51", "d40_02_ip": "192.168.1.52", "d40_03_ip": "192.168.1.53", "amp_count": 2, "d40_oca_port": 50014,
@@ -2734,7 +2734,7 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
         obj.insert("d40_03_ip".to_string(), serde_json::json!("192.168.1.53"));
     }
     if !obj.contains_key("pixera_api_root") {
-        obj.insert("pixera_api_root".to_string(), serde_json::json!("erwer"));
+        obj.insert("pixera_api_root".to_string(), serde_json::json!(""));
     }
     if !obj.contains_key("pixera_pjlink_module") {
         obj.insert("pixera_pjlink_module".to_string(), serde_json::json!("PJ_Link__16ch"));
