@@ -2469,7 +2469,7 @@ dependencies = [
 
 [[package]]
 name = "projektil-control"
-version = "1.0.19-beta"
+version = "1.0.20"
 dependencies = [
  "base64 0.22.1",
  "chrono",
