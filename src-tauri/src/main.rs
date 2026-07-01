@@ -587,7 +587,7 @@ fn send_telegram_message_async(bot_token: String, chat_id: String, text: String)
         };
 
         let form = [
-            ("chat_id", chat_id),
+            ("chat_id", chat_id.clone()),
             ("text", text),
             ("parse_mode", "HTML".to_string()),
             ("disable_web_page_preview", "true".to_string()),
@@ -595,17 +595,26 @@ fn send_telegram_message_async(bot_token: String, chat_id: String, text: String)
 
         match client.post(url).form(&form).send() {
             Ok(resp) => {
-                if !resp.status().is_success() {
+                let status = resp.status();
+                if !status.is_success() {
+                    let body = resp.text().unwrap_or_else(|_| "no body".to_string());
                     let _ = write_app_log(
                         "error",
-                        &format!("Telegram send failed with status {}", resp.status()),
+                        &format!("Telegram send to {} failed with status {}. Response: {}", chat_id, status, body),
+                        now_timestamp_ms(),
+                        None,
+                    );
+                } else {
+                    let _ = write_app_log(
+                        "info",
+                        &format!("Telegram message sent successfully to {}", chat_id),
                         now_timestamp_ms(),
                         None,
                     );
                 }
             }
             Err(e) => {
-                let _ = write_app_log("error", &format!("Telegram send request failed: {}", e), now_timestamp_ms(), None);
+                let _ = write_app_log("error", &format!("Telegram send to {} request failed: {}", chat_id, e), now_timestamp_ms(), None);
             }
         }
     });
@@ -619,6 +628,7 @@ fn maybe_send_critical_telegram(level: &str, message: &str, timestamp_ms: u64) {
 
     let bot_token = cfg["telegram"]["bot_token"].as_str().unwrap_or("").trim().to_string();
     let chat_id = cfg["telegram"]["chat_id"].as_str().unwrap_or("").trim().to_string();
+    let channel_id = cfg["telegram"]["channel_id"].as_str().unwrap_or("").trim().to_string();
     if bot_token.is_empty() || chat_id.is_empty() {
         return;
     }
@@ -636,7 +646,10 @@ fn maybe_send_critical_telegram(level: &str, message: &str, timestamp_ms: u64) {
             return;
         }
         let text = build_telegram_resolved_text(&cfg, message, timestamp_ms);
-        send_telegram_message_async(bot_token, chat_id, text);
+        send_telegram_message_async(bot_token.clone(), chat_id.clone(), text.clone());
+        if !channel_id.is_empty() {
+            send_telegram_message_async(bot_token.clone(), channel_id, text);
+        }
         return;
     }
 
@@ -651,7 +664,10 @@ fn maybe_send_critical_telegram(level: &str, message: &str, timestamp_ms: u64) {
     }
 
     let text = build_telegram_alarm_text(&cfg, message, timestamp_ms);
-    send_telegram_message_async(bot_token, chat_id, text);
+    send_telegram_message_async(bot_token.clone(), chat_id.clone(), text.clone());
+    if !channel_id.is_empty() {
+        send_telegram_message_async(bot_token, channel_id, text);
+    }
 }
 
 fn install_panic_logging_hook() {
@@ -2963,7 +2979,7 @@ fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<
 }
 
 #[tauri::command]
-fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, alert_events: Option<Vec<String>>) -> Result<bool, String> {
+fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, channel_id: Option<String>, alert_events: Option<Vec<String>>) -> Result<bool, String> {
     let mut cfg = read_config_json_from_disk()
         .map(|(_, json)| json)
         .unwrap_or_else(default_config_json);
@@ -2975,6 +2991,9 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, alert
             t.insert("enabled".to_string(), serde_json::json!(enabled));
             t.insert("bot_token".to_string(), serde_json::json!(bot_token.trim()));
             t.insert("chat_id".to_string(), serde_json::json!(chat_id.trim()));
+            if let Some(ch_id) = channel_id {
+                t.insert("channel_id".to_string(), serde_json::json!(ch_id.trim()));
+            }
             if let Some(events) = alert_events {
                 let mut cleaned: Vec<String> = Vec::new();
                 for event in events {
@@ -3771,6 +3790,7 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_bool(args, &["enabled"])? ,
             arg_string(args, &["botToken", "bot_token"])? ,
             arg_string(args, &["chatId", "chat_id"])? ,
+            arg_optional_string(args, &["channelId", "channel_id"]),
             arg_optional_vec_string(args, &["alertEvents", "alert_events"])
         )?)),
 
