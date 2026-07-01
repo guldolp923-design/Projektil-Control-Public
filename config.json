@@ -130,6 +130,7 @@
     ],
     "bot_token": "8571949507:AAHyit1B2STk5H7EdMyiVYlNf89PCqqS4DQ",
     "chat_id": "-5190643085",
+    "channel_id": "-1004445988300",
     "critical_error_keywords": [
       "sofortalarm",
       "batteriebetrieb",

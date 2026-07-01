@@ -981,6 +981,11 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
                   <input id="tg-chat-id-input" type="text" autocomplete="off" placeholder="-100xxxxxxxxxx"
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
                 </div>
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="telegram_channel_id_label">Kanal-ID</div>
+                  <input id="tg-channel-id-input" type="text" autocomplete="off" placeholder="-4445988300"
+                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                </div>
               </div>
               <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="telegram_alert_events_label">Alarm-Ereignisse</div>
               <div style="font-size:11px;color:var(--muted);margin-bottom:8px" data-l10n-key="telegram_alert_events_hint">Nur diese Ereignisse loesen Telegram aus.</div>
@@ -2052,6 +2057,7 @@ const locales = {
     telegram_enabled_label: 'Benachrichtigungen aktiviert',
     telegram_bot_token_label: 'Bot-Token',
     telegram_chat_id_label: 'Chat-ID',
+    telegram_channel_id_label: 'Kanal-ID',
     telegram_alert_events_label: 'Alarm-Ereignisse',
     telegram_alert_events_hint: 'Nur diese Ereignisse loesen Telegram aus.',
     telegram_group_janitza: 'Janitza',
@@ -2481,6 +2487,7 @@ const locales = {
     telegram_enabled_label: 'Notifications enabled',
     telegram_bot_token_label: 'Bot token',
     telegram_chat_id_label: 'Chat ID',
+    telegram_channel_id_label: 'Channel ID',
     telegram_alert_events_label: 'Alert events',
     telegram_alert_events_hint: 'Only these events trigger Telegram messages.',
     telegram_group_janitza: 'Janitza',
@@ -3993,6 +4000,7 @@ function openTelegramSettings(){
     document.getElementById('tg-enabled-toggle').checked = !!cfg.telegram.enabled;
     document.getElementById('tg-bot-token-input').value = cfg.telegram.bot_token || '';
     document.getElementById('tg-chat-id-input').value   = cfg.telegram.chat_id   || '';
+    document.getElementById('tg-channel-id-input').value = cfg.telegram.channel_id || '';
     applyTelegramAlertEventsToUI(cfg.telegram.alert_events);
   } else {
     applyTelegramAlertEventsToUI(null);
@@ -4013,16 +4021,18 @@ async function saveTelegramSettings(){
   const enabled  = document.getElementById('tg-enabled-toggle').checked;
   const token    = document.getElementById('tg-bot-token-input').value.trim();
   const chatId   = document.getElementById('tg-chat-id-input').value.trim();
+  const channelId = document.getElementById('tg-channel-id-input').value.trim();
   const alertEvents = collectTelegramAlertEventsFromUI();
   if(statusEl) statusEl.textContent = locales[currentLang].status_working;
   try {
-    await invoke('save_telegram_config', {enabled, botToken: token, chatId, alertEvents});
+    await invoke('save_telegram_config', {enabled, botToken: token, chatId, channelId, alertEvents});
     // Update local cfg cache
     if(!cfg) cfg = {};
     if(!cfg.telegram) cfg.telegram = {};
     cfg.telegram.enabled   = enabled;
     cfg.telegram.bot_token = token;
     cfg.telegram.chat_id   = chatId;
+    cfg.telegram.channel_id = channelId;
     cfg.telegram.alert_events = alertEvents;
     if(statusEl){ statusEl.style.color='#4ade80'; statusEl.textContent=locales[currentLang].status_saved_ok; }
   } catch(e){
