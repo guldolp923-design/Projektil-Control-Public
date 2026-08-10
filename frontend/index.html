@@ -1799,6 +1799,16 @@ async function tcpPing(ip,port,options={}){
   return false;
 }
 
+async function icmpPing(ip){
+  try{
+    const r=await invoke('icmp_ping',{ip});
+    return Boolean(r);
+  }catch(e){
+    console.error('[icmpPing]', ip, e);
+    return false;
+  }
+}
+
 let cfg={};
 const DEFAULT_POE_IP='192.168.1.11';
 const DEFAULT_RUTX50_IP='192.168.1.1';
@@ -5071,13 +5081,23 @@ function getInteractiveMonitorTargets(){
   if(!isInteractiveMonitoringEnabled()) return [];
   const scannerCount = getInteractiveScannerCount();
   const targets = [
-    { key:'interactive_pc', id:'int-pc', rowId:'int-pc-row', ip:'192.168.1.36', port:80, label:'PC Interaktiv (IP: 192.168.1.36)' },
-    { key:'interactive_scanner1', id:'int-scanner1', rowId:'int-scanner1-row', ip:'192.168.1.34', port:80, label:'Scanner 01 (IP: 192.168.1.34)' },
-    { key:'interactive_gateway1', id:'int-artnet1', rowId:'int-artnet1-row', ip:'192.168.1.61', port:80, label:'Scanner-Artnet 01 (IP: 192.168.1.61)' }
+    { key:'interactive_pc', id:'int-pc', rowId:'int-pc-row', ip:'192.168.1.36', port:80, pingMethod:'icmp', label:'PC Interaktiv (IP: 192.168.1.36)' },
+    { key:'interactive_scanner1', id:'int-scanner1', rowId:'int-scanner1-row', ip:'192.168.1.34', port:80, pingMethod:'icmp', label:'Scanner 01 (IP: 192.168.1.34)' }
   ];
   if(scannerCount >= 2){
-    targets.push({ key:'interactive_scanner2', id:'int-scanner2', rowId:'int-scanner2-row', ip:'192.168.1.35', port:80, label:'Scanner 02 (IP: 192.168.1.35)' });
-    targets.push({ key:'interactive_gateway2', id:'int-artnet2', rowId:'int-artnet2-row', ip:'192.168.1.62', port:80, label:'Scanner-Artnet 02 (IP: 192.168.1.62)' });
+    targets.push({ key:'interactive_scanner2', id:'int-scanner2', rowId:'int-scanner2-row', ip:'192.168.1.35', port:80, pingMethod:'icmp', label:'Scanner 02 (IP: 192.168.1.35)' });
+  }
+  return targets;
+}
+
+function getArtNetMonitorTargets(){
+  if(!isInteractiveMonitoringEnabled()) return [];
+  const scannerCount = getInteractiveScannerCount();
+  const targets = [
+    { key:'interactive_gateway1', id:'int-artnet1', rowId:'int-artnet1-row', ip:'192.168.1.61', port:80, pingMethod:'icmp', label:'Scanner-Artnet 01 (IP: 192.168.1.61)' }
+  ];
+  if(scannerCount >= 2){
+    targets.push({ key:'interactive_gateway2', id:'int-artnet2', rowId:'int-artnet2-row', ip:'192.168.1.62', port:80, pingMethod:'icmp', label:'Scanner-Artnet 02 (IP: 192.168.1.62)' });
   }
   return targets;
 }
@@ -5287,6 +5307,7 @@ async function init(){
     await pollPixeraMasterMuteStatus(true);
   }
   setInterval(pollAll,10000);
+  setInterval(pollArtNetGateways,30000);
   setInterval(enforceProtocolFreshnessTimeouts,1000);
   setInterval(pollD40Status,5000);
   startPixeraMasterMutePolling();
@@ -6700,6 +6721,11 @@ window.confirmEmergency=async()=>{
   }catch(error){
     addError(t('emergency_notaus_failed',{error}));
   }
+  try{
+    await invoke('send_emergency_osc_to_switch',{});
+  }catch(e){
+    addLog('error',`OSC /emergency an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
+  }
   switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
   addLogT('error','emergency_triggered');
   addError(`${locales[currentLang].emergency_description} ${locales[currentLang].emergency_hotline_lock_title}: ${cfg?.hotline||document.getElementById('em-hotline')?.textContent||''}`.trim());
@@ -7291,7 +7317,12 @@ async function pollAll(){
   const interactiveStates=[];
   if(isInteractiveMonitoringEnabled()){
     for(const target of getInteractiveMonitorTargets()){
-      const online=await tcpPing(target.ip,target.port);
+      let online = false;
+      if(target.pingMethod === 'icmp'){
+        online = await icmpPing(target.ip);
+      } else {
+        online = await tcpPing(target.ip, target.port);
+      }
       setDeviceOnline(target.key,online,target.label,null);
       setStatus([target.id],online);
       interactiveStates.push(online);
@@ -7312,6 +7343,16 @@ async function pollAll(){
   if(isEmergencySwitchEnabled()) monitoringStates.push(emergencySwitchOnline);
   updateMonitoringNavBadge(monitoringStates);
   updateInteractiveNavBadge(interactiveStates);
+}
+
+async function pollArtNetGateways(){
+  if(!isInteractiveMonitoringEnabled()) return;
+  
+  for(const target of getArtNetMonitorTargets()){
+    const online = await icmpPing(target.ip);
+    setDeviceOnline(target.key, online, target.label, null);
+    setStatus([target.id], online);
+  }
 }
 
 // ============================================================
@@ -7413,7 +7454,30 @@ async function runStartupConnectivityChecks(){
         name:target.label.split(' (')[0],
         host:target.ip,
         port:target.port,
-        run:()=>tcpPing(target.ip,target.port,{throwOnFail:true})
+        run:async ()=>{
+          if(target.pingMethod === 'icmp'){
+            const result = await icmpPing(target.ip);
+            if(!result) throw new Error('Host nicht erreichbar');
+            return result;
+          } else {
+            return await tcpPing(target.ip,target.port,{throwOnFail:true});
+          }
+        }
+      });
+    }
+  }
+
+  if(isInteractiveMonitoringEnabled()){
+    for(const target of getArtNetMonitorTargets()){
+      checks.push({
+        name:target.label.split(' (')[0],
+        host:target.ip,
+        port:target.port,
+        run:async ()=>{
+          const result = await icmpPing(target.ip);
+          if(!result) throw new Error('Host nicht erreichbar');
+          return result;
+        }
       });
     }
   }
