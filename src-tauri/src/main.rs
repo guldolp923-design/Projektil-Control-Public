@@ -2654,6 +2654,53 @@ fn companion_press_emergency_button(url: String) -> Result<bool, String> {
     Ok(true)
 }
 
+fn osc_padded_string_bytes(value: &str) -> Vec<u8> {
+    let mut out = value.as_bytes().to_vec();
+    out.push(0);
+    while out.len() % 4 != 0 {
+        out.push(0);
+    }
+    out
+}
+
+fn build_notaus_osc_packet() -> Vec<u8> {
+    let mut packet = Vec::new();
+    packet.extend_from_slice(&osc_padded_string_bytes("/notaus"));
+    packet.extend_from_slice(&osc_padded_string_bytes(",i"));
+    packet.extend_from_slice(&1_i32.to_be_bytes());
+    packet
+}
+
+#[tauri::command]
+fn send_emergency_notaus_osc(target_ip: Option<String>, target_port: Option<u16>) -> Result<bool, String> {
+    let ip = target_ip
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "192.168.1.31".to_string());
+    let port = target_port.unwrap_or(9000);
+    let addr = format!("{}:{}", ip, port);
+
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("OSC Socket konnte nicht erstellt werden: {}", e))?;
+    socket
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .map_err(|e| format!("OSC Write-Timeout konnte nicht gesetzt werden: {}", e))?;
+
+    let packet = build_notaus_osc_packet();
+    let sent = socket
+        .send_to(&packet, &addr)
+        .map_err(|e| format!("OSC /notaus Senden fehlgeschlagen: {}", e))?;
+    if sent != packet.len() {
+        return Err(format!(
+            "OSC /notaus unvollstaendig gesendet: {} von {} Bytes",
+            sent,
+            packet.len()
+        ));
+    }
+
+    Ok(true)
+}
+
 fn default_config_json() -> serde_json::Value {
     serde_json::json!({
         "demo_mode": false,
@@ -2686,6 +2733,9 @@ fn default_config_json() -> serde_json::Value {
         "ups_ip": "192.168.1.6", "power_disp_ip": "192.168.1.5",
         "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
         "projector_start": 101, "projector_count": 16,
+        "interactive_enabled": false,
+        "interactive_scanner_count": 2,
+        "emergency_switch_enabled": false,
         "hotline": "+41 44 492 51 69",
         "location_name": "",
         "anydesk_address": "",
@@ -2745,6 +2795,15 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     }
     if !obj.contains_key("amp_count") {
         obj.insert("amp_count".to_string(), serde_json::json!(2));
+    }
+    if !obj.contains_key("interactive_enabled") {
+        obj.insert("interactive_enabled".to_string(), serde_json::json!(false));
+    }
+    if !obj.contains_key("interactive_scanner_count") {
+        obj.insert("interactive_scanner_count".to_string(), serde_json::json!(2));
+    }
+    if !obj.contains_key("emergency_switch_enabled") {
+        obj.insert("emergency_switch_enabled".to_string(), serde_json::json!(false));
     }
     if !obj.contains_key("d40_03_ip") {
         obj.insert("d40_03_ip".to_string(), serde_json::json!("192.168.1.53"));
@@ -3023,6 +3082,9 @@ fn save_ui_state(
     projector_count: Option<u8>,
     pixera_octo_count: Option<u8>,
     amp_count: Option<u8>,
+    interactive_enabled: Option<bool>,
+    interactive_scanner_count: Option<u8>,
+    emergency_switch_enabled: Option<bool>,
     demo_amp1_mutes: Option<Vec<bool>>,
     demo_amp2_mutes: Option<Vec<bool>>,
     demo_amp3_mutes: Option<Vec<bool>>,
@@ -3066,6 +3128,16 @@ fn save_ui_state(
         if let Some(count_raw) = amp_count {
             let clamped = count_raw.clamp(1, 3);
             obj.insert("amp_count".to_string(), serde_json::json!(clamped));
+        }
+        if let Some(enabled) = interactive_enabled {
+            obj.insert("interactive_enabled".to_string(), serde_json::json!(enabled));
+        }
+        if let Some(count_raw) = interactive_scanner_count {
+            let clamped = count_raw.clamp(1, 2);
+            obj.insert("interactive_scanner_count".to_string(), serde_json::json!(clamped));
+        }
+        if let Some(enabled) = emergency_switch_enabled {
+            obj.insert("emergency_switch_enabled".to_string(), serde_json::json!(enabled));
         }
         if demo_amp1_mutes.is_some() || demo_amp2_mutes.is_some() || demo_amp3_mutes.is_some() {
             let entry = obj
@@ -3817,6 +3889,9 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_value(args, &["projectorCount", "projector_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,16) as u8),
             arg_value(args, &["pixeraOctoCount", "pixera_octo_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(0,2) as u8),
             arg_value(args, &["ampCount", "amp_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,3) as u8),
+            arg_value(args, &["interactiveEnabled", "interactive_enabled"]).and_then(|v| v.as_bool()),
+            arg_value(args, &["interactiveScannerCount", "interactive_scanner_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,2) as u8),
+            arg_value(args, &["emergencySwitchEnabled", "emergency_switch_enabled"]).and_then(|v| v.as_bool()),
             arg_optional_vec_bool(args, &["demoAmp1Mutes", "demo_amp1_mutes"]),
             arg_optional_vec_bool(args, &["demoAmp2Mutes", "demo_amp2_mutes"]),
             arg_optional_vec_bool(args, &["demoAmp3Mutes", "demo_amp3_mutes"]),
@@ -3890,6 +3965,11 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_f32(args, &["current"])? ,
             arg_f32(args, &["target"])?
         ))?)),
+
+        "send_emergency_notaus_osc" => Ok(serde_json::json!(send_emergency_notaus_osc(
+            arg_optional_string(args, &["targetIp", "target_ip"]),
+            arg_optional_u16(args, &["targetPort", "target_port"])
+        )?)),
 
         "system_get_battery_status" => system_get_battery_status(),
 
@@ -4178,6 +4258,7 @@ fn main() {
             ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             pixera_api_request,
+            send_emergency_notaus_osc,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
             save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms

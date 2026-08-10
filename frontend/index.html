@@ -678,6 +678,7 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
       <div class="ni" data-tab="error" onclick="switchTab('error',this)" title="Shortcut: 9"><span data-l10n-key="nav_error_log">Error Log</span>
         <div class="ni-right"><span class="ni-errcount" id="err-nav-count">0</span><div class="ni-badge" id="err-badge" style="background:var(--red)"></div></div>
       </div>
+      <div class="ni" data-tab="interactive" onclick="switchTab('interactive',this)" title="Interaktiv"><span data-l10n-key="nav_interactive">Interaktiv</span> <div class="ni-right"><div class="ni-badge" id="nav-interactive-b" style="background:var(--green)"></div></div></div>
     </div>
     <div class="ni" data-tab="settings" id="nav-settings" onclick="switchTab('settings',this)" title="Settings"><span data-l10n-key="nav_settings">Einstellungen</span></div>
     <div class="sidebar-lock-indicator" id="sidebar-lock-indicator" data-view-allow onclick="openViewModeUnlockDialog()" title="Gesperrt">
@@ -833,29 +834,65 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
               <button class="btn btn-g" onclick="saveVenueName()" data-l10n-key="settings_ok">OK</button>
             </div>
           </div>
-          <div class="settings-count-row">
-            <div class="setting-block">
-              <div class="setting-label" data-l10n-key="projector_count_label">Anzahl Projektoren (1-16)</div>
-              <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
-              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-                <input id="projector-count-input" type="number" min="1" max="16" step="1" onchange="commitProjectorCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitProjectorCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
-                <button class="btn btn-g" onclick="commitProjectorCountFromInput()" data-l10n-key="settings_ok">OK</button>
+          <div class="setting-block">
+            <div class="setting-label" data-l10n-key="configuration_title">Konfiguration</div>
+            <div class="settings-count-row" style="margin-top:8px">
+              <div class="setting-block">
+                <div class="setting-label" data-l10n-key="projector_count_label">Anzahl Projektoren (1-16)</div>
+                <div class="setting-hint" data-l10n-key="projector_count_hint">Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.</div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                  <input id="projector-count-input" type="number" min="1" max="16" step="1" onchange="commitProjectorCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitProjectorCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
+                  <button class="btn btn-g" onclick="commitProjectorCountFromInput()" data-l10n-key="settings_ok">OK</button>
+                </div>
+              </div>
+              <div class="setting-block">
+                <div class="setting-label" data-l10n-key="pixera_octo_count_label">Anzahl Pixera Octos (0-2)</div>
+                <div class="setting-hint" data-l10n-key="pixera_octo_count_hint">Legt fest, wie viele Octos abgefragt werden (0, 1 oder 2).</div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                  <input id="pixera-octo-count-input" type="number" min="0" max="2" step="1" onchange="commitPixeraOctoCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitPixeraOctoCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
+                  <button class="btn btn-g" onclick="commitPixeraOctoCountFromInput()" data-l10n-key="settings_ok">OK</button>
+                </div>
+              </div>
+              <div class="setting-block">
+                <div class="setting-label" data-l10n-key="amp_count_label">Anzahl Endstufen (1-3)</div>
+                <div class="setting-hint" data-l10n-key="amp_count_hint">Legt fest, wie viele D40 AMPs abgefragt werden (1 bis 3).</div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                  <input id="amp-count-input" type="number" min="1" max="3" step="1" onchange="commitAmpCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitAmpCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
+                  <button class="btn btn-g" onclick="commitAmpCountFromInput()" data-l10n-key="settings_ok">OK</button>
+                </div>
               </div>
             </div>
-            <div class="setting-block">
-              <div class="setting-label" data-l10n-key="pixera_octo_count_label">Anzahl Pixera Octos (0-2)</div>
-              <div class="setting-hint" data-l10n-key="pixera_octo_count_hint">Legt fest, wie viele Octos abgefragt werden (0, 1 oder 2).</div>
-              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-                <input id="pixera-octo-count-input" type="number" min="0" max="2" step="1" onchange="commitPixeraOctoCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitPixeraOctoCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
-                <button class="btn btn-g" onclick="commitPixeraOctoCountFromInput()" data-l10n-key="settings_ok">OK</button>
+            <div class="setting-block" style="margin-top:12px;padding:0;border:0">
+              <div class="toggle-row" style="margin-bottom:10px">
+                <div>
+                  <div class="setting-label" data-l10n-key="interactive_mode_title">Interaktiv aktivieren</div>
+                  <div class="setting-hint" data-l10n-key="interactive_mode_hint">Aktiviert Monitoring fuer Scanner, Interaktiv-PC und Scanner-Artnet Gateways.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="interactive-enabled-toggle" onchange="setInteractiveEnabled(this.checked)" />
+                  <span class="switch-slider"></span>
+                </label>
               </div>
-            </div>
-            <div class="setting-block">
-              <div class="setting-label" data-l10n-key="amp_count_label">Anzahl Endstufen (1-3)</div>
-              <div class="setting-hint" data-l10n-key="amp_count_hint">Legt fest, wie viele D40 AMPs abgefragt werden (1 bis 3).</div>
-              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-                <input id="amp-count-input" type="number" min="1" max="3" step="1" onchange="commitAmpCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitAmpCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
-                <button class="btn btn-g" onclick="commitAmpCountFromInput()" data-l10n-key="settings_ok">OK</button>
+              <div id="interactive-scanner-count-wrap" style="display:none">
+                <div class="setting-label" data-l10n-key="interactive_scanner_count_label">Anzahl Scanner</div>
+                <div class="setting-hint" data-l10n-key="interactive_scanner_count_hint">Die gleiche Anzahl Scanner-Artnet Gateways wird ebenfalls ueberwacht.</div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                  <select id="interactive-scanner-count-input" onchange="commitInteractiveScannerCountFromInput()" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                  <button class="btn btn-g" onclick="commitInteractiveScannerCountFromInput()" data-l10n-key="settings_ok">OK</button>
+                </div>
+              </div>
+              <div class="toggle-row" style="margin-top:14px">
+                <div>
+                  <div class="setting-label" data-l10n-key="emergency_switch_mode_title">Notaus-Schalter in Installation vorhanden</div>
+                  <div class="setting-hint" data-l10n-key="emergency_switch_mode_hint">Aktiviert Monitoring fuer den Notaus-Schalter (IP: 192.168.1.99).</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="emergency-switch-enabled-toggle" onchange="setEmergencySwitchEnabled(this.checked)" />
+                  <span class="switch-slider"></span>
+                </label>
               </div>
             </div>
           </div>
@@ -1234,12 +1271,26 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
           <div class="mon-row"><span data-l10n-key="janitza_5">Janitza (IP: 192.168.1.5)</span><span class="pill pill-r" id="mon-janitza"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row"><span data-l10n-key="poe_switch_24">PoE Switch (IP: 192.168.1.11)</span><span class="pill pill-r" id="mon-poe"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row"><span data-l10n-key="rutx50_1">Teltonika RUTX50 (IP: 192.168.1.1)</span><span class="pill pill-r" id="mon-rutx"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="mon-emergency-switch-row"><span data-l10n-key="emergency_switch_99">Notaus-Schalter (IP: 192.168.1.99)</span><span class="pill pill-r" id="mon-emergency-switch"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         </div>
         <div class="card">
           <div class="card-title" data-l10n-key="cameras_title">Cameras</div>
           <div class="mon-row"><span data-l10n-key="cam01_ptz_22">Cam 01 PTZ (IP: 192.168.1.22)</span><span class="pill pill-r" id="mon-cam1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row"><span data-l10n-key="cam02_ptz_23">Cam 02 PTZ (IP: 192.168.1.23)</span><span class="pill pill-r" id="mon-cam2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         </div>
+      </div>
+    </div>
+
+    <!-- INTERAKTIV -->
+    <div class="tab-panel" id="tab-interactive">
+      <div class="card">
+        <div class="card-title" data-l10n-key="interactive_monitoring_title">Interaktiv Monitoring</div>
+        <div class="setting-hint" id="interactive-disabled-note" data-l10n-key="interactive_disabled_note" style="display:none;margin-bottom:10px">Interaktiv-Monitoring ist deaktiviert.</div>
+        <div class="mon-row" id="int-scanner1-row"><span data-l10n-key="interactive_scanner_01_34">Scanner 01 (IP: 192.168.1.34)</span><span class="pill pill-r" id="int-scanner1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+        <div class="mon-row" id="int-scanner2-row"><span data-l10n-key="interactive_scanner_02_35">Scanner 02 (IP: 192.168.1.35)</span><span class="pill pill-r" id="int-scanner2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+        <div class="mon-row" id="int-pc-row"><span data-l10n-key="interactive_pc_36">PC Interaktiv (IP: 192.168.1.36)</span><span class="pill pill-r" id="int-pc"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+        <div class="mon-row" id="int-artnet1-row"><span data-l10n-key="interactive_artnet_01_61">Scanner-Artnet 01 (IP: 192.168.1.61)</span><span class="pill pill-r" id="int-artnet1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+        <div class="mon-row" id="int-artnet2-row"><span data-l10n-key="interactive_artnet_02_62">Scanner-Artnet 02 (IP: 192.168.1.62)</span><span class="pill pill-r" id="int-artnet2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
       </div>
     </div>
 
@@ -1607,6 +1658,9 @@ function buildDefaultConfig(){
     cam_02_ip:'192.168.1.23',
     projector_start:101,
     projector_count:16,
+    interactive_enabled:false,
+    interactive_scanner_count:2,
+    emergency_switch_enabled:false,
     hotline:'+41 44 492 51 69'
   };
 }
@@ -1775,7 +1829,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.21';
+const APP_VERSION_FALLBACK = '1.0.22';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -2033,12 +2087,15 @@ const locales = {
     nav_network: 'Netzwerk',
     nav_cameras: 'Kameras',
     nav_nas: 'NAS',
+    nav_interactive: 'Interaktiv',
+    nav_configuration: 'Konfiguration',
     nav_error_log: 'Fehlerprotokoll',
     nav_settings: 'Einstellungen',
     nav_language: 'Deutsch',
     nav_emergency: 'Emergency',
     nav_hint: '1–9 Tabs · E Emergency',
     settings_title: 'Einstellungen',
+    configuration_title: 'Konfiguration',
     settings_venue_label: 'Standort / Venue',
     settings_venue_hint: 'Wird im Show-Tab oben angezeigt. Z.B. "KKL Luzern - Saal 1".',
     settings_venue_placeholder: 'Standortname eingeben...',
@@ -2159,6 +2216,24 @@ const locales = {
     amp_count_label: 'Anzahl Endstufen (1-3)',
     amp_count_hint: 'Legt fest, wie viele D40 AMPs abgefragt werden (1 bis 3).',
     amp_count_saved: 'Endstufen-Anzahl auf {count} gesetzt',
+    interactive_mode_title: 'Interaktiv aktivieren',
+    interactive_mode_hint: 'Aktiviert Monitoring fuer Scanner, Interaktiv-PC und Scanner-Artnet Gateways.',
+    interactive_enabled_log: 'Interaktiv-Monitoring aktiviert',
+    interactive_disabled_log: 'Interaktiv-Monitoring deaktiviert',
+    emergency_switch_mode_title: 'Notaus-Schalter in Installation vorhanden',
+    emergency_switch_mode_hint: 'Aktiviert Monitoring fuer den Notaus-Schalter (IP: 192.168.1.99).',
+    emergency_switch_enabled_log: 'Notaus-Monitoring aktiviert',
+    emergency_switch_disabled_log: 'Notaus-Monitoring deaktiviert',
+    interactive_scanner_count_label: 'Anzahl Scanner (1-2)',
+    interactive_scanner_count_hint: 'Die gleiche Anzahl Scanner-Artnet Gateways wird ebenfalls ueberwacht.',
+    interactive_scanner_count_saved: 'Scanner-Anzahl auf {count} gesetzt',
+    interactive_monitoring_title: 'Interaktiv Monitoring',
+    interactive_disabled_note: 'Interaktiv-Monitoring ist deaktiviert.',
+    interactive_scanner_01_34: 'Scanner 01 (IP: 192.168.1.34)',
+    interactive_scanner_02_35: 'Scanner 02 (IP: 192.168.1.35)',
+    interactive_pc_36: 'PC Interaktiv (IP: 192.168.1.36)',
+    interactive_artnet_01_61: 'Scanner-Artnet 01 (IP: 192.168.1.61)',
+    interactive_artnet_02_62: 'Scanner-Artnet 02 (IP: 192.168.1.62)',
     warnings_label: 'Warnung(en)',
     system_warning: 'Systemwarnung',
     gain_dialog_default_title: 'Amplifier Gain ändern',
@@ -2173,6 +2248,7 @@ const locales = {
     d40_amp_01_51: 'D40 AMP 01 (IP: 192.168.1.51)',
     d40_amp_02_52: 'D40 AMP 02 (IP: 192.168.1.52)',
     d40_amp_03_53: 'D40 AMP 03 (IP: 192.168.1.53)',
+    emergency_switch_99: 'Notaus-Schalter (IP: 192.168.1.99)',
     synology_nas_21: 'Synology NAS (IP: 192.168.1.21)',
     poe_switch_24: 'PoE Switch (IP: 192.168.1.11)',
     rutx50_1: 'Teltonika RUTX50 (IP: 192.168.1.1)',
@@ -2359,6 +2435,8 @@ const locales = {
     projector_transition_timeout: '[Pixera API] PJ-Link projector {index} Timeout ({seconds}s) waiting for {target}',
     emergency_amp_mute_all_log: 'EMERGENCY: AMP 0{ampNo} mute_all',
     emergency_amp_mute_all_failed: 'EMERGENCY: AMP 0{ampNo} mute_all fehlgeschlagen: {error}',
+    emergency_notaus_sent: 'EMERGENCY: OSC /notaus (1) an 192.168.1.31:9000 gesendet',
+    emergency_notaus_failed: 'EMERGENCY: OSC /notaus fehlgeschlagen: {error}',
     scheduler_powerall_executed: '[Pixera API] Scheduler PowerAll ausgefuehrt',
     scheduler_powerall_failed: '[Pixera API] Scheduler PowerAll fehlgeschlagen: {error}',
     scheduler_poweroff_executed: '[Pixera API] Scheduler PowerOff ausgefuehrt',
@@ -2463,12 +2541,15 @@ const locales = {
     nav_network: 'Network',
     nav_cameras: 'Cameras',
     nav_nas: 'NAS',
+    nav_interactive: 'Interactive',
+    nav_configuration: 'Configuration',
     nav_error_log: 'Error Log',
     nav_settings: 'Settings',
     nav_language: 'English',
     nav_emergency: 'Emergency',
     nav_hint: '1–9 Tabs · E Emergency',
     settings_title: 'Settings',
+    configuration_title: 'Configuration',
     settings_venue_label: 'Location / Venue',
     settings_venue_hint: 'Shown at the top of the Show tab. Example: "KKL Lucerne - Hall 1".',
     settings_venue_placeholder: 'Enter location name...',
@@ -2589,6 +2670,24 @@ const locales = {
     amp_count_label: 'Amplifier count (1-3)',
     amp_count_hint: 'Defines how many D40 amplifiers are polled (1 to 3).',
     amp_count_saved: 'Amplifier count set to {count}',
+    interactive_mode_title: 'Enable interactive mode',
+    interactive_mode_hint: 'Enables monitoring for scanners, interactive PC and scanner Art-Net gateways.',
+    interactive_enabled_log: 'Interactive monitoring enabled',
+    interactive_disabled_log: 'Interactive monitoring disabled',
+    emergency_switch_mode_title: 'Emergency stop switch present in installation',
+    emergency_switch_mode_hint: 'Enables monitoring for the emergency stop switch (IP: 192.168.1.99).',
+    emergency_switch_enabled_log: 'Emergency stop monitoring enabled',
+    emergency_switch_disabled_log: 'Emergency stop monitoring disabled',
+    interactive_scanner_count_label: 'Scanner count (1-2)',
+    interactive_scanner_count_hint: 'The same number of scanner Art-Net gateways will also be monitored.',
+    interactive_scanner_count_saved: 'Scanner count set to {count}',
+    interactive_monitoring_title: 'Interactive monitoring',
+    interactive_disabled_note: 'Interactive monitoring is disabled.',
+    interactive_scanner_01_34: 'Scanner 01 (IP: 192.168.1.34)',
+    interactive_scanner_02_35: 'Scanner 02 (IP: 192.168.1.35)',
+    interactive_pc_36: 'Interactive PC (IP: 192.168.1.36)',
+    interactive_artnet_01_61: 'Scanner Art-Net 01 (IP: 192.168.1.61)',
+    interactive_artnet_02_62: 'Scanner Art-Net 02 (IP: 192.168.1.62)',
     warnings_label: 'warning(s)',
     system_warning: 'System warning',
     gain_dialog_default_title: 'Change amplifier gain',
@@ -2603,6 +2702,7 @@ const locales = {
     d40_amp_01_51: 'D40 AMP 01 (IP: 192.168.1.51)',
     d40_amp_02_52: 'D40 AMP 02 (IP: 192.168.1.52)',
     d40_amp_03_53: 'D40 AMP 03 (IP: 192.168.1.53)',
+    emergency_switch_99: 'Emergency stop switch (IP: 192.168.1.99)',
     synology_nas_21: 'Synology NAS (IP: 192.168.1.21)',
     poe_switch_24: 'PoE Switch (IP: 192.168.1.11)',
     rutx50_1: 'Teltonika RUTX50 (IP: 192.168.1.1)',
@@ -2789,6 +2889,8 @@ const locales = {
     projector_transition_timeout: '[Pixera API] PJ-Link projector {index} timeout ({seconds}s) waiting for {target}',
     emergency_amp_mute_all_log: 'EMERGENCY: AMP 0{ampNo} mute_all',
     emergency_amp_mute_all_failed: 'EMERGENCY: AMP 0{ampNo} mute_all failed: {error}',
+    emergency_notaus_sent: 'EMERGENCY: sent OSC /notaus (1) to 192.168.1.31:9000',
+    emergency_notaus_failed: 'EMERGENCY: OSC /notaus failed: {error}',
     scheduler_powerall_executed: '[Pixera API] Scheduler PowerAll executed',
     scheduler_powerall_failed: '[Pixera API] Scheduler PowerAll failed: {error}',
     scheduler_poweroff_executed: '[Pixera API] Scheduler PowerOff executed',
@@ -2902,6 +3004,7 @@ function getTabIconForMobile(tab){
     power: '⚡',
     monitoring: '📟',
     cameras: '📷',
+    interactive: '🧩',
     network: '🌐',
     nas: '🗄️',
     error: '⚠️',
@@ -2920,6 +3023,7 @@ function getShortTabLabelForMobile(tab){
     power: 'Power',
     monitoring: 'Status',
     cameras: 'Cam',
+    interactive: 'Inter',
     network: 'Net',
     nas: 'NAS',
     error: 'Log',
@@ -3014,6 +3118,7 @@ function renderMobileNav(){
 
   const primaryTabs = ['show','projectors','audio','monitoring','settings'];
   const secondaryTabs = ['monitoring','cameras','network','nas','error','settings','emergency'];
+  if(isInteractiveMonitoringEnabled()) secondaryTabs.splice(5, 0, 'interactive');
   nav.innerHTML = '';
   primaryTabs.forEach(tab=>{
     const source = document.querySelector(`.sidebar [data-tab="${tab}"]`);
@@ -3257,26 +3362,11 @@ function updateAppVersionUI(){
   }
 }
 
-function getCompanionEmergencyPressUrl(){
-  return 'http://192.168.1.42:8000/api/location/1/2/0/press';
+async function sendEmergencyNotausOsc(){
+  await invoke('send_emergency_notaus_osc', {});
 }
 
-async function triggerCompanionEmergencyPress(){
-  try{
-    if(isTauri){
-      await invoke('companion_press_emergency_button', { url: getCompanionEmergencyPressUrl() });
-      return true;
-    }
-    const response = await fetch(getCompanionEmergencyPressUrl(), { method: 'POST' });
-    return response.ok;
-  }catch(error){
-    console.warn('[Companion emergency]', error);
-    return false;
-  }
-}
-
-window.getCompanionEmergencyPressUrl = getCompanionEmergencyPressUrl;
-window.triggerCompanionEmergencyPress = triggerCompanionEmergencyPress;
+window.sendEmergencyNotausOsc = sendEmergencyNotausOsc;
 
 function updateUpdateUI(){
   const status=document.getElementById('update-status');
@@ -3471,6 +3561,15 @@ function normalizeAmpCount(count){
   return Math.max(1, Math.min(3, Number.isFinite(n) ? n : 2));
 }
 
+function normalizeInteractiveScannerCount(count){
+  const n = Number(count??2);
+  return Math.max(1, Math.min(2, Number.isFinite(n) ? n : 2));
+}
+
+function normalizeEmergencySwitchEnabled(enabled){
+  return enabled === true;
+}
+
 function normalizeBoolArray(values, len){
   const out = Array.from({length:len},()=>false);
   if(!Array.isArray(values)) return out;
@@ -3530,6 +3629,9 @@ function applySharedUiStateFromConfig(cfgObj){
   const nextProjectorCount = normalizeProjectorCount(cfgObj?.projector_count);
   const nextPixeraOctoCount = normalizePixeraOctoCount(cfgObj?.pixera_octo_count);
   const nextAmpCount = normalizeAmpCount(cfgObj?.amp_count);
+  const nextInteractiveEnabled = cfgObj?.interactive_enabled === true;
+  const nextInteractiveScannerCount = normalizeInteractiveScannerCount(cfgObj?.interactive_scanner_count);
+  const nextEmergencySwitchEnabled = normalizeEmergencySwitchEnabled(cfgObj?.emergency_switch_enabled);
   const demoRuntime = extractDemoRuntimeState(cfgObj);
   const incomingDemoRuntimeFingerprint = getDemoRuntimeFingerprint(demoRuntime);
   const localDemoRuntimeFingerprint = getDemoRuntimeFingerprint({
@@ -3546,6 +3648,9 @@ function applySharedUiStateFromConfig(cfgObj){
   const projectorCountChanged = nextProjectorCount !== Number(cfg?.projector_count||16);
   const pixeraOctoCountChanged = nextPixeraOctoCount !== Number(cfg?.pixera_octo_count??2);
   const ampCountChanged = nextAmpCount !== Number(cfg?.amp_count??2);
+  const interactiveEnabledChanged = nextInteractiveEnabled !== (cfg?.interactive_enabled === true);
+  const interactiveScannerCountChanged = nextInteractiveScannerCount !== normalizeInteractiveScannerCount(cfg?.interactive_scanner_count);
+  const emergencySwitchEnabledChanged = nextEmergencySwitchEnabled !== normalizeEmergencySwitchEnabled(cfg?.emergency_switch_enabled);
   const incomingProjectorStates = normalizeProjectorControlStates(cfgObj?.projector_control_states);
   const incomingProjectorStatusUpdatedAt = Number(cfgObj?.projector_status_updated_at) || 0;
 
@@ -3558,6 +3663,9 @@ function applySharedUiStateFromConfig(cfgObj){
   cfgObj.projector_count = nextProjectorCount;
   cfgObj.pixera_octo_count = nextPixeraOctoCount;
   cfgObj.amp_count = nextAmpCount;
+  cfgObj.interactive_enabled = nextInteractiveEnabled;
+  cfgObj.interactive_scanner_count = nextInteractiveScannerCount;
+  cfgObj.emergency_switch_enabled = nextEmergencySwitchEnabled;
 
   localStorage.setItem('demoMode', demoMode ? '1' : '0');
   localStorage.setItem('startupMode', startupMode);
@@ -3615,6 +3723,13 @@ function applySharedUiStateFromConfig(cfgObj){
     applyAmpSettingsUI();
   }
 
+  if(interactiveEnabledChanged || interactiveScannerCountChanged){
+    applyInteractiveSettingsUI();
+  }
+  if(emergencySwitchEnabledChanged){
+    applyEmergencySwitchSettingsUI();
+  }
+
   if(incomingProjectorStatusUpdatedAt > projectorStatusSyncUpdatedAt){
     projectorStatusSyncUpdatedAt = incomingProjectorStatusUpdatedAt;
     projectorStatusLastPersistedFingerprint = projectorControlStatesFingerprint(incomingProjectorStates);
@@ -3638,6 +3753,9 @@ async function persistSharedUiState(changes={}){
   if(Object.prototype.hasOwnProperty.call(changes,'projectorCount')) payload.projectorCount = changes.projectorCount;
   if(Object.prototype.hasOwnProperty.call(changes,'pixeraOctoCount')) payload.pixeraOctoCount = changes.pixeraOctoCount;
   if(Object.prototype.hasOwnProperty.call(changes,'ampCount')) payload.ampCount = changes.ampCount;
+  if(Object.prototype.hasOwnProperty.call(changes,'interactiveEnabled')) payload.interactiveEnabled = changes.interactiveEnabled;
+  if(Object.prototype.hasOwnProperty.call(changes,'interactiveScannerCount')) payload.interactiveScannerCount = changes.interactiveScannerCount;
+  if(Object.prototype.hasOwnProperty.call(changes,'emergencySwitchEnabled')) payload.emergencySwitchEnabled = changes.emergencySwitchEnabled;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp1Mutes')) payload.demoAmp1Mutes = changes.demoAmp1Mutes;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp2Mutes')) payload.demoAmp2Mutes = changes.demoAmp2Mutes;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp3Mutes')) payload.demoAmp3Mutes = changes.demoAmp3Mutes;
@@ -3653,7 +3771,7 @@ async function persistSharedUiState(changes={}){
 }
 
 function computeSharedUiStateFingerprint(state){
-  return `${state.demoMode?'1':'0'}|${state.startupMode}|${state.language}|${state.cameraViewMode}|${state.projectorCount}|${state.pixeraOctoCount}|${state.ampCount}|${state.demoAmp1Mutes.join('')}|${state.demoAmp2Mutes.join('')}|${state.demoAmp3Mutes.join('')}|${state.demoProjectorOn.join('')}|${state.demoProjectorMute.join('')}`;
+  return `${state.demoMode?'1':'0'}|${state.startupMode}|${state.language}|${state.cameraViewMode}|${state.projectorCount}|${state.pixeraOctoCount}|${state.ampCount}|${state.interactiveEnabled?'1':'0'}|${state.interactiveScannerCount}|${state.emergencySwitchEnabled?'1':'0'}|${state.demoAmp1Mutes.join('')}|${state.demoAmp2Mutes.join('')}|${state.demoAmp3Mutes.join('')}|${state.demoProjectorOn.join('')}|${state.demoProjectorMute.join('')}`;
 }
 
 function getCurrentSharedUiState(){
@@ -3674,6 +3792,9 @@ function getCurrentSharedUiState(){
     projectorCount: normalizeProjectorCount(cfg?.projector_count),
     pixeraOctoCount: normalizePixeraOctoCount(cfg?.pixera_octo_count),
     ampCount: normalizeAmpCount(cfg?.amp_count),
+    interactiveEnabled: cfg?.interactive_enabled === true,
+    interactiveScannerCount: normalizeInteractiveScannerCount(cfg?.interactive_scanner_count),
+    emergencySwitchEnabled: normalizeEmergencySwitchEnabled(cfg?.emergency_switch_enabled),
     demoAmp1Mutes: demoRuntime.amp1 || demoRuntime.demoAmp1Mutes,
     demoAmp2Mutes: demoRuntime.amp2 || demoRuntime.demoAmp2Mutes,
     demoAmp3Mutes: demoRuntime.amp3 || demoRuntime.demoAmp3Mutes,
@@ -3874,7 +3995,6 @@ function activateEmergencyLock(){
   }
   if(!wasEmergencyActive){
     resetViewModeUnlockInputs();
-    void muteAllD40ForEmergency();
   }
   updateViewModeUI();
   updateEmergencyLockUI();
@@ -4164,10 +4284,29 @@ function applyDemoMode(){
   });
   if(octoCount>=1) demoOnlineIds.push(['mon-octo1','sys-octo1']);
   if(octoCount>=2) demoOnlineIds.push(['mon-octo2','sys-octo2']);
+  if(isInteractiveMonitoringEnabled()){
+    demoOnlineIds.push(['int-pc']);
+    demoOnlineIds.push(['int-scanner1']);
+    demoOnlineIds.push(['int-artnet1']);
+    if(getInteractiveScannerCount()>=2){
+      demoOnlineIds.push(['int-scanner2']);
+      demoOnlineIds.push(['int-artnet2']);
+    }
+  }
+  if(isEmergencySwitchEnabled()) demoOnlineIds.push(['mon-emergency-switch']);
   ['pixera','nas','poe','rutx','ups','janitza','cam1','cam2'].forEach(key=>{deviceState[key]=true;});
   [1,2,3].forEach(n=>{deviceState[`amp${n}`]=ampNumbers.includes(n);});
   deviceState.octo1 = octoCount>=1;
   deviceState.octo2 = octoCount>=2;
+  if(isInteractiveMonitoringEnabled()){
+    const scannerCount=getInteractiveScannerCount();
+    deviceState.interactive_pc = true;
+    deviceState.interactive_scanner1 = true;
+    deviceState.interactive_gateway1 = true;
+    deviceState.interactive_scanner2 = scannerCount>=2;
+    deviceState.interactive_gateway2 = scannerCount>=2;
+  }
+  deviceState.emergency_switch = isEmergencySwitchEnabled();
   projectorOnlineStates.fill(true);
   ['overlay-amp1','overlay-amp2','overlay-amp3','overlay-nas','overlay-poe','overlay-rutx','overlay-ups','overlay-janitza','overlay-cam1','overlay-cam2'].forEach(id=>{
     const el = document.getElementById(id);
@@ -4184,7 +4323,10 @@ function applyDemoMode(){
   const octoStates=[];
   if(octoCount>=1) octoStates.push(true);
   if(octoCount>=2) octoStates.push(true);
-  updateMonitoringNavBadge([true,...ampStates,true,true,true,true,true,true,true,...octoStates,...projectorOnlineStates]);
+  const monitoringStates=[true,...ampStates,true,true,true,true,true,true,true,...octoStates,...projectorOnlineStates];
+  if(isEmergencySwitchEnabled()) monitoringStates.push(true);
+  updateMonitoringNavBadge(monitoringStates);
+  updateInteractiveNavBadge(isInteractiveMonitoringEnabled() ? getInteractiveMonitorTargets().map(()=>true) : []);
   buildProjGrid();
   buildMonProjGrid(true);
   updateProjectorMonitoringGrid();
@@ -4913,6 +5055,120 @@ window.setAmpCount=(value)=>{
   addLogT('info', 'amp_count_saved',{count:num});
 };
 
+function getInteractiveScannerCount(){
+  return normalizeInteractiveScannerCount(cfg?.interactive_scanner_count);
+}
+
+function isInteractiveMonitoringEnabled(){
+  return cfg?.interactive_enabled === true;
+}
+
+function isEmergencySwitchEnabled(){
+  return cfg?.emergency_switch_enabled === true;
+}
+
+function getInteractiveMonitorTargets(){
+  if(!isInteractiveMonitoringEnabled()) return [];
+  const scannerCount = getInteractiveScannerCount();
+  const targets = [
+    { key:'interactive_pc', id:'int-pc', rowId:'int-pc-row', ip:'192.168.1.36', port:80, label:'PC Interaktiv (IP: 192.168.1.36)' },
+    { key:'interactive_scanner1', id:'int-scanner1', rowId:'int-scanner1-row', ip:'192.168.1.34', port:80, label:'Scanner 01 (IP: 192.168.1.34)' },
+    { key:'interactive_gateway1', id:'int-artnet1', rowId:'int-artnet1-row', ip:'192.168.1.61', port:80, label:'Scanner-Artnet 01 (IP: 192.168.1.61)' }
+  ];
+  if(scannerCount >= 2){
+    targets.push({ key:'interactive_scanner2', id:'int-scanner2', rowId:'int-scanner2-row', ip:'192.168.1.35', port:80, label:'Scanner 02 (IP: 192.168.1.35)' });
+    targets.push({ key:'interactive_gateway2', id:'int-artnet2', rowId:'int-artnet2-row', ip:'192.168.1.62', port:80, label:'Scanner-Artnet 02 (IP: 192.168.1.62)' });
+  }
+  return targets;
+}
+
+window.commitInteractiveScannerCountFromInput=()=>{
+  const input=document.getElementById('interactive-scanner-count-input');
+  setInteractiveScannerCount(input?.value);
+};
+
+window.setInteractiveEnabled=(enabled)=>{
+  const active = enabled === true;
+  cfg.interactive_enabled = active;
+  persistSharedUiState({interactiveEnabled: active});
+  applyInteractiveSettingsUI();
+  addLogT('info', active ? 'interactive_enabled_log' : 'interactive_disabled_log');
+};
+
+window.setInteractiveScannerCount=(value)=>{
+  const count = normalizeInteractiveScannerCount(value);
+  cfg.interactive_scanner_count = count;
+  persistSharedUiState({interactiveScannerCount: count});
+  applyInteractiveSettingsUI();
+  addLogT('info', 'interactive_scanner_count_saved', {count});
+};
+
+window.setEmergencySwitchEnabled=(enabled)=>{
+  const active = enabled === true;
+  cfg.emergency_switch_enabled = active;
+  persistSharedUiState({emergencySwitchEnabled: active});
+  applyEmergencySwitchSettingsUI();
+  addLogT('info', active ? 'emergency_switch_enabled_log' : 'emergency_switch_disabled_log');
+};
+
+function applyInteractiveSettingsUI(){
+  const enabled = isInteractiveMonitoringEnabled();
+  const scannerCount = getInteractiveScannerCount();
+
+  const enabledToggle=document.getElementById('interactive-enabled-toggle');
+  if(enabledToggle) enabledToggle.checked = enabled;
+
+  const scannerWrap=document.getElementById('interactive-scanner-count-wrap');
+  if(scannerWrap) scannerWrap.style.display = enabled ? '' : 'none';
+
+  const scannerInput=document.getElementById('interactive-scanner-count-input');
+  if(scannerInput) scannerInput.value = String(scannerCount);
+
+  const navItem=document.querySelector('.sidebar .ni[data-tab="interactive"]');
+  if(navItem) navItem.style.display = enabled ? '' : 'none';
+
+  const tabPanel=document.getElementById('tab-interactive');
+  if(tabPanel) tabPanel.style.display = enabled ? '' : 'none';
+
+  const disabledNote=document.getElementById('interactive-disabled-note');
+  if(disabledNote) disabledNote.style.display = enabled ? 'none' : '';
+
+  const rowVisibility = [
+    ['int-pc-row', enabled],
+    ['int-scanner1-row', enabled],
+    ['int-artnet1-row', enabled],
+    ['int-scanner2-row', enabled && scannerCount >= 2],
+    ['int-artnet2-row', enabled && scannerCount >= 2]
+  ];
+
+  for(const [id, visible] of rowVisibility){
+    const row = document.getElementById(id);
+    if(row) row.style.display = visible ? '' : 'none';
+  }
+
+  if(!enabled){
+    ['interactive_pc','interactive_scanner1','interactive_scanner2','interactive_gateway1','interactive_gateway2'].forEach(key=>{ deviceState[key] = false; });
+    if(currentTab==='interactive') switchTab('settings', document.querySelector('[data-tab="settings"]'));
+  }
+
+  updateInteractiveNavBadge(enabled ? getInteractiveMonitorTargets().map(t=>Boolean(deviceState[t.key])) : []);
+  renderMobileNav();
+}
+
+function applyEmergencySwitchSettingsUI(){
+  const enabled = isEmergencySwitchEnabled();
+  const toggle=document.getElementById('emergency-switch-enabled-toggle');
+  if(toggle) toggle.checked = enabled;
+
+  const row=document.getElementById('mon-emergency-switch-row');
+  if(row) row.style.display = enabled ? '' : 'none';
+
+  if(!enabled){
+    deviceState.emergency_switch = false;
+    setStatus(['mon-emergency-switch'], false);
+  }
+}
+
 function refreshDeviceWebGuiBadges(){
   const setChipText=(id,ip)=>{
     const el=document.getElementById(id);
@@ -4951,6 +5207,9 @@ async function init(){
   cfg.pixera_octo_port = Number(cfg.pixera_octo_port || 4000);
   cfg.pixera_octo_count = normalizePixeraOctoCount(cfg.pixera_octo_count);
   cfg.amp_count = normalizeAmpCount(cfg.amp_count);
+  cfg.interactive_enabled = cfg.interactive_enabled === true;
+  cfg.interactive_scanner_count = normalizeInteractiveScannerCount(cfg.interactive_scanner_count);
+  cfg.emergency_switch_enabled = normalizeEmergencySwitchEnabled(cfg.emergency_switch_enabled);
   cfg.d40_03_ip = String(cfg.d40_03_ip || '192.168.1.53').trim();
   cfg.poe_switch_ip = cfg.poe_switch_ip || DEFAULT_POE_IP;
   cfg.rutx50_ip = cfg.rutx50_ip || DEFAULT_RUTX50_IP;
@@ -4966,6 +5225,8 @@ async function init(){
   applyProjectorIpConfig();
   applyPixeraOctoSettingsUI();
   applyAmpSettingsUI();
+  applyInteractiveSettingsUI();
+  applyEmergencySwitchSettingsUI();
   applyVenueName();
   translatePage();
   await loadPersistedLogs();
@@ -5117,12 +5378,12 @@ async function init(){
       const dlgOpen = document.getElementById('view-unlock-small-backdrop')?.classList.contains('show');
       if(dlgOpen){e.preventDefault();return;}
       if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-      if(map[e.key]){const ni=document.querySelectorAll('.ni')[parseInt(e.key)-1];switchTab(map[e.key],ni);}
+      if(map[e.key]){const tab=map[e.key];const ni=document.querySelector(`[data-tab="${tab}"]`);switchTab(tab,ni);}
       if(e.key==='e'||e.key==='E') switchTab('emergency',null);
       return;
     }
     if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-    if(map[e.key]){const ni=document.querySelectorAll('.ni')[parseInt(e.key)-1];switchTab(map[e.key],ni);}
+    if(map[e.key]){const tab=map[e.key];const ni=document.querySelector(`[data-tab="${tab}"]`);switchTab(tab,ni);}
     if(e.key==='e'||e.key==='E') switchTab('emergency',null);
   });
 }
@@ -5131,6 +5392,14 @@ async function init(){
 // TAB SWITCHER
 // ============================================================
 window.switchTab=(id,el)=>{
+  if(!document.getElementById('tab-'+id)){
+    id='settings';
+    el=document.querySelector('[data-tab="settings"]');
+  }
+  if(id==='interactive' && !isInteractiveMonitoringEnabled()){
+    id='settings';
+    el=document.querySelector('[data-tab="settings"]');
+  }
   currentTab=id;
   localStorage.setItem('activeTab', id);
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
@@ -5241,6 +5510,15 @@ function updateMonitoringNavBadge(states){
     .map(p=>p.online);
   const allOnline = [...nonProjStates, ...configuredProjOnline].every(Boolean);
   setNavBadge('nav-monitoring-b', allOnline);
+}
+
+function updateInteractiveNavBadge(states){
+  if(!isInteractiveMonitoringEnabled()){
+    setNavBadge('nav-interactive-b', true);
+    return;
+  }
+  const allOnline = Array.isArray(states) && states.length > 0 && states.every(Boolean);
+  setNavBadge('nav-interactive-b', allOnline);
 }
 
 function updateProjectorMonitoringGrid(){
@@ -6390,32 +6668,6 @@ window.d40UnmuteAll=async n=>{
   buildAmpChannels(n);
 };
 
-async function muteAllD40ForEmergency(){
-  const amps = getConfiguredAmpNumbers().map(n=>({n,ip:getAmpIp(n)}));
-
-  amps.forEach(({ n }) => {
-    ampMutes[n] = [true, true, true, true];
-    setAmpCommandPending(n);
-    buildAmpChannels(n);
-  });
-  if(demoMode) persistDemoRuntimeState();
-
-  const results = await Promise.allSettled(
-    amps.map(async ({ n, ip }) => {
-      if(!ip) throw new Error(`AMP 0${n}: missing IP`);
-      await invoke('d40_command', { ip, command: 'mute_all' });
-      addLogT('error', 'emergency_amp_mute_all_log',{ampNo:n});
-    })
-  );
-
-  results.forEach((result, idx) => {
-    if(result.status === 'rejected'){
-      const ampNo = amps[idx]?.n ?? '?';
-      addError(t('emergency_amp_mute_all_failed',{ampNo,error:result.reason}));
-    }
-  });
-}
-
 // ============================================================
 // POWER ACTIONS
 // ============================================================
@@ -6442,12 +6694,11 @@ window.triggerPowerOff=async()=>{
 };
 window.confirmEmergency=async()=>{
   activateEmergencyLock();
-  const companionUrl = getCompanionEmergencyPressUrl();
-  const companionOk = await triggerCompanionEmergencyPress();
-  if(companionOk){
-    addLog('info', `Companion emergency press sent: ${companionUrl}`);
-  } else {
-    addError(`Companion emergency press failed: ${companionUrl}`);
+  try{
+    await sendEmergencyNotausOsc();
+    addLogT('error','emergency_notaus_sent');
+  }catch(error){
+    addError(t('emergency_notaus_failed',{error}));
   }
   switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
   addLogT('error','emergency_triggered');
@@ -7036,7 +7287,31 @@ async function pollAll(){
   const octoStates=[];
   if(octoCount>=1) octoStates.push(octo1Ping);
   if(octoCount>=2) octoStates.push(octo2Ping);
-  updateMonitoringNavBadge([directorOnline,...getConfiguredAmpNumbers().map(n=>ampOnlineStates[n-1]),nas,poe,rutx,ups,jan,c1,c2,...octoStates,...projectorOnlineStates]);
+
+  const interactiveStates=[];
+  if(isInteractiveMonitoringEnabled()){
+    for(const target of getInteractiveMonitorTargets()){
+      const online=await tcpPing(target.ip,target.port);
+      setDeviceOnline(target.key,online,target.label,null);
+      setStatus([target.id],online);
+      interactiveStates.push(online);
+    }
+  }
+
+  let emergencySwitchOnline=false;
+  if(isEmergencySwitchEnabled()){
+    emergencySwitchOnline = await tcpPing('192.168.1.99',80);
+    setDeviceOnline('emergency_switch', emergencySwitchOnline, 'Notaus-Schalter (IP: 192.168.1.99)', null);
+    setStatus(['mon-emergency-switch'], emergencySwitchOnline);
+  } else {
+    setDeviceOnline('emergency_switch', false, 'Notaus-Schalter (IP: 192.168.1.99)', null);
+    setStatus(['mon-emergency-switch'], false);
+  }
+
+  const monitoringStates=[directorOnline,...getConfiguredAmpNumbers().map(n=>ampOnlineStates[n-1]),nas,poe,rutx,ups,jan,c1,c2,...octoStates,...projectorOnlineStates];
+  if(isEmergencySwitchEnabled()) monitoringStates.push(emergencySwitchOnline);
+  updateMonitoringNavBadge(monitoringStates);
+  updateInteractiveNavBadge(interactiveStates);
 }
 
 // ============================================================
@@ -7130,6 +7405,26 @@ async function runStartupConnectivityChecks(){
       if(result.online) return true;
       throw new Error('Timeout oder keine Antwort');
     }});
+  }
+
+  if(isInteractiveMonitoringEnabled()){
+    for(const target of getInteractiveMonitorTargets()){
+      checks.push({
+        name:target.label.split(' (')[0],
+        host:target.ip,
+        port:target.port,
+        run:()=>tcpPing(target.ip,target.port,{throwOnFail:true})
+      });
+    }
+  }
+
+  if(isEmergencySwitchEnabled()){
+    checks.push({
+      name:'Notaus-Schalter',
+      host:'192.168.1.99',
+      port:80,
+      run:()=>tcpPing('192.168.1.99',80,{throwOnFail:true})
+    });
   }
 
   // Include all configured projectors in startup checks via PJLink port.
