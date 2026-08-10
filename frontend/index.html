@@ -4045,6 +4045,13 @@ window.confirmViewModeUnlock=()=>{
     return;
   }
   disableViewMode();
+  // Send emergency reset OSC if emergency was triggered remotely
+  if(lastEmergencyTriggeredRemotely){
+    invoke('send_emergency_reset_osc', {}).catch(e => {
+      addLog('error', `OSC /emergency_reset an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
+    });
+    lastEmergencyTriggeredRemotely = false;
+  }
 };
 
 // ── Telegram Settings PIN-protection ────────────────────────────────────────
@@ -5354,9 +5361,7 @@ async function init(){
   document.getElementById('btn-fullscreen')?.addEventListener('click',async()=>{if(isTauri)await invoke('toggle_fullscreen');});
   if(isTauri&&window.__TAURI__?.event?.listen){
     window.__TAURI__.event.listen('tray-emergency',()=>confirmEmergency());
-    window.__TAURI__.event.listen('tray-power-all',()=>{ if(!viewModeLocked) triggerPowerAll(); });
-    window.__TAURI__.event.listen('tray-mute-all',()=>{ if(!viewModeLocked){ d40MuteAll(1);d40MuteAll(2); } });
-  }
+    window.__TAURI__.event.listen('emergency-pressed-remote',()=>{\n      lastEmergencyTriggeredRemotely = true;\n      confirmEmergency();\n    });\n    window.__TAURI__.event.listen('tray-power-all',()=>{ if(!viewModeLocked) triggerPowerAll(); });\n    window.__TAURI__.event.listen('tray-mute-all',()=>{ if(!viewModeLocked){ d40MuteAll(1);d40MuteAll(2); } });\n  }
 
   document.addEventListener('click',e=>{
     if(!viewModeLocked || isViewModeAllowedTarget(e.target)) return;
@@ -6713,6 +6718,8 @@ window.triggerPowerOff=async()=>{
     addError(t('scheduler_poweroff_failed',{error:e}));
   }
 };
+let lastEmergencyTriggeredRemotely = false;
+
 window.confirmEmergency=async()=>{
   activateEmergencyLock();
   try{
@@ -6728,6 +6735,7 @@ window.confirmEmergency=async()=>{
   }
   switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
   addLogT('error','emergency_triggered');
+};
   addError(`${locales[currentLang].emergency_description} ${locales[currentLang].emergency_hotline_lock_title}: ${cfg?.hotline||document.getElementById('em-hotline')?.textContent||''}`.trim());
 };
 

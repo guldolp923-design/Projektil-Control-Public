@@ -2747,6 +2747,33 @@ fn send_emergency_osc_to_switch() -> Result<bool, String> {
     Ok(true)
 }
 
+#[tauri::command]
+fn send_emergency_reset_osc() -> Result<bool, String> {
+    let addr = "192.168.1.99:9000";
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("OSC Socket konnte nicht erstellt werden: {}", e))?;
+    socket
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .map_err(|e| format!("OSC Write-Timeout konnte nicht gesetzt werden: {}", e))?;
+
+    let mut packet = Vec::new();
+    packet.extend_from_slice(&osc_padded_string_bytes("/emergency_reset"));
+    packet.extend_from_slice(&osc_padded_string_bytes(",i"));
+    packet.extend_from_slice(&1_i32.to_be_bytes());
+
+    let sent = socket
+        .send_to(&packet, addr)
+        .map_err(|e| format!("OSC /emergency_reset Senden fehlgeschlagen: {}", e))?;
+    if sent != packet.len() {
+        return Err(format!(
+            "OSC /emergency_reset unvollstaendig gesendet: {} von {} Bytes",
+            sent,
+            packet.len()
+        ));
+    }
+    Ok(true)
+}
+
 fn default_config_json() -> serde_json::Value {
     serde_json::json!({
         "demo_mode": false,
@@ -4236,6 +4263,39 @@ fn start_lan_web_server() {
     });
 }
 
+fn start_emergency_listener() {
+    static STARTED: OnceLock<()> = OnceLock::new();
+    if STARTED.set(()).is_err() {
+        return;
+    }
+
+    thread::spawn(|| {
+        let socket = match UdpSocket::bind("0.0.0.0:9001") {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Emergency listener bind error: {}", e);
+                return;
+            }
+        };
+
+        let mut buffer = [0; 256];
+        loop {
+            if let Ok((size, _addr)) = socket.recv_from(&mut buffer) {
+                let data = &buffer[..size];
+                if data.len() > 4 && &data[0..1] == b"/" {
+                    if let Ok(s) = std::str::from_utf8(data) {
+                        if s.starts_with("/emergency_pressed") {
+                            if let Some(app) = APP_HANDLE.get() {
+                                let _ = app.emit("emergency-pressed-remote", ());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -4255,6 +4315,7 @@ fn main() {
             }
             start_camera_mjpeg_server();
             start_lan_web_server();
+            start_emergency_listener();
             let sep       = tauri::menu::PredefinedMenuItem::separator(app)?;
             let show      = MenuItem::with_id(app, "show",      "PROJEKTIL öffnen", true, None::<&str>)?;
             let mute_all  = MenuItem::with_id(app, "mute_all",  "Alle Mute",         true, None::<&str>)?;
@@ -4304,7 +4365,7 @@ fn main() {
             ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             pixera_api_request,
-            send_emergency_notaus_osc, send_emergency_osc_to_switch,
+            send_emergency_notaus_osc, send_emergency_osc_to_switch, send_emergency_reset_osc,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
             save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms
