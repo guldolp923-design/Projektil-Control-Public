@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.0.22 - 2026-08-10
+
+### Added
+- Optionales Monitoring für den Notaus-Schalter mit der IP 192.168.1.99
+- Schalter in den Einstellungen, ob die Installation einen Notaus verwendet
+
+### Changed
+- Emergency sendet jetzt nur noch einen OSC-Befehl `/notaus` an Pixera
+- Die Endstufen werden im Emergency-Pfad nicht mehr gemutet
+
+### Release Assets
+- Private Release: Windows EXE + Windows Installer (NSIS) + Sourcecode-Archiv
+- Public Release: Windows EXE + Windows Installer (NSIS)
+
 ## v1.0.16-beta - 2026-05-21
 
 ### Added
