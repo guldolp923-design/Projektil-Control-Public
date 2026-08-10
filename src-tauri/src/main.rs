@@ -1427,6 +1427,25 @@ async fn http_ping(ip: String, port: u16) -> Result<String, String> {
     }
 }
 
+// ============================================================
+// ICMP Ping (Windows)
+// ============================================================
+#[tauri::command]
+fn icmp_ping(ip: String) -> Result<bool, String> {
+    let mut cmd = Command::new("ping");
+    cmd.args(&["-n", "1", "-w", "1000", &ip]);
+    
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()
+        .map_err(|e| format!("Ping command fehlgeschlagen: {}", e))?;
+
+    Ok(output.status.success())
+}
+
 #[tauri::command]
 fn system_get_battery_status() -> Result<serde_json::Value, String> {
     #[cfg(target_os = "windows")]
@@ -2698,6 +2717,33 @@ fn send_emergency_notaus_osc(target_ip: Option<String>, target_port: Option<u16>
         ));
     }
 
+    Ok(true)
+}
+
+#[tauri::command]
+fn send_emergency_osc_to_switch() -> Result<bool, String> {
+    let addr = "192.168.1.99:9000";
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| format!("OSC Socket konnte nicht erstellt werden: {}", e))?;
+    socket
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .map_err(|e| format!("OSC Write-Timeout konnte nicht gesetzt werden: {}", e))?;
+
+    let mut packet = Vec::new();
+    packet.extend_from_slice(&osc_padded_string_bytes("/emergency"));
+    packet.extend_from_slice(&osc_padded_string_bytes(",i"));
+    packet.extend_from_slice(&1_i32.to_be_bytes());
+
+    let sent = socket
+        .send_to(&packet, addr)
+        .map_err(|e| format!("OSC /emergency Senden fehlgeschlagen: {}", e))?;
+    if sent != packet.len() {
+        return Err(format!(
+            "OSC /emergency unvollstaendig gesendet: {} von {} Bytes",
+            sent,
+            packet.len()
+        ));
+    }
     Ok(true)
 }
 
@@ -4253,12 +4299,12 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            d40_command, d40_ping, d40_status, d40_set_gain, http_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
+            d40_command, d40_ping, d40_status, d40_set_gain, http_ping, icmp_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
             system_get_battery_status,
             ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             pixera_api_request,
-            send_emergency_notaus_osc,
+            send_emergency_notaus_osc, send_emergency_osc_to_switch,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
             save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms
