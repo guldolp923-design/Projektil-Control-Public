@@ -65,7 +65,7 @@
     false,
     false
   ],
-  "emergency_switch_enabled": false,
+  "emergency_switch_enabled": true,
   "hotline": "+41 44 492 51 69",
   "interactive_enabled": false,
   "interactive_scanner_count": 2,
