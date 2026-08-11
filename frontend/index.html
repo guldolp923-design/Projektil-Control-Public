@@ -1848,7 +1848,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.28';
+const APP_VERSION_FALLBACK = '1.0.29';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -2454,8 +2454,8 @@ const locales = {
     projector_transition_timeout: '[Pixera API] PJ-Link projector {index} Timeout ({seconds}s) waiting for {target}',
     emergency_amp_mute_all_log: 'EMERGENCY: AMP 0{ampNo} mute_all',
     emergency_amp_mute_all_failed: 'EMERGENCY: AMP 0{ampNo} mute_all fehlgeschlagen: {error}',
-    emergency_notaus_sent: 'EMERGENCY: OSC /notaus (1) an 192.168.1.31:9000 gesendet',
-    emergency_notaus_failed: 'EMERGENCY: OSC /notaus fehlgeschlagen: {error}',
+    emergency_notaus_sent: 'EMERGENCY: OSC /emergency (1) an 192.168.1.31:8000 gesendet',
+    emergency_notaus_failed: 'EMERGENCY: OSC /emergency fehlgeschlagen: {error}',
     scheduler_powerall_executed: '[Pixera API] Scheduler PowerAll ausgefuehrt',
     scheduler_powerall_failed: '[Pixera API] Scheduler PowerAll fehlgeschlagen: {error}',
     scheduler_poweroff_executed: '[Pixera API] Scheduler PowerOff ausgefuehrt',
@@ -2908,8 +2908,8 @@ const locales = {
     projector_transition_timeout: '[Pixera API] PJ-Link projector {index} timeout ({seconds}s) waiting for {target}',
     emergency_amp_mute_all_log: 'EMERGENCY: AMP 0{ampNo} mute_all',
     emergency_amp_mute_all_failed: 'EMERGENCY: AMP 0{ampNo} mute_all failed: {error}',
-    emergency_notaus_sent: 'EMERGENCY: sent OSC /notaus (1) to 192.168.1.31:9000',
-    emergency_notaus_failed: 'EMERGENCY: OSC /notaus failed: {error}',
+    emergency_notaus_sent: 'EMERGENCY: sent OSC /emergency (1) to 192.168.1.31:8000',
+    emergency_notaus_failed: 'EMERGENCY: OSC /emergency failed: {error}',
     scheduler_powerall_executed: '[Pixera API] Scheduler PowerAll executed',
     scheduler_powerall_failed: '[Pixera API] Scheduler PowerAll failed: {error}',
     scheduler_poweroff_executed: '[Pixera API] Scheduler PowerOff executed',
@@ -4054,13 +4054,11 @@ window.confirmViewModeUnlock=()=>{
     return;
   }
   disableViewMode();
-  // Send emergency reset OSC if emergency was triggered remotely
-  if(lastEmergencyTriggeredRemotely){
-    invoke('send_emergency_reset_osc', {}).catch(e => {
-      addLog('error', `OSC /emergency_reset an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
-    });
-    lastEmergencyTriggeredRemotely = false;
-  }
+  // Always reset the button after successful code entry
+  invoke('send_emergency_reset_osc', {}).catch(e => {
+    addLog('error', `OSC /emergency_reset an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
+  });
+  lastEmergencyTriggeredRemotely = false;
 };
 
 // ── Telegram Settings PIN-protection ────────────────────────────────────────
@@ -6743,10 +6741,12 @@ window.confirmEmergency=async()=>{
   }catch(error){
     addError(t('emergency_notaus_failed',{error}));
   }
-  try{
-    await invoke('send_emergency_osc_to_switch',{});
-  }catch(e){
-    addLog('error',`OSC /emergency an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
+  if(!lastEmergencyTriggeredRemotely){
+    try{
+      await invoke('send_emergency_osc_to_switch',{});
+    }catch(e){
+      addLog('error',`OSC /projektil_control_pressed an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
+    }
   }
   switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
   addLogT('error','emergency_triggered');
