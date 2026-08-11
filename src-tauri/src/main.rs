@@ -2684,7 +2684,7 @@ fn osc_padded_string_bytes(value: &str) -> Vec<u8> {
 
 fn build_notaus_osc_packet() -> Vec<u8> {
     let mut packet = Vec::new();
-    packet.extend_from_slice(&osc_padded_string_bytes("/notaus"));
+    packet.extend_from_slice(&osc_padded_string_bytes("/emergency"));
     packet.extend_from_slice(&osc_padded_string_bytes(",i"));
     packet.extend_from_slice(&1_i32.to_be_bytes());
     packet
@@ -2696,7 +2696,7 @@ fn send_emergency_notaus_osc(target_ip: Option<String>, target_port: Option<u16>
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| "192.168.1.31".to_string());
-    let port = target_port.unwrap_or(9000);
+    let port = target_port.unwrap_or(8000);
     let addr = format!("{}:{}", ip, port);
 
     let socket = UdpSocket::bind("0.0.0.0:0")
@@ -2730,16 +2730,16 @@ fn send_emergency_osc_to_switch() -> Result<bool, String> {
         .map_err(|e| format!("OSC Write-Timeout konnte nicht gesetzt werden: {}", e))?;
 
     let mut packet = Vec::new();
-    packet.extend_from_slice(&osc_padded_string_bytes("/emergency"));
+    packet.extend_from_slice(&osc_padded_string_bytes("/projektil_control_pressed"));
     packet.extend_from_slice(&osc_padded_string_bytes(",i"));
     packet.extend_from_slice(&1_i32.to_be_bytes());
 
     let sent = socket
         .send_to(&packet, addr)
-        .map_err(|e| format!("OSC /emergency Senden fehlgeschlagen: {}", e))?;
+        .map_err(|e| format!("OSC /projektil_control_pressed Senden fehlgeschlagen: {}", e))?;
     if sent != packet.len() {
         return Err(format!(
-            "OSC /emergency unvollstaendig gesendet: {} von {} Bytes",
+            "OSC /projektil_control_pressed unvollstaendig gesendet: {} von {} Bytes",
             sent,
             packet.len()
         ));
