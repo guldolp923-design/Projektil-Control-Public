@@ -5361,7 +5361,13 @@ async function init(){
   document.getElementById('btn-fullscreen')?.addEventListener('click',async()=>{if(isTauri)await invoke('toggle_fullscreen');});
   if(isTauri&&window.__TAURI__?.event?.listen){
     window.__TAURI__.event.listen('tray-emergency',()=>confirmEmergency());
-    window.__TAURI__.event.listen('emergency-pressed-remote',()=>{\n      lastEmergencyTriggeredRemotely = true;\n      confirmEmergency();\n    });\n    window.__TAURI__.event.listen('tray-power-all',()=>{ if(!viewModeLocked) triggerPowerAll(); });\n    window.__TAURI__.event.listen('tray-mute-all',()=>{ if(!viewModeLocked){ d40MuteAll(1);d40MuteAll(2); } });\n  }
+    window.__TAURI__.event.listen('emergency-pressed-remote',()=>{
+      lastEmergencyTriggeredRemotely = true;
+      confirmEmergency();
+    });
+    window.__TAURI__.event.listen('tray-power-all',()=>{ if(!viewModeLocked) triggerPowerAll(); });
+    window.__TAURI__.event.listen('tray-mute-all',()=>{ if(!viewModeLocked){ d40MuteAll(1);d40MuteAll(2); } });
+  }
 
   document.addEventListener('click',e=>{
     if(!viewModeLocked || isViewModeAllowedTarget(e.target)) return;
