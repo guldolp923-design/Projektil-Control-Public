@@ -67,7 +67,7 @@
   ],
   "emergency_switch_enabled": false,
   "hotline": "+41 44 492 51 69",
-  "interactive_enabled": true,
+  "interactive_enabled": false,
   "interactive_scanner_count": 2,
   "language": "en",
   "location_name": "Berlin",

@@ -867,37 +867,41 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
                 </div>
               </div>
             </div>
-            <div class="setting-block" style="margin-top:12px;padding:0;border:0">
-              <div class="toggle-row" style="margin-bottom:10px">
-                <div>
-                  <div class="setting-label" data-l10n-key="interactive_mode_title">Interaktiv aktivieren</div>
-                  <div class="setting-hint" data-l10n-key="interactive_mode_hint">Aktiviert Monitoring fuer Scanner, Interaktiv-PC und Scanner-Artnet Gateways.</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+              <div class="setting-block">
+                <div class="toggle-row">
+                  <div>
+                    <div class="setting-label" data-l10n-key="interactive_mode_title">Interaktiv aktivieren</div>
+                    <div class="setting-hint" data-l10n-key="interactive_mode_hint">Aktiviert Monitoring fuer Scanner, Interaktiv-PC und Scanner-Artnet Gateways.</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="interactive-enabled-toggle" onchange="setInteractiveEnabled(this.checked)" />
+                    <span class="switch-slider"></span>
+                  </label>
                 </div>
-                <label class="switch">
-                  <input type="checkbox" id="interactive-enabled-toggle" onchange="setInteractiveEnabled(this.checked)" />
-                  <span class="switch-slider"></span>
-                </label>
+                <div id="interactive-scanner-count-wrap" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)">
+                  <div class="setting-label" data-l10n-key="interactive_scanner_count_label">Anzahl Scanner</div>
+                  <div class="setting-hint" data-l10n-key="interactive_scanner_count_hint">Die gleiche Anzahl Scanner-Artnet Gateways wird ebenfalls ueberwacht.</div>
+                  <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                    <select id="interactive-scanner-count-input" onchange="commitInteractiveScannerCountFromInput()" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff">
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                    </select>
+                    <button class="btn btn-g" onclick="commitInteractiveScannerCountFromInput()" data-l10n-key="settings_ok">OK</button>
+                  </div>
+                </div>
               </div>
-              <div id="interactive-scanner-count-wrap" style="display:none">
-                <div class="setting-label" data-l10n-key="interactive_scanner_count_label">Anzahl Scanner</div>
-                <div class="setting-hint" data-l10n-key="interactive_scanner_count_hint">Die gleiche Anzahl Scanner-Artnet Gateways wird ebenfalls ueberwacht.</div>
-                <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-                  <select id="interactive-scanner-count-input" onchange="commitInteractiveScannerCountFromInput()" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                  </select>
-                  <button class="btn btn-g" onclick="commitInteractiveScannerCountFromInput()" data-l10n-key="settings_ok">OK</button>
+              <div class="setting-block">
+                <div class="toggle-row">
+                  <div>
+                    <div class="setting-label" data-l10n-key="emergency_switch_mode_title">Notaus-Schalter in Installation vorhanden</div>
+                    <div class="setting-hint" data-l10n-key="emergency_switch_mode_hint">Aktiviert Monitoring fuer den Notaus-Schalter (IP: 192.168.1.99).</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="emergency-switch-enabled-toggle" onchange="setEmergencySwitchEnabled(this.checked)" />
+                    <span class="switch-slider"></span>
+                  </label>
                 </div>
-              </div>
-              <div class="toggle-row" style="margin-top:14px">
-                <div>
-                  <div class="setting-label" data-l10n-key="emergency_switch_mode_title">Notaus-Schalter in Installation vorhanden</div>
-                  <div class="setting-hint" data-l10n-key="emergency_switch_mode_hint">Aktiviert Monitoring fuer den Notaus-Schalter (IP: 192.168.1.99).</div>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="emergency-switch-enabled-toggle" onchange="setEmergencySwitchEnabled(this.checked)" />
-                  <span class="switch-slider"></span>
-                </label>
               </div>
             </div>
           </div>
@@ -1844,7 +1848,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.27';
+const APP_VERSION_FALLBACK = '1.0.28';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
