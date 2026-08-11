@@ -2699,6 +2699,12 @@ fn send_emergency_notaus_osc(target_ip: Option<String>, target_port: Option<u16>
     let port = target_port.unwrap_or(8000);
     let addr = format!("{}:{}", ip, port);
 
+    let msg = format!("[OSC OUT] Sending /emergency to {}", addr);
+    eprintln!("{}", msg);
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = write_app_log("info", &msg, now_timestamp_ms(), Some(&app));
+    }
+
     let socket = UdpSocket::bind("0.0.0.0:0")
         .map_err(|e| format!("OSC Socket konnte nicht erstellt werden: {}", e))?;
     socket
@@ -2708,21 +2714,44 @@ fn send_emergency_notaus_osc(target_ip: Option<String>, target_port: Option<u16>
     let packet = build_notaus_osc_packet();
     let sent = socket
         .send_to(&packet, &addr)
-        .map_err(|e| format!("OSC /notaus Senden fehlgeschlagen: {}", e))?;
+        .map_err(|e| {
+            let err_msg = format!("[OSC OUT ERROR] /emergency send failed: {}", e);
+            eprintln!("{}", err_msg);
+            if let Some(app) = APP_HANDLE.get() {
+                let _ = write_app_log("error", &err_msg, now_timestamp_ms(), Some(&app));
+            }
+            err_msg
+        })?;
     if sent != packet.len() {
-        return Err(format!(
-            "OSC /notaus unvollstaendig gesendet: {} von {} Bytes",
+        let err_msg = format!(
+            "[OSC OUT ERROR] /emergency incomplete: {} von {} Bytes",
             sent,
             packet.len()
-        ));
+        );
+        eprintln!("{}", err_msg);
+        if let Some(app) = APP_HANDLE.get() {
+            let _ = write_app_log("error", &err_msg, now_timestamp_ms(), Some(&app));
+        }
+        return Err(err_msg);
     }
 
+    let success_msg = format!("[OSC OUT] /emergency sent successfully ({} bytes)", sent);
+    eprintln!("{}", success_msg);
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = write_app_log("info", &success_msg, now_timestamp_ms(), Some(&app));
+    }
     Ok(true)
 }
 
 #[tauri::command]
 fn send_emergency_osc_to_switch() -> Result<bool, String> {
     let addr = "192.168.1.99:9000";
+    let msg = format!("[OSC OUT] Sending /projektil_control_pressed to {}", addr);
+    eprintln!("{}", msg);
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = write_app_log("info", &msg, now_timestamp_ms(), Some(&app));
+    }
+
     let socket = UdpSocket::bind("0.0.0.0:0")
         .map_err(|e| format!("OSC Socket konnte nicht erstellt werden: {}", e))?;
     socket
@@ -2736,13 +2765,31 @@ fn send_emergency_osc_to_switch() -> Result<bool, String> {
 
     let sent = socket
         .send_to(&packet, addr)
-        .map_err(|e| format!("OSC /projektil_control_pressed Senden fehlgeschlagen: {}", e))?;
+        .map_err(|e| {
+            let err_msg = format!("[OSC OUT ERROR] /projektil_control_pressed send failed: {}", e);
+            eprintln!("{}", err_msg);
+            if let Some(app) = APP_HANDLE.get() {
+                let _ = write_app_log("error", &err_msg, now_timestamp_ms(), Some(&app));
+            }
+            err_msg
+        })?;
     if sent != packet.len() {
-        return Err(format!(
-            "OSC /projektil_control_pressed unvollstaendig gesendet: {} von {} Bytes",
+        let err_msg = format!(
+            "[OSC OUT ERROR] /projektil_control_pressed incomplete: {} von {} Bytes",
             sent,
             packet.len()
-        ));
+        );
+        eprintln!("{}", err_msg);
+        if let Some(app) = APP_HANDLE.get() {
+            let _ = write_app_log("error", &err_msg, now_timestamp_ms(), Some(&app));
+        }
+        return Err(err_msg);
+    }
+
+    let success_msg = format!("[OSC OUT] /projektil_control_pressed sent successfully ({} bytes)", sent);
+    eprintln!("{}", success_msg);
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = write_app_log("info", &success_msg, now_timestamp_ms(), Some(&app));
     }
     Ok(true)
 }
@@ -2750,6 +2797,12 @@ fn send_emergency_osc_to_switch() -> Result<bool, String> {
 #[tauri::command]
 fn send_emergency_reset_osc() -> Result<bool, String> {
     let addr = "192.168.1.99:9000";
+    let msg = format!("[OSC OUT] Sending /emergency_reset to {}", addr);
+    eprintln!("{}", msg);
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = write_app_log("info", &msg, now_timestamp_ms(), Some(&app));
+    }
+
     let socket = UdpSocket::bind("0.0.0.0:0")
         .map_err(|e| format!("OSC Socket konnte nicht erstellt werden: {}", e))?;
     socket
@@ -2763,13 +2816,31 @@ fn send_emergency_reset_osc() -> Result<bool, String> {
 
     let sent = socket
         .send_to(&packet, addr)
-        .map_err(|e| format!("OSC /emergency_reset Senden fehlgeschlagen: {}", e))?;
+        .map_err(|e| {
+            let err_msg = format!("[OSC OUT ERROR] /emergency_reset send failed: {}", e);
+            eprintln!("{}", err_msg);
+            if let Some(app) = APP_HANDLE.get() {
+                let _ = write_app_log("error", &err_msg, now_timestamp_ms(), Some(&app));
+            }
+            err_msg
+        })?;
     if sent != packet.len() {
-        return Err(format!(
-            "OSC /emergency_reset unvollstaendig gesendet: {} von {} Bytes",
+        let err_msg = format!(
+            "[OSC OUT ERROR] /emergency_reset incomplete: {} von {} Bytes",
             sent,
             packet.len()
-        ));
+        );
+        eprintln!("{}", err_msg);
+        if let Some(app) = APP_HANDLE.get() {
+            let _ = write_app_log("error", &err_msg, now_timestamp_ms(), Some(&app));
+        }
+        return Err(err_msg);
+    }
+
+    let success_msg = format!("[OSC OUT] /emergency_reset sent successfully ({} bytes)", sent);
+    eprintln!("{}", success_msg);
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = write_app_log("info", &success_msg, now_timestamp_ms(), Some(&app));
     }
     Ok(true)
 }
@@ -4271,22 +4342,63 @@ fn start_emergency_listener() {
 
     thread::spawn(|| {
         let socket = match UdpSocket::bind("0.0.0.0:9001") {
-            Ok(s) => s,
+            Ok(s) => {
+                eprintln!("[OSC LISTENER] Emergency listener started on 0.0.0.0:9001");
+                if let Some(app) = APP_HANDLE.get() {
+                    let _ = write_app_log("info", "[OSC LISTENER] Emergency listener started on 0.0.0.0:9001", now_timestamp_ms(), Some(&app));
+                }
+                s
+            }
             Err(e) => {
-                eprintln!("Emergency listener bind error: {}", e);
+                eprintln!("[OSC LISTENER ERROR] Emergency listener bind error: {}", e);
+                if let Some(app) = APP_HANDLE.get() {
+                    let msg = format!("[OSC LISTENER ERROR] Emergency listener bind error: {}", e);
+                    let _ = write_app_log("error", &msg, now_timestamp_ms(), Some(&app));
+                }
                 return;
             }
         };
 
         let mut buffer = [0; 256];
         loop {
-            if let Ok((size, _addr)) = socket.recv_from(&mut buffer) {
+            if let Ok((size, addr)) = socket.recv_from(&mut buffer) {
                 let data = &buffer[..size];
+                let log_msg = format!("[OSC IN] Received {} bytes from {}", size, addr);
+                eprintln!("{}", log_msg);
+                if let Some(app) = APP_HANDLE.get() {
+                    let _ = write_app_log("debug", &log_msg, now_timestamp_ms(), Some(&app));
+                }
+                
                 // Check for /emergency_pressed (18 bytes)
                 if data.len() >= 18 && &data[0..18] == b"/emergency_pressed" {
+                    let msg = format!("[OSC IN] /emergency_pressed detected! Emitting event to frontend");
+                    eprintln!("{}", msg);
                     if let Some(app) = APP_HANDLE.get() {
-                        eprintln!("Emergency pressed received on port 9001");
-                        let _ = app.emit("emergency-pressed-remote", ());
+                        let _ = write_app_log("info", &msg, now_timestamp_ms(), Some(&app));
+                        match app.emit("emergency-pressed-remote", ()) {
+                            Ok(_) => {
+                                let success = "[OSC IN] Event 'emergency-pressed-remote' emitted successfully";
+                                eprintln!("{}", success);
+                                let _ = write_app_log("info", success, now_timestamp_ms(), Some(&app));
+                            }
+                            Err(e) => {
+                                let err = format!("[OSC IN ERROR] Failed to emit event: {}", e);
+                                eprintln!("{}", err);
+                                let _ = write_app_log("error", &err, now_timestamp_ms(), Some(&app));
+                            }
+                        }
+                    } else {
+                        eprintln!("[OSC IN ERROR] APP_HANDLE not available");
+                    }
+                } else {
+                    if data.len() >= 1 && data[0] == b'/' as u8 {
+                        if let Ok(s) = std::str::from_utf8(&data[..std::cmp::min(50, data.len())]) {
+                            let debug_msg = format!("[OSC IN] Unknown OSC command: {}", s);
+                            eprintln!("{}", debug_msg);
+                            if let Some(app) = APP_HANDLE.get() {
+                                let _ = write_app_log("debug", &debug_msg, now_timestamp_ms(), Some(&app));
+                            }
+                        }
                     }
                 }
             }

@@ -522,6 +522,20 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
 </style>
 </head>
 <body>
+<script>
+// Register emergency-pressed-remote listener immediately via Tauri v2 internals
+let _lastEmergencyTriggeredRemotelyTemp = false;
+function _setupEmergencyListener() {
+  const core = window.__TAURI_INTERNALS__;
+  if (!core?.invoke) { setTimeout(_setupEmergencyListener, 50); return; }
+  const cbId = core.transformCallback(() => {
+    _lastEmergencyTriggeredRemotelyTemp = true;
+    if (typeof confirmEmergency === 'function') confirmEmergency();
+  }, true);
+  core.invoke('plugin:event|listen', { event: 'emergency-pressed-remote', target: { kind: 'Any' }, handler: cbId });
+}
+_setupEmergencyListener();
+</script>
 
 <div class="startup-overlay" id="startup-overlay">
   <div class="startup-card">
@@ -1608,6 +1622,15 @@ const FALLBACK_PIXERA_SCHEDULER_MODULES = [
   'Projektil_EventScheduler_V21',
   'EventScheduler_Projektil_V17'
 ];
+
+// REGISTER TAURI EVENT LISTENERS with retry until ready
+function setupTauriEventListeners() {
+  if (!isTauri) return;
+  // Emergency listener is registered in the inline <script> above via __TAURI_INTERNALS__
+}
+
+// Start setup immediately - uses __TAURI_INTERNALS__ directly
+setupTauriEventListeners();
 let _schedulerModuleResolved = '';
 const DEFAULT_PIXERA_HUB_MODULE = 'Pojektil_Hub_V1';
 const FALLBACK_PIXERA_HUB_MODULES = [
@@ -1835,8 +1858,12 @@ let prevV={l1:null,l2:null,l3:null};
 let currentLang = localStorage.getItem('lang') || 'de';
 let currentTab = localStorage.getItem('activeTab') || 'show';
 let demoMode = localStorage.getItem('demoMode') === '1';
-let viewModeLocked = localStorage.getItem('viewModeLocked') === '1';
-let emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
+// Always reset emergency lock on startup - hardware button re-triggers if needed
+localStorage.setItem('emergencyLockActive', '0');
+localStorage.setItem('viewModeLocked', '0');
+let viewModeLocked = false;
+let emergencyLockActive = false;
+let lastEmergencyTriggeredRemotely = false;  // Track if emergency was triggered by hardware button
 let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
 let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
 let sharedUiStateSyncTimer = null;
@@ -3887,15 +3914,18 @@ function isViewModeAllowedTarget(target){
 }
 
 function updateEmergencyLockUI(){
+  console.log('[LOCK] updateEmergencyLockUI called, emergencyLockActive=', emergencyLockActive);
   document.body.classList.toggle('emergency-locked', emergencyLockActive);
   const banner=document.getElementById('emergency-lock-banner');
   const bannerHotline=document.getElementById('emergency-lock-hotline');
   const hotline=cfg?.hotline || document.getElementById('em-hotline')?.textContent || '+41 44 492 51 69';
   if(bannerHotline) bannerHotline.textContent=hotline;
   if(banner) banner.classList.toggle('show', emergencyLockActive);
+  console.log('[LOCK] Banner element:', banner, 'classList.show=', banner?.classList.contains('show'));
   // Auto-show full lockscreen in emergency mode only
   const lockBackdrop = document.getElementById('view-lock-dialog-backdrop');
   lockBackdrop?.classList.toggle('show', emergencyLockActive);
+  console.log('[LOCK] Backdrop element:', lockBackdrop, 'classList.show=', lockBackdrop?.classList.contains('show'));
   if(emergencyLockActive) setTimeout(()=>document.getElementById('view-lock-code-input')?.focus(), 20);
   updateLockIndicators();
 }
@@ -5366,12 +5396,8 @@ async function init(){
   document.getElementById('btn-close')?.addEventListener('click',async()=>{if(isTauri)await invoke('hide_to_tray');});
   document.getElementById('btn-minimize')?.addEventListener('click',async()=>{if(isTauri)await invoke('minimize_window');});
   document.getElementById('btn-fullscreen')?.addEventListener('click',async()=>{if(isTauri)await invoke('toggle_fullscreen');});
+  // Note: Tauri event listeners are registered at the top of the file, immediately after isTauri check
   if(isTauri&&window.__TAURI__?.event?.listen){
-    window.__TAURI__.event.listen('tray-emergency',()=>confirmEmergency());
-    window.__TAURI__.event.listen('emergency-pressed-remote',()=>{
-      lastEmergencyTriggeredRemotely = true;
-      confirmEmergency();
-    });
     window.__TAURI__.event.listen('tray-power-all',()=>{ if(!viewModeLocked) triggerPowerAll(); });
     window.__TAURI__.event.listen('tray-mute-all',()=>{ if(!viewModeLocked){ d40MuteAll(1);d40MuteAll(2); } });
   }
@@ -6731,26 +6757,40 @@ window.triggerPowerOff=async()=>{
     addError(t('scheduler_poweroff_failed',{error:e}));
   }
 };
-let lastEmergencyTriggeredRemotely = false;
 
 window.confirmEmergency=async()=>{
-  activateEmergencyLock();
+  const isRemoteTrigger = _lastEmergencyTriggeredRemotelyTemp || lastEmergencyTriggeredRemotely;
+  
+  // Set state variables directly
+  emergencyLockActive = true;
+  viewModeLocked = true;
+  localStorage.setItem('emergencyLockActive', '1');
+  localStorage.setItem('viewModeLocked', '1');
+
+  // Show lockscreen immediately, regardless of state chain
+  const lockBackdrop = document.getElementById('view-lock-dialog-backdrop');
+  if (lockBackdrop) {
+    lockBackdrop.classList.add('show');
+    setTimeout(() => document.getElementById('view-lock-code-input')?.focus(), 50);
+  }
+  document.body.classList.add('emergency-locked');
+  document.getElementById('emergency-lock-banner')?.classList.add('show');
+  updateLockIndicators();
+
   try{
     await sendEmergencyNotausOsc();
     addLogT('error','emergency_notaus_sent');
   }catch(error){
     addError(t('emergency_notaus_failed',{error}));
   }
-  if(!lastEmergencyTriggeredRemotely){
-    try{
-      await invoke('send_emergency_osc_to_switch',{});
-    }catch(e){
-      addLog('error',`OSC /projektil_control_pressed an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
-    }
+
+  if(!isRemoteTrigger){
+    try{ await invoke('send_emergency_osc_to_switch',{}); }catch(e){ addLog('error',`OSC /projektil_control_pressed fehlgeschlagen: ${e}`); }
+    switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
+    addLogT('error','emergency_triggered');
+  } else {
+    addLogT('error','emergency_remote_button_pressed');
   }
-  switchTab('emergency', document.querySelector('[data-tab="emergency"]'));
-  addLogT('error','emergency_triggered');
-  addError(`${locales[currentLang].emergency_description} ${locales[currentLang].emergency_hotline_lock_title}: ${cfg?.hotline||document.getElementById('em-hotline')?.textContent||''}`.trim());
 };
 
 function cameraIp(cam){
@@ -9260,3 +9300,4 @@ init().catch((e)=>{
 </script>
 </body>
 </html>
+
