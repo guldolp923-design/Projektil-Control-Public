@@ -4282,13 +4282,11 @@ fn start_emergency_listener() {
         loop {
             if let Ok((size, _addr)) = socket.recv_from(&mut buffer) {
                 let data = &buffer[..size];
-                if data.len() > 4 && &data[0..1] == b"/" {
-                    if let Ok(s) = std::str::from_utf8(data) {
-                        if s.starts_with("/emergency_pressed") {
-                            if let Some(app) = APP_HANDLE.get() {
-                                let _ = app.emit("emergency-pressed-remote", ());
-                            }
-                        }
+                // Check for /emergency_pressed (18 bytes)
+                if data.len() >= 18 && &data[0..18] == b"/emergency_pressed" {
+                    if let Some(app) = APP_HANDLE.get() {
+                        eprintln!("Emergency pressed received on port 9001");
+                        let _ = app.emit("emergency-pressed-remote", ());
                     }
                 }
             }
