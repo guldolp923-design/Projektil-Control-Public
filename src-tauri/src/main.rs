@@ -42,6 +42,143 @@ static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static FFMPEG_SETUP_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 const CAMERA_MJPEG_PORT: u16 = 41777;
 const LAN_WEB_PORT: u16 = 41778;
+const OSC_LISTENER_PORT: u16 = 9001;
+const OSC_LISTENER_ADDR: &str = "0.0.0.0:9001";
+const OSC_BUFFER_SIZE: usize = 256;
+const OSC_EMERGENCY_CMD: &[u8] = b"/emergency_pressed";
+const OSC_EMERGENCY_CMD_LEN: usize = 18;
+
+// ============================================================
+// QUERY CACHE & DEVICE HEALTH
+// ============================================================
+const QUERY_CACHE_TTL_MS: u64 = 30000;   // 30 seconds
+const DEVICE_HEALTH_CHECK_INTERVAL_MS: u64 = 60000;  // 1 minute
+const DEVICE_OFFLINE_THRESHOLD: u64 = 180000;  // 3 minutes
+
+#[derive(Debug, Clone)]
+struct CachedQuery {
+    data: String,
+    timestamp_ms: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct DeviceHealthStatus {
+    pub device_id: String,
+    pub is_online: bool,
+    pub last_seen_ms: u64,
+    pub consecutive_failures: u32,
+    pub last_error: Option<String>,
+}
+
+/// Error categories for better logging and monitoring
+#[derive(Debug, Clone, Copy)]
+enum ErrorCategory {
+    ConnectionTimeout,
+    DeviceOffline,
+    InvalidResponse,
+    AuthenticationFailed,
+    ConfigurationError,
+    InternalError,
+}
+
+impl ErrorCategory {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::ConnectionTimeout => "CONNECTION_TIMEOUT",
+            Self::DeviceOffline => "DEVICE_OFFLINE",
+            Self::InvalidResponse => "INVALID_RESPONSE",
+            Self::AuthenticationFailed => "AUTH_FAILED",
+            Self::ConfigurationError => "CONFIG_ERROR",
+            Self::InternalError => "INTERNAL_ERROR",
+        }
+    }
+}
+
+static QUERY_CACHE: OnceLock<Mutex<HashMap<String, CachedQuery>>> = OnceLock::new();
+static DEVICE_HEALTH: OnceLock<Mutex<HashMap<String, DeviceHealthStatus>>> = OnceLock::new();
+
+fn query_cache() -> &'static Mutex<HashMap<String, CachedQuery>> {
+    QUERY_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn device_health() -> &'static Mutex<HashMap<String, DeviceHealthStatus>> {
+    DEVICE_HEALTH.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn log_error_with_category(category: ErrorCategory, message: &str, device_id: Option<&str>, app: Option<&AppHandle>) {
+    let log_msg = format!("[{}] {}", category.as_str(), message);
+    eprintln!("{}", log_msg);
+    
+    if let Some(d_id) = device_id {
+        // Update device health
+        if let Ok(mut health) = device_health().lock() {
+            let entry = health.entry(d_id.to_string()).or_insert_with(|| {
+                DeviceHealthStatus {
+                    device_id: d_id.to_string(),
+                    is_online: true,
+                    last_seen_ms: now_timestamp_ms(),
+                    consecutive_failures: 0,
+                    last_error: None,
+                }
+            });
+            
+            entry.consecutive_failures += 1;
+            entry.last_error = Some(message.to_string());
+            
+            if entry.consecutive_failures >= 3 {
+                entry.is_online = false;
+            }
+        }
+    }
+    
+    if let Some(app) = app {
+        let _ = write_app_log("error", &log_msg, now_timestamp_ms(), Some(app));
+    }
+}
+
+fn get_or_cache_query(key: &str, fetch_fn: impl FnOnce() -> Option<String>) -> Option<String> {
+    // Check cache
+    if let Ok(cache) = query_cache().lock() {
+        if let Some(cached) = cache.get(key) {
+            let age_ms = now_timestamp_ms().saturating_sub(cached.timestamp_ms);
+            if age_ms < QUERY_CACHE_TTL_MS {
+                return Some(cached.data.clone());
+            }
+        }
+    }
+    
+    // Fetch fresh data
+    let result = fetch_fn()?;
+    
+    // Store in cache
+    if let Ok(mut cache) = query_cache().lock() {
+        cache.insert(key.to_string(), CachedQuery {
+            data: result.clone(),
+            timestamp_ms: now_timestamp_ms(),
+        });
+    }
+    
+    Some(result)
+}
+
+fn mark_device_online(device_id: &str) {
+    if let Ok(mut health) = device_health().lock() {
+        let entry = health.entry(device_id.to_string()).or_insert_with(|| {
+            DeviceHealthStatus {
+                device_id: device_id.to_string(),
+                is_online: true,
+                last_seen_ms: now_timestamp_ms(),
+                consecutive_failures: 0,
+                last_error: None,
+            }
+        });
+        
+        entry.is_online = true;
+        entry.last_seen_ms = now_timestamp_ms();
+        entry.consecutive_failures = 0;
+        entry.last_error = None;
+    }
+}
 const WEBGUI_INDEX_HTML: &str = include_str!("../../frontend/index.html");
 const CAMERA_STREAM_IDLE_TIMEOUT_SECS: u64 = 90;
 const CAMERA_STREAM_STALE_TIMEOUT_SECS: u64 = 60;
@@ -51,10 +188,139 @@ const FFMPEG_RUNTIME_DOWNLOAD_URL: &str = "https://www.gyan.dev/ffmpeg/builds/ff
 const LOG_RETENTION_DAYS: u64 = 90;
 const LOG_RETENTION_MS: u64 = LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const LOG_PRUNE_INTERVAL_MS: u64 = 12 * 60 * 60 * 1000;
+const LOG_ROTATION_SIZE_BYTES: u64 = 50 * 1024 * 1024;  // 50MB per log file
+const LOG_COMPRESSION_THRESHOLD_DAYS: u64 = 7;  // Compress logs older than 7 days
 
 static APP_LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
 static LAST_LOG_PRUNE_MS: OnceLock<Mutex<u64>> = OnceLock::new();
 static TELEGRAM_LAST_SENT: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+static CONFIG_VERSIONS: OnceLock<Mutex<Vec<ConfigVersion>>> = OnceLock::new();
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct ConfigVersion {
+    pub timestamp_ms: u64,
+    pub version_num: u32,
+    pub hash: String,
+    pub backup_path: String,
+}
+
+fn config_versions() -> &'static Mutex<Vec<ConfigVersion>> {
+    CONFIG_VERSIONS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+// ============================================================
+// CONNECTION POOLING
+// ============================================================
+#[derive(Debug, Clone)]
+struct PooledConnection {
+    pub host: String,
+    pub port: u16,
+    pub last_used_ms: u64,
+    pub connection_type: String,  // "snmp", "modbus_tcp"
+}
+
+static CONNECTION_POOL: OnceLock<Mutex<HashMap<String, PooledConnection>>> = OnceLock::new();
+
+fn connection_pool() -> &'static Mutex<HashMap<String, PooledConnection>> {
+    CONNECTION_POOL.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn get_pooled_connection(host: &str, port: u16, conn_type: &str) -> String {
+    let key = format!("{}:{}:{}", conn_type, host, port);
+    
+    if let Ok(mut pool) = connection_pool().lock() {
+        if let Some(conn) = pool.get(&key) {
+            // Reuse if used in last 5 minutes
+            if now_timestamp_ms().saturating_sub(conn.last_used_ms) < 300000 {
+                return key;
+            }
+        }
+        
+        // Add/update connection in pool
+        pool.insert(key.clone(), PooledConnection {
+            host: host.to_string(),
+            port,
+            last_used_ms: now_timestamp_ms(),
+            connection_type: conn_type.to_string(),
+        });
+    }
+    key
+}
+
+// ============================================================
+// RATE LIMITING
+// ============================================================
+static RATE_LIMIT_TRACKER: OnceLock<Mutex<HashMap<String, Vec<u64>>>> = OnceLock::new();
+const RATE_LIMIT_WINDOW_MS: u64 = 60000;  // 1 minute
+const RATE_LIMIT_MAX_REQUESTS: usize = 100;  // Max 100 requests per minute per endpoint
+
+fn rate_limit_tracker() -> &'static Mutex<HashMap<String, Vec<u64>>> {
+    RATE_LIMIT_TRACKER.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn check_rate_limit(endpoint: &str) -> Result<(), String> {
+    let now = now_timestamp_ms();
+    
+    if let Ok(mut tracker) = rate_limit_tracker().lock() {
+        let timestamps = tracker.entry(endpoint.to_string()).or_insert_with(Vec::new);
+        
+        // Remove old timestamps outside window
+        timestamps.retain(|t| now.saturating_sub(*t) < RATE_LIMIT_WINDOW_MS);
+        
+        // Check if limit exceeded
+        if timestamps.len() >= RATE_LIMIT_MAX_REQUESTS {
+            return Err(format!("Rate limit exceeded for {}: {} requests/min", endpoint, RATE_LIMIT_MAX_REQUESTS));
+        }
+        
+        // Add current timestamp
+        timestamps.push(now);
+    }
+    
+    Ok(())
+}
+
+// ============================================================
+// REQUEST DEDUPLICATION
+// ============================================================
+#[derive(Debug, Clone)]
+struct DeduplicatedRequest {
+    pub result: String,
+    pub timestamp_ms: u64,
+}
+
+static DEDUP_REQUESTS: OnceLock<Mutex<HashMap<String, DeduplicatedRequest>>> = OnceLock::new();
+const DEDUP_WINDOW_MS: u64 = 5000;  // 5 seconds
+
+fn dedup_requests() -> &'static Mutex<HashMap<String, DeduplicatedRequest>> {
+    DEDUP_REQUESTS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn get_deduplicated_request(key: &str, fetch_fn: impl FnOnce() -> Option<String>) -> Option<String> {
+    let now = now_timestamp_ms();
+    
+    if let Ok(dedup) = dedup_requests().lock() {
+        if let Some(cached) = dedup.get(key) {
+            if now.saturating_sub(cached.timestamp_ms) < DEDUP_WINDOW_MS {
+                return Some(cached.result.clone());
+            }
+        }
+    }
+    
+    // Fetch fresh data
+    let result = fetch_fn()?;
+    
+    if let Ok(mut dedup) = dedup_requests().lock() {
+        dedup.insert(key.to_string(), DeduplicatedRequest {
+            result: result.clone(),
+            timestamp_ms: now,
+        });
+        
+        // Cleanup old entries
+        dedup.retain(|_, v| now.saturating_sub(v.timestamp_ms) < DEDUP_WINDOW_MS * 2);
+    }
+    
+    Some(result)
+}
 
 fn current_webgui_index_html() -> String {
     let disk_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../frontend/index.html");
@@ -185,7 +451,123 @@ fn maybe_prune_logs(app: Option<&AppHandle>) {
 
     if should_prune {
         let _ = prune_old_logs(app);
+        let _ = rotate_logs_if_needed(app);
     }
+}
+
+fn rotate_logs_if_needed(app: Option<&AppHandle>) -> Result<(), String> {
+    let log_dir = resolve_log_dir(app)?;
+    
+    for log_file in &["system.log", "error.log"] {
+        let path = log_dir.join(log_file);
+        if let Ok(metadata) = fs::metadata(&path) {
+            if metadata.len() > LOG_ROTATION_SIZE_BYTES {
+                let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+                let rotated = log_dir.join(format!("{}.{}", log_file, timestamp));
+                let _ = fs::rename(&path, &rotated);
+                
+                // Try to compress older logs
+                let _ = compress_old_logs(&log_dir, LOG_COMPRESSION_THRESHOLD_DAYS);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn compress_old_logs(log_dir: &PathBuf, threshold_days: u64) -> Result<(), String> {
+    use std::fs::File;
+    use flate2::Compression;
+    use flate2::write::GzEncoder;
+    
+    let cutoff_ms = now_timestamp_ms().saturating_sub(threshold_days * 24 * 60 * 60 * 1000);
+    
+    for entry in fs::read_dir(log_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        
+        if path.extension().map_or(false, |ext| ext == "log") {
+            if let Ok(metadata) = fs::metadata(&path) {
+                let file_time_ms = metadata.modified()
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                
+                // Compress if older than threshold and not already compressed
+                if file_time_ms < cutoff_ms && !path.to_string_lossy().ends_with(".gz") {
+                    let gz_path = format!("{}.gz", path.to_string_lossy());
+                    
+                    match File::open(&path) {
+                        Ok(input) => {
+                            match File::create(&gz_path) {
+                                Ok(output) => {
+                                    let mut encoder = GzEncoder::new(output, Compression::default());
+                                    match std::io::copy(&mut std::io::BufReader::new(input), &mut encoder) {
+                                        Ok(_) => {
+                                            if encoder.finish().is_ok() {
+                                                let _ = fs::remove_file(&path);
+                                                eprintln!("[LOG-COMPRESS] Compressed: {}", path.display());
+                                            }
+                                        }
+                                        Err(e) => eprintln!("[LOG-COMPRESS] Copy failed: {}", e),
+                                    }
+                                }
+                                Err(e) => eprintln!("[LOG-COMPRESS] Create gz failed: {}", e),
+                            }
+                        }
+                        Err(e) => eprintln!("[LOG-COMPRESS] Open log failed: {}", e),
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn backup_config_on_change(config_path: &Path, config_content: &str) -> Result<(), String> {
+    let config_dir = config_path.parent().ok_or_else(|| "Invalid config path".to_string())?;
+    let backups_dir = config_dir.join("config_backups");
+    fs::create_dir_all(&backups_dir)
+        .map_err(|e| format!("Failed to create backups dir: {}", e))?;
+    
+    // Calculate hash of current config
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    config_content.hash(&mut hasher);
+    let hash = format!("{:x}", hasher.finish());
+    
+    // Check if this is a new version (hash changed)
+    let versions = config_versions().lock().ok();
+    let is_new_version = versions.as_ref().map_or(true, |v| {
+        v.last().map_or(true, |last| last.hash != hash)
+    });
+    
+    if is_new_version {
+        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+        let version_num = versions.as_ref().map_or(1, |v| v.len() as u32 + 1);
+        let backup_path = backups_dir.join(format!("config.v{}.{}.json", version_num, timestamp));
+        
+        fs::write(&backup_path, config_content)
+            .map_err(|e| format!("Failed to backup config: {}", e))?;
+        
+        // Record in version history
+        if let Ok(mut versions) = config_versions().lock() {
+            versions.push(ConfigVersion {
+                timestamp_ms: now_timestamp_ms(),
+                version_num,
+                hash: hash.clone(),
+                backup_path: backup_path.to_string_lossy().to_string(),
+            });
+            
+            // Keep only last 50 versions
+            if versions.len() > 50 {
+                versions.remove(0);
+            }
+        }
+    }
+    
+    Ok(())
 }
 
 fn write_app_log(level: &str, message: &str, timestamp_ms: u64, app: Option<&AppHandle>) -> Result<(), String> {
@@ -1659,6 +2041,8 @@ async fn camera_stream_frame(ip: String, stream: Option<u8>) -> Result<String, S
 #[tauri::command]
 async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
     let community = "projektil";
+    let _pool_key = get_pooled_connection(&ip, 161, "snmp");  // Register in connection pool
+    
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
     socket.set_read_timeout(Some(Duration::from_millis(450))).ok();
     socket.connect(format!("{}:161", ip)).map_err(|e| e.to_string())?;
@@ -1818,6 +2202,7 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
     let warnings = check_ups_anomalies(&result, &cfg);
     result.insert("warnings".to_string(), serde_json::json!(warnings));
 
+    mark_device_online(&format!("ups:{}", ip));
     Ok(serde_json::Value::Object(result))
 }
 
@@ -2050,7 +2435,72 @@ fn extract_snmp_octet_string(data: &[u8]) -> Option<String> {
     Some(String::from_utf8_lossy(vbytes).trim_matches(char::from(0)).trim().to_string())
 }
 
+// ============================================================
+// SNMP OID Validation
+// ============================================================
+
+/// Known safe SNMP OIDs for this application
+const ALLOWED_SNMP_OIDS: &[&[u32]] = &[
+    // System OIDs (1.3.6.1.2.1.1.*)
+    &[1, 3, 6, 1, 2, 1, 1],         // System group (sysDescr, sysName, sysUpTime, etc.)
+    
+    // Standard MIBs (1.3.6.1.2.1)
+    &[1, 3, 6, 1, 2, 1, 2],         // Interfaces (ifIndex, ifDescr, ifSpeed, etc.)
+    &[1, 3, 6, 1, 2, 1, 25],        // Host-resources (storage, devices, running software)
+    &[1, 3, 6, 1, 2, 1, 33],        // UPS MIB (RFC 3621)
+    &[1, 3, 6, 1, 2, 1, 105],       // Power/Energy MIB
+    
+    // Enterprise Specific OIDs (1.3.6.1.4.1.*)
+    // APC/Schneider Electric (318)
+    &[1, 3, 6, 1, 4, 1, 318],       // APC UPS, PDU, etc.
+    
+    // Eaton (534)
+    &[1, 3, 6, 1, 4, 1, 534],       // Eaton UPS, PDU
+    
+    // Synology (6574)
+    &[1, 3, 6, 1, 4, 1, 6574],      // Synology NAS (system, disk, storage)
+    
+    // Teltonika (48690)
+    &[1, 3, 6, 1, 4, 1, 48690],     // Teltonika devices (RUTX50 router, etc.)
+    
+    // Other common vendors
+    &[1, 3, 6, 1, 4, 1, 2578],      // Janitza (power meters)
+];
+
+fn validate_snmp_oid(oid: &[u32]) -> Result<(), String> {
+    // Check length
+    if oid.is_empty() {
+        return Err("SNMP OID cannot be empty".to_string());
+    }
+    if oid.len() > 128 {
+        return Err(format!("SNMP OID too long: {} components (max 128)", oid.len()));
+    }
+    
+    // Check first two components (should be 1.3 for standard OIDs)
+    if oid[0] > 2 {
+        return Err(format!("Invalid OID root: {} (must be 0, 1, or 2)", oid[0]));
+    }
+    
+    // Whitelist check: OID must start with an allowed prefix
+    let is_allowed = ALLOWED_SNMP_OIDS.iter().any(|allowed| {
+        oid.len() >= allowed.len() && &oid[..allowed.len()] == *allowed
+    });
+    
+    if !is_allowed {
+        let oid_str = oid.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(".");
+        return Err(format!("SNMP OID not whitelisted: {}", oid_str));
+    }
+    
+    Ok(())
+}
+
 fn snmp_query_raw(socket: &UdpSocket, community: &str, oid: &[u32]) -> Option<Vec<u8>> {
+    // Validate OID before querying
+    if let Err(e) = validate_snmp_oid(oid) {
+        eprintln!("[SNMP ERROR] {}", e);
+        return None;
+    }
+    
     let packet = snmp_get_packet(community, oid);
     if socket.send(&packet).is_err() {
         return None;
@@ -2228,6 +2678,7 @@ async fn nas_get_status(ip: String, community: Option<String>, port: Option<u16>
         return Err("NAS antwortet nicht auf SNMP-Abfragen".to_string());
     }
 
+    mark_device_online(&format!("nas:{}", ip));
     Ok(serde_json::Value::Object(result))
 }
 
@@ -2336,6 +2787,7 @@ async fn poe_switch_get_status(ip: String, community: Option<String>, port: Opti
 
         if !result.is_empty() {
             result.insert("snmp_community_used".to_string(), serde_json::json!(community_try));
+            mark_device_online(&format!("switch:{}", ip));
             return Ok(serde_json::Value::Object(result));
         }
     }
@@ -2440,6 +2892,7 @@ async fn rutx50_get_status(ip: String, community: Option<String>, port: Option<u
         return Err("SNMP keine Antwort vom RUTX50".to_string());
     }
 
+    mark_device_online(&format!("rutx50:{}", ip));
     Ok(serde_json::Value::Object(result))
 }
 
@@ -2516,6 +2969,7 @@ fn encode_length(len: usize) -> Vec<u8> {
 // ============================================================
 #[tauri::command]
 async fn janitza_get_data(ip: String) -> Result<serde_json::Value, String> {
+    let _pool_key = get_pooled_connection(&ip, 502, "modbus_tcp");  // Register in connection pool
     let addr = format!("{}:502", ip);
     let mut stream = TcpStream::connect_timeout(
         &addr.parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?,
@@ -2565,6 +3019,7 @@ async fn janitza_get_data(ip: String) -> Result<serde_json::Value, String> {
     let cfg = get_config();
     let warnings = check_janitza_anomalies(v_l1, v_l2, v_l3, i_l1, i_l2, i_l3, freq, power_kw, &cfg);
 
+    mark_device_online(&format!("janitza:{}", ip));
     Ok(serde_json::json!({
         "v_l1":      v_l1,
         "v_l2":      v_l2,
@@ -2596,6 +3051,242 @@ async fn d40_set_gain(ip: String, channel: u8, current: f32, target: f32) -> Res
         .await
         .map_err(|e| e.to_string())
 }
+
+// ============================================================================
+// INTEGRATED DEVICE QUERY COMMANDS - With caching, dedup, and health tracking
+// ============================================================================
+
+#[tauri::command]
+async fn ups_get_status_managed(ip: String, app: AppHandle) -> Result<serde_json::Value, String> {
+    let cache_key = format!("ups:{}", ip);
+    let dedup_key = format!("ups_dedup:{}", ip);
+    
+    check_rate_limit("ups_query")?;
+    
+    // Try dedup first (5s window)
+    if let Some(cached) = get_deduplicated_request(&dedup_key, || None) {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cached) {
+            return Ok(value);
+        }
+    }
+    
+    // Check cache (30s window)
+    if let Ok(cache) = query_cache().lock() {
+        if let Some(cached) = cache.get(&cache_key) {
+            let age_ms = now_timestamp_ms().saturating_sub(cached.timestamp_ms);
+            if age_ms < QUERY_CACHE_TTL_MS {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cached.data) {
+                    return Ok(value);
+                }
+            }
+        }
+    }
+    
+    // Fetch fresh data
+    match ups_get_status(ip.clone()).await {
+        Ok(result) => {
+            mark_device_online(&format!("ups:{}", ip));
+            
+            let result_str = result.to_string();
+            if let Ok(mut cache) = query_cache().lock() {
+                cache.insert(cache_key.clone(), CachedQuery {
+                    data: result_str.clone(),
+                    timestamp_ms: now_timestamp_ms(),
+                });
+            }
+            
+            let _ = get_deduplicated_request(&dedup_key, || Some(result_str));
+            Ok(result)
+        }
+        Err(e) => {
+            log_error_with_category(
+                ErrorCategory::DeviceOffline,
+                &e,
+                Some(&format!("ups:{}", ip)),
+                Some(&app)
+            );
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+async fn janitza_get_data_managed(ip: String, app: AppHandle) -> Result<serde_json::Value, String> {
+    let cache_key = format!("janitza:{}", ip);
+    let dedup_key = format!("janitza_dedup:{}", ip);
+    
+    check_rate_limit("janitza_query")?;
+    
+    if let Some(cached) = get_deduplicated_request(&dedup_key, || None) {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cached) {
+            return Ok(value);
+        }
+    }
+    
+    if let Ok(cache) = query_cache().lock() {
+        if let Some(cached) = cache.get(&cache_key) {
+            let age_ms = now_timestamp_ms().saturating_sub(cached.timestamp_ms);
+            if age_ms < QUERY_CACHE_TTL_MS {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cached.data) {
+                    return Ok(value);
+                }
+            }
+        }
+    }
+    
+    match janitza_get_data(ip.clone()).await {
+        Ok(result) => {
+            mark_device_online(&format!("janitza:{}", ip));
+            
+            let result_str = result.to_string();
+            if let Ok(mut cache) = query_cache().lock() {
+                cache.insert(cache_key.clone(), CachedQuery {
+                    data: result_str.clone(),
+                    timestamp_ms: now_timestamp_ms(),
+                });
+            }
+            
+            let _ = get_deduplicated_request(&dedup_key, || Some(result_str));
+            Ok(result)
+        }
+        Err(e) => {
+            log_error_with_category(
+                ErrorCategory::DeviceOffline,
+                &e,
+                Some(&format!("janitza:{}", ip)),
+                Some(&app)
+            );
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+async fn nas_get_status_managed(ip: String, community: Option<String>, port: Option<u16>, app: AppHandle) -> Result<serde_json::Value, String> {
+    let cache_key = format!("nas:{}:{}:{}", ip, community.as_ref().unwrap_or(&"public".to_string()), port.unwrap_or(161));
+    
+    check_rate_limit("nas_query")?;
+    
+    if let Ok(cache) = query_cache().lock() {
+        if let Some(cached) = cache.get(&cache_key) {
+            let age_ms = now_timestamp_ms().saturating_sub(cached.timestamp_ms);
+            if age_ms < QUERY_CACHE_TTL_MS {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cached.data) {
+                    return Ok(value);
+                }
+            }
+        }
+    }
+    
+    match nas_get_status(ip.clone(), community, port).await {
+        Ok(result) => {
+            mark_device_online(&format!("nas:{}", ip));
+            
+            let result_str = result.to_string();
+            if let Ok(mut cache) = query_cache().lock() {
+                cache.insert(cache_key, CachedQuery {
+                    data: result_str,
+                    timestamp_ms: now_timestamp_ms(),
+                });
+            }
+            Ok(result)
+        }
+        Err(e) => {
+            log_error_with_category(
+                ErrorCategory::DeviceOffline,
+                &e,
+                Some(&format!("nas:{}", ip)),
+                Some(&app)
+            );
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+async fn poe_switch_get_status_managed(ip: String, community: Option<String>, port: Option<u16>, app: AppHandle) -> Result<serde_json::Value, String> {
+    let cache_key = format!("switch:{}:{}:{}", ip, community.as_ref().unwrap_or(&"public".to_string()), port.unwrap_or(161));
+    
+    check_rate_limit("switch_query")?;
+    
+    if let Ok(cache) = query_cache().lock() {
+        if let Some(cached) = cache.get(&cache_key) {
+            let age_ms = now_timestamp_ms().saturating_sub(cached.timestamp_ms);
+            if age_ms < QUERY_CACHE_TTL_MS {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cached.data) {
+                    return Ok(value);
+                }
+            }
+        }
+    }
+    
+    match poe_switch_get_status(ip.clone(), community, port).await {
+        Ok(result) => {
+            mark_device_online(&format!("switch:{}", ip));
+            
+            let result_str = result.to_string();
+            if let Ok(mut cache) = query_cache().lock() {
+                cache.insert(cache_key, CachedQuery {
+                    data: result_str,
+                    timestamp_ms: now_timestamp_ms(),
+                });
+            }
+            Ok(result)
+        }
+        Err(e) => {
+            log_error_with_category(
+                ErrorCategory::DeviceOffline,
+                &e,
+                Some(&format!("switch:{}", ip)),
+                Some(&app)
+            );
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+async fn rutx50_get_status_managed(ip: String, community: Option<String>, port: Option<u16>, app: AppHandle) -> Result<serde_json::Value, String> {
+    let cache_key = format!("rutx50:{}:{}:{}", ip, community.as_ref().unwrap_or(&"public".to_string()), port.unwrap_or(161));
+    
+    check_rate_limit("rutx50_query")?;
+    
+    if let Ok(cache) = query_cache().lock() {
+        if let Some(cached) = cache.get(&cache_key) {
+            let age_ms = now_timestamp_ms().saturating_sub(cached.timestamp_ms);
+            if age_ms < QUERY_CACHE_TTL_MS {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cached.data) {
+                    return Ok(value);
+                }
+            }
+        }
+    }
+    
+    match rutx50_get_status(ip.clone(), community, port).await {
+        Ok(result) => {
+            mark_device_online(&format!("rutx50:{}", ip));
+            
+            let result_str = result.to_string();
+            if let Ok(mut cache) = query_cache().lock() {
+                cache.insert(cache_key, CachedQuery {
+                    data: result_str,
+                    timestamp_ms: now_timestamp_ms(),
+                });
+            }
+            Ok(result)
+        }
+        Err(e) => {
+            log_error_with_category(
+                ErrorCategory::DeviceOffline,
+                &e,
+                Some(&format!("rutx50:{}", ip)),
+                Some(&app)
+            );
+            Err(e)
+        }
+    }
+}
+
 #[tauri::command]
 fn minimize_window(app: AppHandle) {
     if let Some(w) = app.get_webview_window("main") { let _ = w.minimize(); }
@@ -3177,6 +3868,9 @@ fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<
         obj.insert("anydesk_address".to_string(), serde_json::json!(anydesk_address.trim()));
     }
 
+    let cfg_str = cfg.to_string();
+    let config_path = resolve_config_write_path();
+    backup_config_on_change(&config_path, &cfg_str)?;
     write_config_json_to_disk(&cfg)?;
     Ok(true)
 }
@@ -3213,6 +3907,9 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, chann
         }
     }
 
+    let cfg_str = cfg.to_string();
+    let config_path = resolve_config_write_path();
+    backup_config_on_change(&config_path, &cfg_str)?;
     write_config_json_to_disk(&cfg)?;
     Ok(true)
 }
@@ -3880,6 +4577,39 @@ fn get_server_time_ms() -> u64 {
     now_timestamp_ms()
 }
 
+#[tauri::command]
+fn get_device_health_status() -> Result<Vec<DeviceHealthStatus>, String> {
+    device_health()
+        .lock()
+        .map(|health| health.values().cloned().collect())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_offline_mode_enabled() -> bool {
+    // Check if offline mode is enabled in config
+    let cfg = get_config();
+    cfg.get("offline_mode_enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_offline_mode(enabled: bool) -> Result<(), String> {
+    let mut cfg = get_config();
+    cfg["offline_mode_enabled"] = serde_json::json!(enabled);
+    write_config_json_to_disk(&cfg)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_query_cache() -> Result<(), String> {
+    query_cache()
+        .lock()
+        .map(|mut cache| cache.clear())
+        .map_err(|e| e.to_string())
+}
+
 fn app_handle_required() -> Result<AppHandle, String> {
     APP_HANDLE
         .get()
@@ -4341,59 +5071,49 @@ fn start_emergency_listener() {
     }
 
     thread::spawn(|| {
-        let socket = match UdpSocket::bind("0.0.0.0:9001") {
+        let socket = match UdpSocket::bind(OSC_LISTENER_ADDR) {
             Ok(s) => {
-                eprintln!("[OSC LISTENER] Emergency listener started on 0.0.0.0:9001");
+                let msg = format!("[OSC] Listener started on {}", OSC_LISTENER_ADDR);
+                eprintln!("{}", msg);
                 if let Some(app) = APP_HANDLE.get() {
-                    let _ = write_app_log("info", "[OSC LISTENER] Emergency listener started on 0.0.0.0:9001", now_timestamp_ms(), Some(&app));
+                    let _ = write_app_log("info", &msg, now_timestamp_ms(), Some(&app));
                 }
                 s
             }
             Err(e) => {
-                eprintln!("[OSC LISTENER ERROR] Emergency listener bind error: {}", e);
+                let msg = format!("[OSC ERROR] Failed to bind {}: {}", OSC_LISTENER_ADDR, e);
+                eprintln!("{}", msg);
                 if let Some(app) = APP_HANDLE.get() {
-                    let msg = format!("[OSC LISTENER ERROR] Emergency listener bind error: {}", e);
                     let _ = write_app_log("error", &msg, now_timestamp_ms(), Some(&app));
                 }
                 return;
             }
         };
 
-        let mut buffer = [0; 256];
+        let mut buffer = [0u8; OSC_BUFFER_SIZE];
+        
         loop {
-            if let Ok((size, addr)) = socket.recv_from(&mut buffer) {
-                let data = &buffer[..size];
-                let log_msg = format!("[OSC IN] Received {} bytes from {}", size, addr);
-                eprintln!("{}", log_msg);
-                if let Some(app) = APP_HANDLE.get() {
-                    let _ = write_app_log("debug", &log_msg, now_timestamp_ms(), Some(&app));
-                }
-                
-                // Check for /emergency_pressed (18 bytes)
-                if data.len() >= 18 && &data[0..18] == b"/emergency_pressed" {
-                    let msg = format!("[OSC IN] /emergency_pressed detected! Emitting event to frontend");
-                    eprintln!("{}", msg);
-                    if let Some(app) = APP_HANDLE.get() {
-                        let _ = write_app_log("info", &msg, now_timestamp_ms(), Some(&app));
-                        match app.emit("emergency-pressed-remote", ()) {
-                            Ok(_) => {
-                                let success = "[OSC IN] Event 'emergency-pressed-remote' emitted successfully";
-                                eprintln!("{}", success);
-                                let _ = write_app_log("info", success, now_timestamp_ms(), Some(&app));
-                            }
-                            Err(e) => {
-                                let err = format!("[OSC IN ERROR] Failed to emit event: {}", e);
-                                eprintln!("{}", err);
-                                let _ = write_app_log("error", &err, now_timestamp_ms(), Some(&app));
-                            }
-                        }
-                    } else {
-                        eprintln!("[OSC IN ERROR] APP_HANDLE not available");
+            match socket.recv_from(&mut buffer) {
+                Ok((size, addr)) => {
+                    if size == 0 {
+                        continue;
                     }
-                } else {
-                    if data.len() >= 1 && data[0] == b'/' as u8 {
-                        if let Ok(s) = std::str::from_utf8(&data[..std::cmp::min(50, data.len())]) {
-                            let debug_msg = format!("[OSC IN] Unknown OSC command: {}", s);
+                    
+                    let data = &buffer[..size];
+                    let log_msg = format!("[OSC] Received {} bytes from {}", size, addr);
+                    eprintln!("{}", log_msg);
+                    if let Some(app) = APP_HANDLE.get() {
+                        let _ = write_app_log("debug", &log_msg, now_timestamp_ms(), Some(&app));
+                    }
+                    
+                    // Check for /emergency_pressed command
+                    if size >= OSC_EMERGENCY_CMD_LEN && &data[0..OSC_EMERGENCY_CMD_LEN] == OSC_EMERGENCY_CMD {
+                        handle_emergency_osc_command();
+                    } else if size > 0 && data[0] == b'/' as u8 {
+                        // Log unknown OSC commands for debugging
+                        let max_len = std::cmp::min(50, size);
+                        if let Ok(cmd) = std::str::from_utf8(&data[..max_len]) {
+                            let debug_msg = format!("[OSC] Unknown command: {}", cmd);
                             eprintln!("{}", debug_msg);
                             if let Some(app) = APP_HANDLE.get() {
                                 let _ = write_app_log("debug", &debug_msg, now_timestamp_ms(), Some(&app));
@@ -4401,9 +5121,42 @@ fn start_emergency_listener() {
                         }
                     }
                 }
+                Err(e) => {
+                    let msg = format!("[OSC ERROR] recv_from failed: {}", e);
+                    eprintln!("{}", msg);
+                    if let Some(app) = APP_HANDLE.get() {
+                        let _ = write_app_log("error", &msg, now_timestamp_ms(), Some(&app));
+                    }
+                    // Continue listening despite errors
+                    thread::sleep(Duration::from_millis(100));
+                }
             }
         }
     });
+}
+
+fn handle_emergency_osc_command() {
+    let msg = "[OSC] /emergency_pressed detected - emitting event";
+    eprintln!("{}", msg);
+    
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = write_app_log("info", msg, now_timestamp_ms(), Some(&app));
+        
+        match app.emit("emergency-pressed-remote", ()) {
+            Ok(_) => {
+                let success = "[OSC] Event emitted successfully";
+                eprintln!("{}", success);
+                let _ = write_app_log("info", success, now_timestamp_ms(), Some(&app));
+            }
+            Err(e) => {
+                let err = format!("[OSC ERROR] Failed to emit event: {}", e);
+                eprintln!("{}", err);
+                let _ = write_app_log("error", &err, now_timestamp_ms(), Some(&app));
+            }
+        }
+    } else {
+        eprintln!("[OSC ERROR] APP_HANDLE not available");
+    }
 }
 
 fn main() {
@@ -4473,12 +5226,14 @@ fn main() {
             d40_command, d40_ping, d40_status, d40_set_gain, http_ping, icmp_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
             system_get_battery_status,
             ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
+            ups_get_status_managed, janitza_get_data_managed, nas_get_status_managed, poe_switch_get_status_managed, rutx50_get_status_managed,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
             pixera_api_request,
             send_emergency_notaus_osc, send_emergency_osc_to_switch, send_emergency_reset_osc,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
-            save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms
+            save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms,
+            get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten");

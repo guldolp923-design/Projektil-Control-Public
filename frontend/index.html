@@ -522,17 +522,19 @@ body.ui-mobile-test .tab-panel{padding-top:10px}
 </style>
 </head>
 <body>
+<script src="js/utils.js"></script>
 <script>
 // Register emergency-pressed-remote listener immediately via Tauri v2 internals
 let _lastEmergencyTriggeredRemotelyTemp = false;
 function _setupEmergencyListener() {
-  const core = window.__TAURI_INTERNALS__;
-  if (!core?.invoke) { setTimeout(_setupEmergencyListener, 50); return; }
-  const cbId = core.transformCallback(() => {
+  setupTauriEventListener('emergency-pressed-remote', () => {
     _lastEmergencyTriggeredRemotelyTemp = true;
     if (typeof confirmEmergency === 'function') confirmEmergency();
-  }, true);
-  core.invoke('plugin:event|listen', { event: 'emergency-pressed-remote', target: { kind: 'Any' }, handler: cbId });
+  }, { persistent: true }).catch(e => {
+    logIfDev('warn', '[Emergency] Failed to setup listener', { error: e });
+    // Retry after 500ms
+    setTimeout(_setupEmergencyListener, 500);
+  });
 }
 _setupEmergencyListener();
 </script>
@@ -1538,6 +1540,26 @@ _setupEmergencyListener();
 
     <!-- ERROR LOG -->
     <div class="tab-panel" id="tab-error">
+
+      <!-- DEVICE HEALTH SECTION -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between">
+            <span>🏥 Device Health</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn" style="font-size:10px;padding:3px 10px" onclick="refreshDeviceHealth()">🔄 Refresh</button>
+              <button class="btn" style="font-size:10px;padding:3px 10px" onclick="clearQueryCache()">🗑️ Cache</button>
+              <button class="btn" style="font-size:10px;padding:3px 10px" id="offline-toggle" onclick="toggleOfflineMode()">📡 Offline: OFF</button>
+            </div>
+          </div>
+          <div id="health-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📊 Performance Metrics</div>
+          <div id="perf-metrics" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
+        </div>
+      </div>
+
       <div class="card" style="border-color:#7f1d1d;background:#1a0808;margin-bottom:12px">
         <div class="card-title" style="color:#fca5a5;justify-content:space-between">
           <span data-l10n-key="active_errors">Aktive Fehler / Anomalien</span>
@@ -1759,17 +1781,27 @@ function shouldBlockNetworkCommandInDemo(cmd){
 
 async function invokeRemote(cmd, args){
   const endpoint = `${window.location.origin}/api/invoke`;
-  const resp = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cmd, args: args ?? {} })
-  });
-  const payload = await resp.json().catch(() => null);
-  if(!resp.ok || !payload || payload.ok !== true){
-    const msg = payload?.error || `HTTP ${resp.status}`;
-    throw new Error(msg);
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cmd, args: args ?? {} })
+    });
+    
+    const payload = await resp.json().catch(e => {
+      logError('invokeRemote.parseJSON', e, { cmd });
+      return null;
+    });
+    
+    if(!resp.ok || !payload || payload.ok !== true){
+      const msg = payload?.error || `HTTP ${resp.status}`;
+      throw new Error(msg);
+    }
+    return payload.data;
+  } catch(error) {
+    logError('invokeRemote', error, { cmd, args });
+    throw error;
   }
-  return payload.data;
 }
 
 async function invoke(cmd, args) {
@@ -1777,13 +1809,17 @@ async function invoke(cmd, args) {
     return getDemoInvokeResponse(cmd);
   }
   if (isTauri) {
-    try { return await window.__TAURI_INTERNALS__.invoke(cmd, args ?? {}); }
-    catch(e) { console.error('[invoke]', cmd, e); return null; }
+    try { 
+      return await window.__TAURI_INTERNALS__.invoke(cmd, args ?? {}); 
+    } catch(e) { 
+      logError('invoke.tauri', e, { cmd, args }); 
+      return null; 
+    }
   }
   try {
     return await invokeRemote(cmd, args);
   } catch(e) {
-    console.error('[invoke-remote]', cmd, e);
+    logError('invoke.remote', e, { cmd, args });
   }
   const def = buildDefaultConfig();
   if(cmd==='get_config') return def;
@@ -1797,12 +1833,16 @@ async function invoke(cmd, args) {
 
 async function loadConfigWithFallback(){
   for(let i=0;i<8;i++){
-    const loaded = await invoke('get_config');
-    if(loaded && typeof loaded === 'object') return loaded;
+    try {
+      const loaded = await invoke('get_config');
+      if(loaded && typeof loaded === 'object') return loaded;
+    } catch(e) {
+      logIfDev('warn', `[init] Config load attempt ${i+1}/8 failed`, { error: e });
+    }
     if(!isTauri) break;
     await delay(120);
   }
-  console.warn('[init] Fallback auf Default-Config (get_config nicht verfuegbar)');
+  logIfDev('warn', '[init] Fallback auf Default-Config (get_config nicht verfuegbar)');
   return buildDefaultConfig();
 }
 
@@ -1855,17 +1895,17 @@ const PROJECTOR_TRANSITION_TIMEOUT_MS=90000;
 let pjlinkSyncInFlight=false;
 let projectorPowerCommandActive=false;
 let prevV={l1:null,l2:null,l3:null};
-let currentLang = localStorage.getItem('lang') || 'de';
-let currentTab = localStorage.getItem('activeTab') || 'show';
-let demoMode = localStorage.getItem('demoMode') === '1';
+let currentLang = appStorage.get('lang', 'de');
+let currentTab = appStorage.get('activeTab', 'show');
+let demoMode = appStorage.get('demoMode', false);
 // Always reset emergency lock on startup - hardware button re-triggers if needed
-localStorage.setItem('emergencyLockActive', '0');
-localStorage.setItem('viewModeLocked', '0');
+appStorage.set('emergencyLockActive', false);
+appStorage.set('viewModeLocked', false);
 let viewModeLocked = false;
 let emergencyLockActive = false;
 let lastEmergencyTriggeredRemotely = false;  // Track if emergency was triggered by hardware button
-let startupMode = localStorage.getItem('startupMode') === 'viewer' ? 'viewer' : 'admin';
-let cameraViewMode = localStorage.getItem('cameraViewMode') || 'snapshot';
+let startupMode = appStorage.get('startupMode', 'admin') === 'viewer' ? 'viewer' : 'admin';
+let cameraViewMode = appStorage.get('cameraViewMode', 'snapshot');
 let sharedUiStateSyncTimer = null;
 let sharedUiStateSyncInFlight = false;
 let sharedUiStateInputSyncTimer = null;
@@ -3176,7 +3216,7 @@ function renderMobileNav(){
     const icon = getTabIconForMobile(tab);
     const label = getShortTabLabelForMobile(tab);
     btn.innerHTML = `<span class="mnav-icon">${icon}</span><span class="mnav-label">${label}</span>`;
-    btn.addEventListener('click', ()=> switchTab(tab, source));
+    createManagedEventListener(btn, 'click', ()=> switchTab(tab, source));
     nav.appendChild(btn);
   });
 
@@ -3190,7 +3230,7 @@ function renderMobileNav(){
       btn.className = `mobile-more-btn${tab==='emergency'?' emergency':''}`;
       btn.dataset.tab = tab;
       btn.innerHTML = `<span class="mobile-more-icon">${getTabIconForMobile(tab)}</span><span class="mobile-more-label">${getTabLabelForMobile(tab)}</span>`;
-      btn.addEventListener('click', ()=>{
+      createManagedEventListener(btn, 'click', ()=>{
         closeMobileMoreMenu();
         switchTab(tab, source);
       });
@@ -3336,7 +3376,7 @@ function translatePage(){
   if(typeof updateMobileTestHome === 'function'){
     updateMobileTestHome();
   }
-  localStorage.setItem('lang', currentLang);
+  appStorage.set('lang', currentLang);
 }
 
 function setLanguage(lang){
@@ -3348,8 +3388,8 @@ function setLanguage(lang){
   currentLang = lang;
   cfg.language = currentLang;
   persistSharedUiState({language: currentLang});
-  localStorage.setItem('lang', currentLang);
-  localStorage.setItem('activeTab', currentTab || 'settings');
+  appStorage.set('lang', currentLang);
+  appStorage.set('activeTab', currentTab || 'settings');
   translatePage();
   updateLanguageSettingsUI();
 
@@ -3541,7 +3581,7 @@ window.checkForUpdates=async()=>{
     }
   }catch(e){
     latestReleaseInfo=null;
-    console.error('[update-check]',e);
+    logError('[update-check]', e);
     setUpdateStatus(`${locales[currentLang]?.update_failed || 'Update check failed.'} (${e})`);
   }
 };
@@ -3560,14 +3600,24 @@ async function resolveAppVersion(){
   try{
     if(isTauri){
       if(typeof window.__TAURI__?.app?.getVersion === 'function'){
-        const v = await window.__TAURI__.app.getVersion();
-        if(v) resolvedVersion = String(v);
+        try {
+          const v = await window.__TAURI__.app.getVersion();
+          if(v) resolvedVersion = String(v);
+        } catch(e) {
+          logIfDev('warn', 'Failed to get version from __TAURI__.app', { error: e });
+        }
       }else if(typeof window.__TAURI_INTERNALS__?.invoke === 'function'){
-        const v = await window.__TAURI_INTERNALS__.invoke('plugin:app|version').catch(()=>null);
-        if(v) resolvedVersion = String(v);
+        try {
+          const v = await window.__TAURI_INTERNALS__.invoke('plugin:app|version');
+          if(v) resolvedVersion = String(v);
+        } catch(e) {
+          logIfDev('warn', 'Failed to get version from internals', { error: e });
+        }
       }
     }
-  }catch{}
+  }catch(e) {
+    logIfDev('warn', 'Error in resolveAppVersion', { error: e });
+  }
   appVersion = resolvedVersion;
   updateAppVersionUI();
 }
@@ -3713,10 +3763,10 @@ function applySharedUiStateFromConfig(cfgObj){
   cfgObj.interactive_scanner_count = nextInteractiveScannerCount;
   cfgObj.emergency_switch_enabled = nextEmergencySwitchEnabled;
 
-  localStorage.setItem('demoMode', demoMode ? '1' : '0');
-  localStorage.setItem('startupMode', startupMode);
-  localStorage.setItem('lang', currentLang);
-  localStorage.setItem('cameraViewMode', cameraViewMode);
+  appStorage.set('demoMode', demoMode);
+  appStorage.set('startupMode', startupMode);
+  appStorage.set('lang', currentLang);
+  appStorage.set('cameraViewMode', cameraViewMode);
 
   if(languageChanged){
     translatePage();
@@ -3873,13 +3923,13 @@ function queueInputDrivenSharedStateSync(){
 
 function attachSharedUiInputSyncHooks(){
   const trigger = ()=>{ queueInputDrivenSharedStateSync(); };
-  document.addEventListener('input', trigger, true);
-  document.addEventListener('change', trigger, true);
-  document.addEventListener('keyup', (e)=>{
+  createManagedEventListener(document, 'input', trigger, true);
+  createManagedEventListener(document, 'change', trigger, true);
+  createManagedEventListener(document, 'keyup', (e)=>{
     if(e.key === 'Enter' || e.key === ' ') trigger();
   }, true);
-  window.addEventListener('focus', ()=>{ syncSharedUiStateNow(); });
-  document.addEventListener('visibilitychange', ()=>{
+  createManagedEventListener(window, 'focus', ()=>{ syncSharedUiStateNow(); });
+  createManagedEventListener(document, 'visibilitychange', ()=>{
     if(!document.hidden) syncSharedUiStateNow();
   });
 }
@@ -4089,6 +4139,7 @@ window.confirmViewModeUnlock=()=>{
     addLog('error', `OSC /emergency_reset an 192.168.1.99:9000 fehlgeschlagen: ${e}`);
   });
   lastEmergencyTriggeredRemotely = false;
+  _lastEmergencyTriggeredRemotelyTemp = false;
 };
 
 // ── Telegram Settings PIN-protection ────────────────────────────────────────
@@ -5374,7 +5425,7 @@ async function init(){
   _renderLastTriggeredEvent();
   await refreshTimelineHandles();
   await pollTimelineTransport();
-  document.addEventListener('visibilitychange',updateCameraPreviewStreamState);
+  createManagedEventListener(document, 'visibilitychange', updateCameraPreviewStreamState);
   updateCameraPreviewStreamState();
   setTimeout(async()=>{
     if(demoMode) return;
@@ -5393,40 +5444,43 @@ async function init(){
   },2000);
   setTimeout(buildProjGrid,100);
 
-  document.getElementById('btn-close')?.addEventListener('click',async()=>{if(isTauri)await invoke('hide_to_tray');});
-  document.getElementById('btn-minimize')?.addEventListener('click',async()=>{if(isTauri)await invoke('minimize_window');});
-  document.getElementById('btn-fullscreen')?.addEventListener('click',async()=>{if(isTauri)await invoke('toggle_fullscreen');});
+  const closeBtn = document.getElementById('btn-close');
+  if(closeBtn) createManagedEventListener(closeBtn, 'click', async()=>{if(isTauri)await invoke('hide_to_tray');});
+  const minBtn = document.getElementById('btn-minimize');
+  if(minBtn) createManagedEventListener(minBtn, 'click', async()=>{if(isTauri)await invoke('minimize_window');});
+  const fsBtn = document.getElementById('btn-fullscreen');
+  if(fsBtn) createManagedEventListener(fsBtn, 'click', async()=>{if(isTauri)await invoke('toggle_fullscreen');});
   // Note: Tauri event listeners are registered at the top of the file, immediately after isTauri check
   if(isTauri&&window.__TAURI__?.event?.listen){
     window.__TAURI__.event.listen('tray-power-all',()=>{ if(!viewModeLocked) triggerPowerAll(); });
     window.__TAURI__.event.listen('tray-mute-all',()=>{ if(!viewModeLocked){ d40MuteAll(1);d40MuteAll(2); } });
   }
 
-  document.addEventListener('click',e=>{
+  createManagedEventListener(document, 'click', e=>{
     if(!viewModeLocked || isViewModeAllowedTarget(e.target)) return;
     e.preventDefault();
     e.stopPropagation();
-  },true);
+  }, true);
 
-  document.addEventListener('change',e=>{
+  createManagedEventListener(document, 'change', e=>{
     if(!viewModeLocked || isViewModeAllowedTarget(e.target)) return;
     e.preventDefault();
     e.stopPropagation();
-  },true);
+  }, true);
 
-  document.addEventListener('submit',e=>{
+  createManagedEventListener(document, 'submit', e=>{
     if(!viewModeLocked || isViewModeAllowedTarget(e.target)) return;
     e.preventDefault();
     e.stopPropagation();
-  },true);
+  }, true);
 
-  document.addEventListener('focusin',e=>{
+  createManagedEventListener(document, 'focusin', e=>{
     if(!viewModeLocked || isViewModeAllowedTarget(e.target)) return;
     e.target?.blur?.();
-  },true);
+  }, true);
 
   // Keyboard shortcuts: 1-9 = tabs, E = emergency
-  document.addEventListener('keydown',e=>{
+  createManagedEventListener(document, 'keydown', e=>{
     const map={'1':'show','2':'projectors','3':'audio','4':'power','5':'monitoring','6':'cameras','7':'nas','8':'network','9':'error'};
     if(viewModeLocked){
       if(e.target?.id==='view-lock-code-input' || e.target?.id==='view-lock-code-input-small'){
@@ -6175,7 +6229,7 @@ function buildProjGrid(){
     } else {
       card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="event.stopPropagation();projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="event.stopPropagation();projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button class="shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div><div class="proj-webgui-row"><span style="font-size:10px;color:var(--muted)">WebGUI</span><button class="device-webgui-chip" data-view-allow onclick="event.stopPropagation();window.openProjectorWebGui(${i})">Open</button></div>`;
     }
-    card.addEventListener('click',()=>{ if(projectorSelectionMode) toggleProjectorSelection(i); });
+    createManagedEventListener(card, 'click', ()=>{ if(projectorSelectionMode) toggleProjectorSelection(i); });
     const overlay=document.createElement('div');
     overlay.className='offline-overlay'+(moduleOnline?'':' show');
     overlay.id=`overlay-pj-${n}`;
@@ -8341,7 +8395,7 @@ function renderPixeraAudioChannelList(){
       : 'Gain — dB';
     vol.title=t('pixera_channel_gain_title',{channel:item.channel});
     vol.disabled=pixeraMasterMuteBusy;
-    vol.addEventListener('click',()=>window.showPixeraGainDialog(item.channel));
+    createManagedEventListener(vol, 'click', ()=>window.showPixeraGainDialog(item.channel));
 
     const btn=document.createElement('button');
     btn.className=`btn ${item.muted===true?'pix-audio-ch-btn-muted':'btn-g'}`;
@@ -8350,7 +8404,7 @@ function renderPixeraAudioChannelList(){
     btn.textContent=item.muted===true?t('pixera_muted'):t('pixera_unmuted');
     btn.title=item.muted===true?t('pixera_channel_unmute_title'):t('pixera_channel_mute_title');
     btn.disabled=pixeraMasterMuteBusy;
-    btn.addEventListener('click',()=>window.togglePixeraAudioChannelMute(item.channel));
+    createManagedEventListener(btn, 'click', ()=>window.togglePixeraAudioChannelMute(item.channel));
 
     row.appendChild(name);
     row.appendChild(vol);
@@ -9263,29 +9317,141 @@ window.pixeraStop=async()=>{
   }
 };
 
-window.addEventListener('error',(ev)=>{
-  const msg = t('js_error_with_detail',{
-    message:ev.message||locales[currentLang].unknown_error,
-    file:ev.filename||'unknown',
-    line:ev.lineno||0
-  });
-  addError(msg);
-});
+// Note: Global error and unhandledrejection handlers are already set up in utils.js
+// Only handle resize/orientationchange events
+createManagedEventListener(window, 'resize', scheduleUiModeRefresh);
+createManagedEventListener(window, 'orientationchange', scheduleUiModeRefresh);
 
-window.addEventListener('unhandledrejection',(ev)=>{
-  try{
-    const reason = typeof ev.reason === 'string' ? ev.reason : (ev.reason?.message || JSON.stringify(ev.reason||{}));
-    if(!reason.includes('abort') && !reason.includes('Polling')){
-      console.error('[Unhandled Rejection]',reason);
-      addLogT('error','unhandled_promise_rejection',{reason},{persist:true});
-    }
-  }catch(e){
-    console.error('[Error in unhandledrejection handler]',e);
+// ============================================================================
+// DEVICE HEALTH DASHBOARD FUNCTIONS
+// ============================================================================
+async function refreshDeviceHealth() {
+  try {
+    logIfDev('info', 'Refreshing device health', {});
+    const health = await invokeCommand('get_device_health_status');
+    renderDeviceHealthCards(health);
+    renderPerformanceMetrics(health);
+  } catch (e) {
+    logError('refreshDeviceHealth', e, {});
   }
-});
+}
 
-window.addEventListener('resize', scheduleUiModeRefresh);
-window.addEventListener('orientationchange', scheduleUiModeRefresh);
+function renderDeviceHealthCards(health) {
+  const container = document.getElementById('health-cards');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (!health || health.length === 0) {
+    container.innerHTML = '<div style="grid-column:1/-1;padding:12px;text-align:center;color:#a8a4d8">Keine Geräte verfügbar</div>';
+    return;
+  }
+  
+  health.sort((a, b) => a.device_id.localeCompare(b.device_id)).forEach(device => {
+    const status = device.is_online ? '✅ ONLINE' : '❌ OFFLINE';
+    const statusColor = device.is_online ? 'var(--green)' : 'var(--red)';
+    const lastSeenMs = Date.now() - device.last_seen_ms;
+    const lastSeenStr = lastSeenMs < 60000 ? `${Math.round(lastSeenMs/1000)}s ago` : 
+                        lastSeenMs < 3600000 ? `${Math.round(lastSeenMs/60000)}m ago` : 
+                        `${Math.round(lastSeenMs/3600000)}h ago`;
+    
+    const card = document.createElement('div');
+    card.style.cssText = `
+      border:1px solid ${statusColor}40;
+      border-radius:8px;
+      padding:12px;
+      background:rgba(${device.is_online ? '34,197,94' : '239,68,68'},.08);
+      display:flex;flex-direction:column;gap:8px;font-size:11px
+    `;
+    
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="color:${statusColor}">${device.device_id}</strong>
+        <span style="background:${statusColor}40;color:${statusColor};padding:2px 6px;border-radius:4px;font-weight:600">${status}</span>
+      </div>
+      <div style="color:#a8a4d8;display:grid;gap:4px">
+        <div>📍 Last Seen: ${lastSeenStr}</div>
+        <div>❌ Failures: ${device.consecutive_failures}</div>
+        ${device.last_error ? `<div style="color:var(--orange)">⚠️ ${device.last_error.substring(0, 40)}...</div>` : ''}
+      </div>
+    `;
+    
+    container.appendChild(card);
+  });
+}
+
+function renderPerformanceMetrics(health) {
+  const container = document.getElementById('perf-metrics');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  const onlineCount = health.filter(d => d.is_online).length;
+  const offlineCount = health.length - onlineCount;
+  const totalFailures = health.reduce((sum, d) => sum + d.consecutive_failures, 0);
+  
+  const metrics = [
+    { label: '✅ Online Devices', value: `${onlineCount}/${health.length}`, color: 'var(--green)' },
+    { label: '❌ Offline Devices', value: offlineCount, color: 'var(--red)' },
+    { label: '⚠️ Total Failures', value: totalFailures, color: 'var(--orange)' },
+    { label: '📡 Cache Status', value: 'Active (30s)', color: 'var(--blue)' }
+  ];
+  
+  metrics.forEach(metric => {
+    const card = document.createElement('div');
+    card.style.cssText = `
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:8px;
+      padding:12px;
+      background:rgba(255,255,255,.03);
+      display:flex;flex-direction:column;gap:6px
+    `;
+    
+    card.innerHTML = `
+      <div style="color:#a8a4d8;font-size:10px">${metric.label}</div>
+      <div style="color:${metric.color};font-size:18px;font-weight:700">${metric.value}</div>
+    `;
+    
+    container.appendChild(card);
+  });
+}
+
+async function clearQueryCache() {
+  try {
+    await invokeCommand('clear_query_cache');
+    alert('Query cache cleared successfully');
+    refreshDeviceHealth();
+  } catch (e) {
+    alert('Failed to clear cache: ' + e.message);
+  }
+}
+
+async function toggleOfflineMode() {
+  try {
+    const current = await invokeCommand('get_offline_mode_enabled');
+    await invokeCommand('set_offline_mode', { enabled: !current });
+    
+    const btn = document.getElementById('offline-toggle');
+    if (btn) {
+      btn.textContent = `📡 Offline Mode: ${!current ? 'ON' : 'OFF'}`;
+    }
+    
+    logIfDev('info', 'Offline mode toggled', { enabled: !current });
+  } catch (e) {
+    logError('toggleOfflineMode', e, {});
+  }
+}
+
+// Initialize health dashboard on load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    refreshDeviceHealth();
+    setInterval(refreshDeviceHealth, 60000); // Update every 60 seconds
+  });
+} else {
+  refreshDeviceHealth();
+  setInterval(refreshDeviceHealth, 60000);
+}
 
 init().catch((e)=>{
   const reason = String(e?.message || e || locales[currentLang].unknown_init_error);
