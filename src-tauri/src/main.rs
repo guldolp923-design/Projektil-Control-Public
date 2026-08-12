@@ -107,10 +107,8 @@ fn device_health() -> &'static Mutex<HashMap<String, DeviceHealthStatus>> {
 
 fn log_error_with_category(category: ErrorCategory, message: &str, device_id: Option<&str>, app: Option<&AppHandle>) {
     let log_msg = format!("[{}] {}", category.as_str(), message);
-    eprintln!("{}", log_msg);
     
     if let Some(d_id) = device_id {
-        // Update device health
         if let Ok(mut health) = device_health().lock() {
             let entry = health.entry(d_id.to_string()).or_insert_with(|| {
                 DeviceHealthStatus {
@@ -122,13 +120,24 @@ fn log_error_with_category(category: ErrorCategory, message: &str, device_id: Op
                 }
             });
             
-            entry.consecutive_failures += 1;
+            let was_online = entry.is_online;
+            // Only increment when transitioning online->offline, not on every repeated poll failure
+            if was_online {
+                entry.consecutive_failures += 1;
+            }
             entry.last_error = Some(message.to_string());
             
             if entry.consecutive_failures >= 3 {
                 entry.is_online = false;
             }
+            
+            // Only print to stderr on state change to avoid log spam
+            if was_online {
+                eprintln!("{}", log_msg);
+            }
         }
+    } else {
+        eprintln!("{}", log_msg);
     }
     
     if let Some(app) = app {
@@ -1792,7 +1801,10 @@ async fn http_ping(ip: String, port: u16) -> Result<String, String> {
         &addr.parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?,
         Duration::from_millis(3000),
     ) {
-        Ok(_) => Ok("OK".to_string()),
+        Ok(_) => {
+            mark_device_online(&format!("tcp:{}:{}", ip, port));
+            Ok("OK".to_string())
+        }
         Err(e) => {
             let err_str = e.to_string().to_lowercase();
             // Windows Fehler 10061 = WSAECONNREFUSED
@@ -1825,7 +1837,11 @@ fn icmp_ping(ip: String) -> Result<bool, String> {
     let output = cmd.output()
         .map_err(|e| format!("Ping command fehlgeschlagen: {}", e))?;
 
-    Ok(output.status.success())
+    let success = output.status.success();
+    if success {
+        mark_device_online(&format!("icmp:{}", ip));
+    }
+    Ok(success)
 }
 
 #[tauri::command]
@@ -3039,7 +3055,11 @@ async fn d40_command(ip: String, command: String) -> Result<String, String> {
 }
 #[tauri::command]
 async fn d40_ping(ip: String) -> Result<bool, String> {
-    oca::ping(&ip).await.map_err(|e| e.to_string())
+    let result = oca::ping(&ip).await.map_err(|e| e.to_string())?;
+    if result {
+        mark_device_online(&format!("d40:{}", ip));
+    }
+    Ok(result)
 }
 #[tauri::command]
 async fn d40_status(ip: String) -> Result<serde_json::Value, String> {
@@ -4224,6 +4244,7 @@ fn pjlink_poll_one(ip: &str, password: &str) -> serde_json::Value {
     let mut stream = match pjlink_connect(ip) {
         Ok(s) => s,
         Err(e) => {
+            log_error_with_category(ErrorCategory::DeviceOffline, &e, Some(&format!("projector:{}", ip)), None);
             return serde_json::json!({
                 "ip": ip,
                 "hasIp": true,
@@ -4314,6 +4335,7 @@ fn pjlink_poll_one(ip: &str, password: &str) -> serde_json::Value {
         Err(_) => serde_json::Value::Null,
     };
 
+    mark_device_online(&format!("projector:{}", ip));
     serde_json::json!({
         "ip": ip,
         "hasIp": true,
@@ -4508,10 +4530,18 @@ async fn pixera_api_request(
         .headers_mut()
         .insert("Sec-WebSocket-Protocol", HeaderValue::from_static("ws_avio"));
 
+    let target_host_for_tracking = target_host.clone();
     let connect = timeout(Duration::from_millis(timeout_value), connect_async(request))
         .await
-        .map_err(|_| format!("Pixera API timeout: {}", address))?
-        .map_err(|e| format!("Pixera API websocket error: {}:{} ({})", target_host, target_port, e))?;
+        .map_err(|_| {
+            pixera_track_failure(&target_host_for_tracking, &format!("Pixera API timeout: {}", address));
+            format!("Pixera API timeout: {}", address)
+        })?
+        .map_err(|e| {
+            let msg = format!("Pixera API websocket error: {}:{} ({})", target_host_for_tracking, target_port, e);
+            pixera_track_failure(&target_host_for_tracking, &msg);
+            msg
+        })?;
 
     let (mut ws_stream, _) = connect;
     let payload = serde_json::json!({
@@ -4542,6 +4572,7 @@ async fn pixera_api_request(
                 let json: serde_json::Value = serde_json::from_str(&text)
                     .map_err(|e| format!("Pixera API ungültige JSON-Antwort: {}", e))?;
                 if json["sequence"].as_u64() == Some(sequence) {
+                    pixera_track_success(&target_host);
                     return Ok(json.get("result").cloned().unwrap_or(serde_json::Value::Null));
                 }
             }
@@ -4551,6 +4582,7 @@ async fn pixera_api_request(
                 let json: serde_json::Value = serde_json::from_str(&text)
                     .map_err(|e| format!("Pixera API ungültige JSON-Antwort: {}", e))?;
                 if json["sequence"].as_u64() == Some(sequence) {
+                    pixera_track_success(&target_host);
                     return Ok(json.get("result").cloned().unwrap_or(serde_json::Value::Null));
                 }
             }
@@ -4558,6 +4590,15 @@ async fn pixera_api_request(
             Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => {}
         }
     }
+}
+
+// Thin wrapper to add health tracking for Pixera
+fn pixera_track_success(host: &str) {
+    mark_device_online(&format!("pixera:{}", host));
+}
+
+fn pixera_track_failure(host: &str, error: &str) {
+    log_error_with_category(ErrorCategory::ConnectionTimeout, error, Some(&format!("pixera:{}", host)), None);
 }
 
 #[tauri::command]
@@ -4607,6 +4648,19 @@ fn clear_query_cache() -> Result<(), String> {
     query_cache()
         .lock()
         .map(|mut cache| cache.clear())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reset_all_device_failures() -> Result<(), String> {
+    device_health()
+        .lock()
+        .map(|mut health| {
+            for device in health.values_mut() {
+                device.consecutive_failures = 0;
+                device.last_error = None;
+            }
+        })
         .map_err(|e| e.to_string())
 }
 
@@ -5160,6 +5214,10 @@ fn handle_emergency_osc_command() {
 }
 
 fn main() {
+    // Set Windows console to UTF-8 so umlauts (ä/ö/ü) don't crash stderr
+    #[cfg(target_os = "windows")]
+    unsafe { windows_sys::Win32::System::Console::SetConsoleOutputCP(65001); }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
@@ -5233,7 +5291,7 @@ fn main() {
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
             save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms,
-            get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache
+            get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache, reset_all_device_failures
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten");

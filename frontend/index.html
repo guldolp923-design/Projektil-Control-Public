@@ -7281,6 +7281,10 @@ window.clearAllErrors=()=>{
   errors.length=0;
   renderErrors();
   updateErrorBadge();
+  // Reset failure counters in device health
+  if(window.__TAURI_INTERNALS__) {
+    window.invokeCommand('reset_all_device_failures').then(() => refreshDeviceHealth()).catch(()=>{});
+  }
 };
 window.ackErrorById=(id)=>{
   const idx=errors.findIndex(e=>e.id===id);
@@ -9347,9 +9351,21 @@ function renderDeviceHealthCards(health) {
     return;
   }
   
-  health.sort((a, b) => a.device_id.localeCompare(b.device_id)).forEach(device => {
-    const status = device.is_online ? '✅ ONLINE' : '❌ OFFLINE';
-    const statusColor = device.is_online ? 'var(--green)' : 'var(--red)';
+  // Only show devices that are offline or have failures
+  const problematic = health.filter(d => !d.is_online || d.consecutive_failures > 0);
+  
+  if (problematic.length === 0) {
+    container.innerHTML = '<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--green);font-size:13px">✅ Alle Geräte online — keine Probleme</div>';
+    return;
+  }
+  
+  problematic.sort((a, b) => {
+    // Offline first, then by failure count descending
+    if (a.is_online !== b.is_online) return a.is_online ? 1 : -1;
+    return b.consecutive_failures - a.consecutive_failures;
+  }).forEach(device => {
+    const status = device.is_online ? '⚠️ FEHLER' : '❌ OFFLINE';
+    const statusColor = device.is_online ? 'var(--orange)' : 'var(--red)';
     const lastSeenMs = Date.now() - device.last_seen_ms;
     const lastSeenStr = lastSeenMs < 60000 ? `${Math.round(lastSeenMs/1000)}s ago` : 
                         lastSeenMs < 3600000 ? `${Math.round(lastSeenMs/60000)}m ago` : 
@@ -9357,22 +9373,22 @@ function renderDeviceHealthCards(health) {
     
     const card = document.createElement('div');
     card.style.cssText = `
-      border:1px solid ${statusColor}40;
+      border:1px solid ${statusColor}60;
       border-radius:8px;
-      padding:12px;
-      background:rgba(${device.is_online ? '34,197,94' : '239,68,68'},.08);
-      display:flex;flex-direction:column;gap:8px;font-size:11px
+      padding:10px 12px;
+      background:rgba(${device.is_online ? '249,115,22' : '239,68,68'},.1);
+      display:flex;flex-direction:column;gap:6px;font-size:11px
     `;
     
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong style="color:${statusColor}">${device.device_id}</strong>
-        <span style="background:${statusColor}40;color:${statusColor};padding:2px 6px;border-radius:4px;font-weight:600">${status}</span>
+        <strong style="color:#fff;font-size:11px">${device.device_id}</strong>
+        <span style="background:${statusColor}30;color:${statusColor};padding:2px 6px;border-radius:4px;font-weight:700;font-size:10px">${status}</span>
       </div>
-      <div style="color:#a8a4d8;display:grid;gap:4px">
-        <div>📍 Last Seen: ${lastSeenStr}</div>
-        <div>❌ Failures: ${device.consecutive_failures}</div>
-        ${device.last_error ? `<div style="color:var(--orange)">⚠️ ${device.last_error.substring(0, 40)}...</div>` : ''}
+      <div style="color:#a8a4d8;display:grid;gap:3px;font-size:10px">
+        <div>📍 ${lastSeenStr}</div>
+        ${device.consecutive_failures > 0 ? `<div style="color:var(--orange)">❌ ${device.consecutive_failures} Fehler</div>` : ''}
+        ${device.last_error ? `<div style="color:#fca5a5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${device.last_error}">${device.last_error.substring(0, 50)}</div>` : ''}
       </div>
     `;
     
@@ -9446,11 +9462,11 @@ async function toggleOfflineMode() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     refreshDeviceHealth();
-    setInterval(refreshDeviceHealth, 60000); // Update every 60 seconds
+    setInterval(refreshDeviceHealth, 10000);
   });
 } else {
   refreshDeviceHealth();
-  setInterval(refreshDeviceHealth, 60000);
+  setInterval(refreshDeviceHealth, 10000);
 }
 
 init().catch((e)=>{

@@ -2605,6 +2605,7 @@ dependencies = [
  "tiny_http",
  "tokio",
  "tokio-tungstenite",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
