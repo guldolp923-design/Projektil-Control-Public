@@ -41,7 +41,11 @@ static CAMERA_STREAMS: OnceLock<Mutex<HashMap<String, CameraStreamHandle>>> = On
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static FFMPEG_SETUP_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 const CAMERA_MJPEG_PORT: u16 = 41777;
-const LAN_WEB_PORT: u16 = 41778;
+// Preferred: short URL without a port suffix. Falls back to LAN_WEB_PORT_FALLBACK
+// if 80 is already taken (router admin UI, IIS, Skype, etc. commonly use it).
+const LAN_WEB_PORT_PREFERRED: u16 = 80;
+const LAN_WEB_PORT_FALLBACK: u16 = 41778;
+static ACTIVE_LAN_WEB_PORT: OnceLock<u16> = OnceLock::new();
 const OSC_LISTENER_PORT: u16 = 9001;
 const OSC_LISTENER_ADDR: &str = "0.0.0.0:9001";
 const OSC_BUFFER_SIZE: usize = 256;
@@ -189,6 +193,9 @@ fn mark_device_online(device_id: &str) {
     }
 }
 const WEBGUI_INDEX_HTML: &str = include_str!("../../frontend/index.html");
+const WEBGUI_UTILS_JS: &str = include_str!("../../frontend/js/utils.js");
+const WEBGUI_TAURI_BRIDGE_JS: &str = include_str!("../../frontend/js/tauri-bridge.js");
+const WEBGUI_FAVICON_ICO: &[u8] = include_bytes!("../../frontend/favicon.ico");
 const CAMERA_STREAM_IDLE_TIMEOUT_SECS: u64 = 90;
 const CAMERA_STREAM_STALE_TIMEOUT_SECS: u64 = 60;
 const CAMERA_STREAM_FIRST_FRAME_TIMEOUT_SECS: u64 = 20;
@@ -334,6 +341,26 @@ fn get_deduplicated_request(key: &str, fetch_fn: impl FnOnce() -> Option<String>
 fn current_webgui_index_html() -> String {
     let disk_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../frontend/index.html");
     fs::read_to_string(disk_path).unwrap_or_else(|_| WEBGUI_INDEX_HTML.to_string())
+}
+
+// Serves the small set of static JS assets the LAN mobile/webgui view depends on
+// (index.html only references js/utils.js today). Falls back to the compiled-in
+// copy when the frontend folder isn't shipped next to the release binary.
+fn current_webgui_asset(rel_path: &str) -> Option<(String, &'static str)> {
+    let (embedded, content_type): (&'static str, &'static str) = match rel_path {
+        "js/utils.js" => (WEBGUI_UTILS_JS, "application/javascript; charset=utf-8"),
+        "js/tauri-bridge.js" => (WEBGUI_TAURI_BRIDGE_JS, "application/javascript; charset=utf-8"),
+        _ => return None,
+    };
+    let disk_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../frontend").join(rel_path);
+    let body = fs::read_to_string(disk_path).unwrap_or_else(|_| embedded.to_string());
+    Some((body, content_type))
+}
+
+// Same Windows shortcut icon as the desktop app, served as the browser favicon.
+fn current_webgui_favicon() -> Vec<u8> {
+    let disk_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../frontend/favicon.ico");
+    fs::read(disk_path).unwrap_or_else(|_| WEBGUI_FAVICON_ICO.to_vec())
 }
 
 const TELEGRAM_MIN_REPEAT_MS: u64 = 60_000;
@@ -556,6 +583,7 @@ fn backup_config_on_change(config_path: &Path, config_content: &str) -> Result<(
         let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
         let version_num = versions.as_ref().map_or(1, |v| v.len() as u32 + 1);
         let backup_path = backups_dir.join(format!("config.v{}.{}.json", version_num, timestamp));
+        drop(versions);
         
         fs::write(&backup_path, config_content)
             .map_err(|e| format!("Failed to backup config: {}", e))?;
@@ -3594,6 +3622,10 @@ fn default_config_json() -> serde_json::Value {
         "hotline": "+41 44 492 51 69",
         "location_name": "",
         "anydesk_address": "",
+        "hub_api_url": "",
+        "hub_api_token": "",
+        "hub_project_id": "",
+        "hub_device_id": "",
         "telegram": {
             "enabled": false,
             "bot_token": "",
@@ -3674,6 +3706,18 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
             "pixera_scheduler_module".to_string(),
             serde_json::json!("Projektil_EventScheduler_V2_7"),
         );
+    }
+    if !obj.contains_key("hub_api_url") {
+        obj.insert("hub_api_url".to_string(), serde_json::json!(""));
+    }
+    if !obj.contains_key("hub_api_token") {
+        obj.insert("hub_api_token".to_string(), serde_json::json!(""));
+    }
+    if !obj.contains_key("hub_project_id") {
+        obj.insert("hub_project_id".to_string(), serde_json::json!(""));
+    }
+    if !obj.contains_key("hub_device_id") {
+        obj.insert("hub_device_id".to_string(), serde_json::json!(""));
     }
     if !obj.contains_key("demo_mode") {
         obj.insert("demo_mode".to_string(), serde_json::json!(false));
@@ -3893,6 +3937,71 @@ fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<
     backup_config_on_change(&config_path, &cfg_str)?;
     write_config_json_to_disk(&cfg)?;
     Ok(true)
+}
+
+#[tauri::command]
+fn save_hub_config(
+    api_url: String,
+    api_token: String,
+    project_id: String,
+    device_id: String,
+) -> Result<bool, String> {
+    let url = api_url.trim();
+    if !url.is_empty() && !url.starts_with("https://") {
+        return Err("Hub API muss eine HTTPS-URL verwenden".to_string());
+    }
+    if project_id.trim().len() > 120 || device_id.trim().len() > 120 {
+        return Err("Projekt-ID oder Geräte-ID ist zu lang".to_string());
+    }
+    let mut cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
+    if let Some(obj) = cfg.as_object_mut() {
+        obj.insert("hub_api_url".to_string(), serde_json::json!(url));
+        obj.insert("hub_api_token".to_string(), serde_json::json!(api_token.trim()));
+        obj.insert("hub_project_id".to_string(), serde_json::json!(project_id.trim()));
+        obj.insert("hub_device_id".to_string(), serde_json::json!(device_id.trim()));
+    }
+    let cfg_str = cfg.to_string();
+    let config_path = resolve_config_write_path();
+    backup_config_on_change(&config_path, &cfg_str)?;
+    write_config_json_to_disk(&cfg)?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn hub_post_json(
+    url: String,
+    api_token: String,
+    payload: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let endpoint = url.trim();
+    if !endpoint.starts_with("https://") {
+        return Err("Hub API muss eine HTTPS-URL verwenden".to_string());
+    }
+    if api_token.trim().is_empty() {
+        return Err("Hub API-Token fehlt".to_string());
+    }
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(12))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client
+        .post(endpoint)
+        .bearer_auth(api_token.trim())
+        .header("X-Projektil-Client", "projektil-control")
+        .json(&payload)
+        .send()
+        .map_err(|e| format!("Hub API Netzwerkfehler: {}", e))?;
+    let status = response.status();
+    let text = response.text().map_err(|e| e.to_string())?;
+    let body = serde_json::from_str::<serde_json::Value>(&text)
+        .unwrap_or_else(|_| serde_json::json!({"raw": text}));
+    if !status.is_success() {
+        return Err(format!("Hub API Fehler {}: {}", status, body));
+    }
+    Ok(body)
 }
 
 #[tauri::command]
@@ -4786,6 +4895,34 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_string(args, &["anydeskAddress", "anydesk_address"])?
         )?)),
 
+        "save_hub_config" => Ok(serde_json::json!(save_hub_config(
+            arg_string(args, &["apiUrl", "api_url"])? ,
+            arg_string(args, &["apiToken", "api_token"])? ,
+            arg_string(args, &["projectId", "project_id"])? ,
+            arg_string(args, &["deviceId", "device_id"])?
+        )?)),
+
+        "hub_post_json" => Ok(hub_post_json(
+            arg_string(args, &["url"])? ,
+            arg_string(args, &["apiToken", "api_token"])? ,
+            arg_value(args, &["payload"]).cloned().unwrap_or_else(|| serde_json::json!({}))
+        )?),
+
+        "get_device_health_status" => Ok(serde_json::json!(get_device_health_status()?)),
+        "get_offline_mode_enabled" => Ok(serde_json::json!(get_offline_mode_enabled())),
+        "set_offline_mode" => {
+            set_offline_mode(arg_bool(args, &["enabled"])?)?;
+            Ok(serde_json::json!(true))
+        }
+        "clear_query_cache" => {
+            clear_query_cache()?;
+            Ok(serde_json::json!(true))
+        }
+        "reset_all_device_failures" => {
+            reset_all_device_failures()?;
+            Ok(serde_json::json!(true))
+        }
+
         "save_telegram_config" => Ok(serde_json::json!(save_telegram_config(
             arg_bool(args, &["enabled"])? ,
             arg_string(args, &["botToken", "bot_token"])? ,
@@ -5004,6 +5141,26 @@ fn handle_lan_web_request(mut request: tiny_http::Request) {
         return;
     }
 
+    if method == Method::Get && path.starts_with("/js/") {
+        if let Some((body, content_type)) = current_webgui_asset(&path[1..]) {
+            let mut response = Response::from_string(body);
+            if let Some(h) = header("Content-Type", content_type) {
+                response = response.with_header(h);
+            }
+            let _ = request.respond(response);
+            return;
+        }
+    }
+
+    if method == Method::Get && (path == "/favicon.ico" || path == "/icon.ico") {
+        let mut response = Response::from_data(current_webgui_favicon());
+        if let Some(h) = header("Content-Type", "image/x-icon") {
+            response = response.with_header(h);
+        }
+        let _ = request.respond(response);
+        return;
+    }
+
     if method == Method::Options && path == "/api/invoke" {
         let mut response = Response::empty(StatusCode(204));
         if let Some(h) = header("Access-Control-Allow-Origin", "*") {
@@ -5084,7 +5241,7 @@ fn handle_lan_web_request(mut request: tiny_http::Request) {
         respond_json(request, 200, &serde_json::json!({
             "ok": true,
             "mode": "lan-webgui",
-            "port": LAN_WEB_PORT,
+            "port": ACTIVE_LAN_WEB_PORT.get().copied().unwrap_or(LAN_WEB_PORT_FALLBACK),
             "camera_port": CAMERA_MJPEG_PORT
         }));
         return;
@@ -5101,12 +5258,32 @@ fn start_lan_web_server() {
     }
 
     thread::spawn(|| {
-        let bind = format!("0.0.0.0:{}", LAN_WEB_PORT);
-        let server = match Server::http(&bind) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("LAN web server bind error: {}", e);
-                return;
+        // Try the short, portless URL first; fall back if 80 is already occupied
+        // (very common on shared networks) or requires elevated rights on this OS.
+        let server = match Server::http(format!("0.0.0.0:{}", LAN_WEB_PORT_PREFERRED)) {
+            Ok(s) => {
+                let _ = ACTIVE_LAN_WEB_PORT.set(LAN_WEB_PORT_PREFERRED);
+                eprintln!("LAN web server listening on port {} (http://<ip>/)", LAN_WEB_PORT_PREFERRED);
+                s
+            }
+            Err(primary_err) => {
+                match Server::http(format!("0.0.0.0:{}", LAN_WEB_PORT_FALLBACK)) {
+                    Ok(s) => {
+                        let _ = ACTIVE_LAN_WEB_PORT.set(LAN_WEB_PORT_FALLBACK);
+                        eprintln!(
+                            "LAN web server: port {} unavailable ({}), using fallback port {} instead",
+                            LAN_WEB_PORT_PREFERRED, primary_err, LAN_WEB_PORT_FALLBACK
+                        );
+                        s
+                    }
+                    Err(fallback_err) => {
+                        eprintln!(
+                            "LAN web server bind error on both port {} ({}) and fallback port {} ({})",
+                            LAN_WEB_PORT_PREFERRED, primary_err, LAN_WEB_PORT_FALLBACK, fallback_err
+                        );
+                        return;
+                    }
+                }
             }
         };
 
@@ -5290,7 +5467,7 @@ fn main() {
             send_emergency_notaus_osc, send_emergency_osc_to_switch, send_emergency_reset_osc,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
-            save_site_metadata, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms,
+            save_site_metadata, save_hub_config, hub_post_json, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms,
             get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache, reset_all_device_failures
         ])
         .run(tauri::generate_context!())
