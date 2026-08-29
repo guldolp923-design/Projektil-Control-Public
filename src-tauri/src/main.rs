@@ -40,6 +40,7 @@ struct CameraStreamHandle {
 static CAMERA_STREAMS: OnceLock<Mutex<HashMap<String, CameraStreamHandle>>> = OnceLock::new();
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 static FFMPEG_SETUP_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static SCHEDULER_MODULE_RESOLVED: OnceLock<Mutex<String>> = OnceLock::new();
 const CAMERA_MJPEG_PORT: u16 = 41777;
 // Preferred: short URL without a port suffix. Falls back to LAN_WEB_PORT_FALLBACK
 // if 80 is already taken (router admin UI, IIS, Skype, etc. commonly use it).
@@ -51,6 +52,13 @@ const OSC_LISTENER_ADDR: &str = "0.0.0.0:9001";
 const OSC_BUFFER_SIZE: usize = 256;
 const OSC_EMERGENCY_CMD: &[u8] = b"/emergency_pressed";
 const OSC_EMERGENCY_CMD_LEN: usize = 18;
+const DEFAULT_PIXERA_SCHEDULER_MODULE: &str = "Projektil_EventScheduler_V2_7";
+const FALLBACK_PIXERA_SCHEDULER_MODULES: &[&str] = &[
+    DEFAULT_PIXERA_SCHEDULER_MODULE,
+    "Projektil_EventScheduler_V27",
+    "Projektil_EventScheduler_V21",
+    "EventScheduler_Projektil_V17",
+];
 
 // ============================================================
 // QUERY CACHE & DEVICE HEALTH
@@ -4710,6 +4718,318 @@ fn pixera_track_failure(host: &str, error: &str) {
     log_error_with_category(ErrorCategory::ConnectionTimeout, error, Some(&format!("pixera:{}", host)), None);
 }
 
+fn scheduler_resolved_module() -> &'static Mutex<String> {
+    SCHEDULER_MODULE_RESOLVED.get_or_init(|| Mutex::new(String::new()))
+}
+
+fn pixera_config_string(cfg: &serde_json::Value, key: &str) -> String {
+    cfg[key].as_str().unwrap_or("").trim().to_string()
+}
+
+fn push_unique_candidate(candidates: &mut Vec<String>, value: impl AsRef<str>) {
+    let value = value.as_ref().trim();
+    if value.is_empty() {
+        return;
+    }
+    if !candidates.iter().any(|existing| existing.eq_ignore_ascii_case(value)) {
+        candidates.push(value.to_string());
+    }
+}
+
+fn scheduler_module_candidates(cfg: &serde_json::Value) -> Vec<String> {
+    let mut candidates = Vec::new();
+    push_unique_candidate(&mut candidates, DEFAULT_PIXERA_SCHEDULER_MODULE);
+    if let Ok(resolved) = scheduler_resolved_module().lock() {
+        push_unique_candidate(&mut candidates, resolved.as_str());
+    }
+    push_unique_candidate(&mut candidates, pixera_config_string(cfg, "pixera_scheduler_module"));
+    for fallback in FALLBACK_PIXERA_SCHEDULER_MODULES {
+        push_unique_candidate(&mut candidates, fallback);
+    }
+    candidates
+}
+
+fn pixera_paths(cfg: &serde_json::Value, base_path: &str) -> Vec<String> {
+    let root = pixera_config_string(cfg, "pixera_api_root");
+    if root.is_empty() {
+        vec![base_path.to_string()]
+    } else {
+        vec![format!("{}.{}", root, base_path), base_path.to_string()]
+    }
+}
+
+fn normalize_pixera_result(result: serde_json::Value) -> Result<serde_json::Value, String> {
+    if let Some(arr) = result.as_array() {
+        if arr.first().and_then(|v| v.get("_pixc")).and_then(|v| v.get("type")).and_then(|v| v.as_i64()) == Some(125) {
+            let msg = arr.get(2).and_then(|v| v.as_str()).unwrap_or("Pixera exception");
+            return Err(msg.to_string());
+        }
+        if arr.len() == 1 {
+            if let Some(msg) = arr.first().and_then(|v| v.as_str()) {
+                if msg.to_ascii_lowercase().contains("not authorized") {
+                    return Err(msg.to_string());
+                }
+            }
+            return Ok(arr[0].clone());
+        }
+    }
+    if let Some(msg) = result.as_str() {
+        if msg.to_ascii_lowercase().contains("not authorized") {
+            return Err(msg.to_string());
+        }
+    }
+    Ok(result)
+}
+
+fn pixera_result_is_empty(value: &serde_json::Value) -> bool {
+    value.is_null() || value.as_str().map(|s| s.trim().is_empty()).unwrap_or(false)
+}
+
+fn is_pixera_connectivity_error(error: &str) -> bool {
+    let msg = error.to_ascii_lowercase();
+    msg.contains("timeout")
+        || msg.contains("timed out")
+        || msg.contains("websocket error")
+        || msg.contains("verbindung geschlossen")
+        || msg.contains("connection closed")
+        || msg.contains("send failed")
+        || msg.contains("receive failed")
+        || msg.contains("refused")
+        || msg.contains("10061")
+        || msg.contains("host unreachable")
+        || msg.contains("network is unreachable")
+}
+
+async fn scheduler_call(method_name: &str, params: Vec<serde_json::Value>, allow_empty: bool) -> Result<serde_json::Value, String> {
+    let cfg = get_config();
+    let host = pixera_config_string(&cfg, "pixera_ip");
+    let port = cfg["pixera_port"].as_u64().map(|n| n as u16).unwrap_or(1338);
+    let mut first_error: Option<String> = None;
+
+    for module_name in scheduler_module_candidates(&cfg) {
+        let base_path = format!("{}.{}", module_name, method_name);
+        for address in pixera_paths(&cfg, &base_path) {
+            match pixera_api_request(address, Some(params.clone()), Some(host.clone()), Some(port), Some(3500)).await {
+                Ok(result) => match normalize_pixera_result(result) {
+                    Ok(normalized) => {
+                        if !allow_empty && pixera_result_is_empty(&normalized) {
+                            continue;
+                        }
+                        if let Ok(mut resolved) = scheduler_resolved_module().lock() {
+                            if *resolved != module_name {
+                                *resolved = module_name.clone();
+                            }
+                        }
+                        return Ok(normalized);
+                    }
+                    Err(err) => {
+                        if first_error.is_none() {
+                            first_error = Some(err);
+                        }
+                    }
+                },
+                Err(err) => {
+                    if is_pixera_connectivity_error(&err) {
+                        return Err(err);
+                    }
+                    if first_error.is_none() {
+                        first_error = Some(err);
+                    }
+                }
+            }
+        }
+    }
+
+    Err(first_error.unwrap_or_else(|| format!("Scheduler call failed for {}", method_name)))
+}
+
+async fn scheduler_warmup_v21() {
+    let _ = scheduler_call("ref", Vec::new(), true).await;
+    let _ = scheduler_call("init", Vec::new(), true).await;
+    let _ = scheduler_call("Time", Vec::new(), true).await;
+}
+
+async fn scheduler_read_with_warmup(method_name: &str) -> Result<serde_json::Value, String> {
+    match scheduler_call(method_name, Vec::new(), false).await {
+        Ok(value) if !pixera_result_is_empty(&value) => Ok(value),
+        Err(err) if is_pixera_connectivity_error(&err) => Err(err),
+        Ok(_) | Err(_) => {
+            scheduler_warmup_v21().await;
+            scheduler_call(method_name, Vec::new(), false).await
+        }
+    }
+}
+
+fn parse_countdown_ms(value: &serde_json::Value) -> Option<u64> {
+    let s = value.as_str().map(str::trim).unwrap_or("");
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let h = parts[0].parse::<u64>().ok()?;
+    let m = parts[1].parse::<u64>().ok()?;
+    let sec = parts[2].parse::<u64>().ok()?;
+    if m > 59 || sec > 59 {
+        return None;
+    }
+    Some(((h * 3600) + (m * 60) + sec) * 1000)
+}
+
+fn parse_pixera_schedule_datetime_ms(value: &serde_json::Value) -> Option<u64> {
+    let s = value.as_str()?.trim();
+    let mut parts = s.split_whitespace();
+    let date = parts.next()?;
+    let time = parts.next()?;
+    let date_parts: Vec<u32> = date.split('.').filter_map(|p| p.parse::<u32>().ok()).collect();
+    let time_parts: Vec<u32> = time.split(':').filter_map(|p| p.parse::<u32>().ok()).collect();
+    if date_parts.len() != 3 || time_parts.len() < 2 {
+        return None;
+    }
+    let second = *time_parts.get(2).unwrap_or(&0);
+    let dt = Local
+        .with_ymd_and_hms(
+            date_parts[0] as i32,
+            date_parts[1],
+            date_parts[2],
+            time_parts[0],
+            time_parts[1],
+            second,
+        )
+        .single()?;
+    Some(dt.timestamp_millis().max(0) as u64)
+}
+
+fn parse_upcoming_events(raw: serde_json::Value) -> Vec<serde_json::Value> {
+    let mut value = raw;
+    for _ in 0..3 {
+        if let Some(arr) = value.as_array() {
+            return arr.clone();
+        }
+        if value.is_null() {
+            return Vec::new();
+        }
+        if let Some(s) = value.as_str() {
+            let s = s.trim();
+            if s.is_empty() {
+                return Vec::new();
+            }
+            value = match serde_json::from_str::<serde_json::Value>(s) {
+                Ok(v) => v,
+                Err(_) => return Vec::new(),
+            };
+            continue;
+        }
+        if let Some(arr) = value.get("value").and_then(|v| v.as_array()) {
+            return arr.clone();
+        }
+        if let Some(arr) = value.get("events").and_then(|v| v.as_array()) {
+            return arr.clone();
+        }
+        return Vec::new();
+    }
+    value.as_array().cloned().unwrap_or_default()
+}
+
+fn upcoming_event_countdown_ms(event: &serde_json::Value, server_time_ms: u64) -> Option<u64> {
+    if let Some(in_sec) = event.get("inSec").and_then(|v| v.as_f64()) {
+        if in_sec >= 0.0 {
+            return Some((in_sec * 1000.0).max(0.0).round() as u64);
+        }
+    }
+    let target_ms = parse_pixera_schedule_datetime_ms(event.get("time")?)?;
+    Some(target_ms.saturating_sub(server_time_ms))
+}
+
+fn first_future_upcoming_event(events: &[serde_json::Value], server_time_ms: u64) -> Option<serde_json::Value> {
+    events
+        .iter()
+        .filter_map(|event| upcoming_event_countdown_ms(event, server_time_ms).map(|ms| (ms, event.clone())))
+        .filter(|(ms, _)| *ms > 0)
+        .min_by_key(|(ms, _)| *ms)
+        .map(|(_, event)| event)
+}
+
+fn no_schedule_response(server_time_ms: u64) -> serde_json::Value {
+    serde_json::json!({
+        "hasSchedule": false,
+        "serverTimeMs": server_time_ms
+    })
+}
+
+#[tauri::command]
+async fn get_upcoming_cues() -> Result<serde_json::Value, String> {
+    let server_time_ms = now_timestamp_ms();
+    let raw = match scheduler_read_with_warmup("UpcomingEventsJson").await {
+        Ok(value) => value,
+        Err(err) if is_pixera_connectivity_error(&err) => return Err(err),
+        Err(_) => return Ok(serde_json::json!({
+            "hasSchedule": false,
+            "serverTimeMs": server_time_ms,
+            "events": []
+        })),
+    };
+    let events = parse_upcoming_events(raw);
+    Ok(serde_json::json!({
+        "hasSchedule": !events.is_empty(),
+        "serverTimeMs": server_time_ms,
+        "events": events
+    }))
+}
+
+#[tauri::command]
+async fn get_next_cue() -> Result<serde_json::Value, String> {
+    let server_time_ms = now_timestamp_ms();
+
+    match get_upcoming_cues().await {
+        Ok(upcoming) => {
+            let events = upcoming
+                .get("events")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            if let Some(event) = first_future_upcoming_event(&events, server_time_ms) {
+                let countdown_ms = upcoming_event_countdown_ms(&event, server_time_ms).unwrap_or(0);
+                let next_name = event.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+                return Ok(serde_json::json!({
+                    "hasSchedule": !next_name.is_empty(),
+                    "nextCueName": next_name,
+                    "countdownMs": countdown_ms,
+                    "serverTimeMs": server_time_ms,
+                    "source": "UpcomingEventsJson",
+                    "event": event
+                }));
+            }
+        }
+        Err(err) if is_pixera_connectivity_error(&err) => return Err(err),
+        Err(_) => {}
+    }
+
+    let next_name = match scheduler_read_with_warmup("NextEventName").await {
+        Ok(value) => value,
+        Err(err) if is_pixera_connectivity_error(&err) => return Err(err),
+        Err(_) => return Ok(no_schedule_response(server_time_ms)),
+    };
+    let next_countdown = match scheduler_read_with_warmup("NextEventCountdown").await {
+        Ok(value) => value,
+        Err(err) if is_pixera_connectivity_error(&err) => return Err(err),
+        Err(_) => return Ok(no_schedule_response(server_time_ms)),
+    };
+
+    let next_name_str = next_name.as_str().unwrap_or("").trim();
+    let countdown_ms = parse_countdown_ms(&next_countdown);
+    if next_name_str.is_empty() || next_name_str == "-" || countdown_ms.is_none() {
+        return Ok(no_schedule_response(server_time_ms));
+    }
+
+    Ok(serde_json::json!({
+        "hasSchedule": true,
+        "nextCueName": next_name_str,
+        "countdownMs": countdown_ms.unwrap_or(0),
+        "serverTimeMs": server_time_ms,
+        "source": "NextEventName/NextEventCountdown"
+    }))
+}
+
 #[tauri::command]
 fn get_config() -> serde_json::Value {
     if let Some((_path, mut json)) = read_config_json_from_disk() {
@@ -5091,6 +5411,9 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_optional_u64(args, &["timeoutMs", "timeout_ms"])
         )),
 
+        "get_next_cue" => block_on_command(get_next_cue()),
+        "get_upcoming_cues" => block_on_command(get_upcoming_cues()),
+
         "minimize_window" => {
             minimize_window(app_handle_required()?);
             Ok(serde_json::json!(true))
@@ -5463,7 +5786,7 @@ fn main() {
             ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             ups_get_status_managed, janitza_get_data_managed, nas_get_status_managed, poe_switch_get_status_managed, rutx50_get_status_managed,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
-            pixera_api_request,
+            pixera_api_request, get_next_cue, get_upcoming_cues,
             send_emergency_notaus_osc, send_emergency_osc_to_switch, send_emergency_reset_osc,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
