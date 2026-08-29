@@ -7887,6 +7887,9 @@ let _nextEventRttSamples=[];
 let _nextEventLastName='';
 let _lastTriggeredEventName='';
 let _lastTriggeredEventTsMs=0;
+let _schedulerWarmupCheckTimer=null;
+let _schedulerWarmupCheckKey='';
+let _schedulerWarmupOpenFingerprint='';
 let _pixeraDirectorOnline=false;
 let _pixeraApiOnline=false;
 let _pixeraApiConsecutiveOk=0;
@@ -8276,8 +8279,8 @@ async function syncProjectorsFromPjLink(){
           projectorOnlineStates[idx]=false;
         }
         projStates[idx].mute=shutterMuted;
-        if(powerIsOn===true || powerIsOn==='WarmUp') projStates[idx].on=true;
-        else if(powerIsOn===false || powerIsOn==='Cooling') projStates[idx].on=false;
+        if(powerIsOn===true) projStates[idx].on=true;
+        else if(powerIsOn===false || powerIsOn==='Cooling' || powerIsOn==='WarmUp' || powerIsOn==='Transitioning') projStates[idx].on=false;
         // 'Transitioning' = ERR3 from projector; direction depends on active target
         projStates[idx].lampHours=Number.isNaN(lampNum)?null:lampNum;
         projStates[idx].errorState=errorState;
@@ -8332,6 +8335,7 @@ async function syncProjectorsFromPjLink(){
   buildMonProjGrid(true);
   updateProjectorMonitoringGrid();
   updateProjectorsNavBadge();
+  _reportSchedulerWarmupResolvedIfNeeded();
   if(projectorControlStatesFingerprint(projectorControlStates) !== prevStatusFingerprint){
     persistProjectorStatusSync();
   }
@@ -9323,6 +9327,62 @@ function _renderLastTriggeredEvent(){
   }
 }
 
+function _isWarmupCueName(value){
+  return /^warmup/i.test(String(value||'').trim());
+}
+
+function _getProjectorsNotPoweredOn(){
+  return getConfiguredProjectorIndices()
+    .filter(index=>projStates[index]?.on!==true)
+    .map(index=>({
+      index:index+1,
+      ip:String(projStates[index]?.ip||''),
+      state:getProjectorStatusState(index),
+      connected:projectorOnlineStates[index]===true
+    }));
+}
+
+function _reportSchedulerWarmupResolvedIfNeeded(){
+  if(!_schedulerWarmupOpenFingerprint) return;
+  if(_getProjectorsNotPoweredOn().length>0) return;
+  const fingerprint=_schedulerWarmupOpenFingerprint;
+  _schedulerWarmupOpenFingerprint='';
+  reportHubIncidentResolved('projector_start_timeout',{
+    deviceId:'projectors',
+    fingerprint,
+    title:'Alle Projektoren sind nach Warmup eingeschaltet',
+    details:{trigger:'scheduler_warmup_cue'}
+  });
+}
+
+function _scheduleWarmupProjectorPowerCheck(cueName){
+  const name=String(cueName||'').trim();
+  if(!_isWarmupCueName(name)) return;
+  const checkKey=`${name}:${Date.now()}`;
+  _schedulerWarmupCheckKey=checkKey;
+  if(_schedulerWarmupCheckTimer) clearTimeout(_schedulerWarmupCheckTimer);
+  _schedulerWarmupCheckTimer=setTimeout(async()=>{
+    if(_schedulerWarmupCheckKey!==checkKey) return;
+    await syncProjectorsFromPjLink();
+    const notPowered=_getProjectorsNotPoweredOn();
+    if(!notPowered.length){
+      _reportSchedulerWarmupResolvedIfNeeded();
+      return;
+    }
+    const failedText=notPowered.map(p=>`PJ-${String(p.index).padStart(2,'0')} (${p.ip||'keine IP'}, ${p.state})`).join(', ');
+    const fingerprint=`${cfg?.hub_project_id||'no-project'}:scheduler_warmup_projectors:${name}`;
+    _schedulerWarmupOpenFingerprint=fingerprint;
+    addError(`Warmup-Cue ${name}: Nicht alle Projektoren sind eingeschaltet: ${failedText}`);
+    createHubTicket('projector_start_timeout',{
+      deviceId:'projectors',
+      fingerprint,
+      priority:'critical',
+      title:`Warmup-Cue ${name}: Projektoren nicht eingeschaltet`,
+      details:{trigger:'scheduler_warmup_cue',cueName:name,timeoutSeconds:120,failedProjectors:notPowered}
+    });
+  },120000);
+}
+
 function _registerLastTriggeredFromTransition(nextEventName){
   const currentName=String(nextEventName??'').trim();
   if(!currentName||currentName==='—') return;
@@ -9333,6 +9393,7 @@ function _registerLastTriggeredFromTransition(nextEventName){
   if(currentName!==_nextEventLastName){
     _lastTriggeredEventName=_nextEventLastName;
     _lastTriggeredEventTsMs=Date.now();
+    _scheduleWarmupProjectorPowerCheck(_lastTriggeredEventName);
     _nextEventLastName=currentName;
     _renderLastTriggeredEvent();
   }
@@ -9403,7 +9464,7 @@ async function pollSchedulerNextEvent(){
     const upcomingRaw=await schedulerReadWithWarmup('UpcomingEventsJson');
     const upcomingEvents=_parseUpcomingEvents(upcomingRaw);
     const firstEvent=Array.isArray(upcomingEvents)
-      ? upcomingEvents.find(ev=>ev && (ev.name!=null || ev.time!=null))
+      ? upcomingEvents.find(ev=>ev && (ev.name!=null || ev.time!=null) && _isFutureScheduleEvent(ev))
       : null;
     if(firstEvent){
       const nextName=String(firstEvent.name??'').trim()||'—';
@@ -9507,6 +9568,14 @@ function _parsePixeraScheduleDateTime(timeStr){
   if([year,month,day,hour,minute,second].some(v=>Number.isNaN(v))) return null;
   const dt=new Date(year,month-1,day,hour,minute,second,0);
   return Number.isNaN(dt.getTime())?null:dt;
+}
+
+function _isFutureScheduleEvent(event){
+  if(!event) return false;
+  const inSec=Number(event.inSec);
+  if(Number.isFinite(inSec)) return inSec>=0;
+  const dt=_parsePixeraScheduleDateTime(event.time);
+  return dt ? dt.getTime()>=Date.now()-1000 : false;
 }
 
 function _formatScheduleDetailLine(event, kind){
