@@ -1534,16 +1534,17 @@ _setupEmergencyListener();
         <div class="card-title" data-l10n-key="pixera_testpattern_title">Pixera Testpattern</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:10px" data-l10n-key="pixera_testpattern_hint">Stoppt andere Timelines und ruft die Cue auf der Timeline Testpattern ab.</div>
         <div class="preset-row">
-          <button class="btn" data-view-allow data-testpattern-cue="1" style="font-size:10px" onclick="triggerPixeraTestpatternCue(1)">UV-Map Color</button>
-          <button class="btn" data-view-allow data-testpattern-cue="2" style="font-size:10px" onclick="triggerPixeraTestpatternCue(2)">UV-Map Color Grid</button>
-          <button class="btn" data-view-allow data-testpattern-cue="3" style="font-size:10px" onclick="triggerPixeraTestpatternCue(3)">UV-Map Circle</button>
-          <button class="btn" data-view-allow data-testpattern-cue="4" style="font-size:10px" onclick="triggerPixeraTestpatternCue(4)">UV-Map Grid-A</button>
-          <button class="btn" data-view-allow data-testpattern-cue="5" style="font-size:10px" onclick="triggerPixeraTestpatternCue(5)">UV-Map Grid-B</button>
-          <button class="btn" data-view-allow data-testpattern-cue="6" style="font-size:10px" onclick="triggerPixeraTestpatternCue(6)">UV-Map Typo</button>
-          <button class="btn" data-view-allow data-testpattern-cue="7" style="font-size:10px" onclick="triggerPixeraTestpatternCue(7)">White</button>
-          <button class="btn" data-view-allow data-testpattern-cue="8" style="font-size:10px" onclick="triggerPixeraTestpatternCue(8)">Red</button>
-          <button class="btn" data-view-allow data-testpattern-cue="9" style="font-size:10px" onclick="triggerPixeraTestpatternCue(9)">Green</button>
-          <button class="btn" data-view-allow data-testpattern-cue="10" style="font-size:10px" onclick="triggerPixeraTestpatternCue(10)">Blue</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Color" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Color')">Color</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Grid" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Grid')">Grid</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Circles" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Circles')">Circles</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Grid-A" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Grid-A')">Grid-A</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Grid-B" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Grid-B')">Grid-B</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Typo" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Typo')">Typo</button>
+          <button class="btn" data-view-allow data-testpattern-cue="White" style="font-size:10px" onclick="triggerPixeraTestpatternCue('White')">White</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Red" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Red')">Red</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Green" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Green')">Green</button>
+          <button class="btn" data-view-allow data-testpattern-cue="Blue" style="font-size:10px" onclick="triggerPixeraTestpatternCue('Blue')">Blue</button>
+          <button class="btn btn-r" data-view-allow style="font-size:10px" onclick="cleanPixeraTestpattern()" data-l10n-key="pixera_testpattern_clean">Clean</button>
         </div>
       </div>
     </div>
@@ -1982,7 +1983,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.36';
+const APP_VERSION_FALLBACK = '1.0.37';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -2493,6 +2494,9 @@ const locales = {
     pixera_testpattern_visible_timelines: 'Sichtbare Timelines: {names}',
     pixera_testpattern_failed: 'Pixera Testpattern Cue fehlgeschlagen: {error}',
     pixera_testpattern_triggered: 'Pixera Testpattern: Cue {cue} ({label}) ausgelöst',
+    pixera_testpattern_clean: 'Clean',
+    pixera_testpattern_clean_triggered: 'Pixera Testpattern: Timeline zurückgesetzt',
+    pixera_testpattern_clean_failed: 'Pixera Testpattern konnte nicht zurückgesetzt werden: {error}',
     preset_1: 'Preset 1',
     preset_2: 'Preset 2',
     preset_3: 'Preset 3',
@@ -2947,6 +2951,9 @@ const locales = {
     pixera_testpattern_visible_timelines: 'Visible timelines: {names}',
     pixera_testpattern_failed: 'Pixera Testpattern cue failed: {error}',
     pixera_testpattern_triggered: 'Pixera Testpattern: triggered cue {cue} ({label})',
+    pixera_testpattern_clean: 'Clean',
+    pixera_testpattern_clean_triggered: 'Pixera Testpattern: timeline reset',
+    pixera_testpattern_clean_failed: 'Pixera Testpattern could not be reset: {error}',
     preset_1: 'Preset 1',
     preset_2: 'Preset 2',
     preset_3: 'Preset 3',
@@ -8472,7 +8479,6 @@ const PIXERA_AUDIO_TARGET_CACHE_MS=10000;
 const PIXERA_AUDIO_CHANNEL_SCAN_MAX=16;
 const PIXERA_AUDIO_USED_VOLUME_THRESHOLD_DB=-90;
 const PIXERA_TESTPATTERN_TIMELINE_NAME='Testpattern';
-const PIXERA_TESTPATTERN_CUE_LABELS={1:'UV-Map Color',2:'UV-Map Color Grid',3:'UV-Map Circle',4:'UV-Map Grid-A',5:'UV-Map Grid-B',6:'UV-Map Typo',7:'White',8:'Red',9:'Green',10:'Blue'};
 let _pixeraAudioTargetCache=null;
 let _pixeraAudioTargetCacheTs=0;
 let pixeraTestpatternBusy=false;
@@ -9098,7 +9104,7 @@ function normalizeTimelineName(value){
 
 function renderPixeraTestpatternButtons(){
   document.querySelectorAll('[data-testpattern-cue]').forEach(btn=>{
-    const cue=Number(btn.dataset.testpatternCue);
+    const cue=String(btn.dataset.testpatternCue||'');
     btn.classList.toggle('pixera-testpattern-btn-active', cue===pixeraActiveTestpatternCue);
   });
 }
@@ -9166,16 +9172,15 @@ async function stopPixeraTimelinesExcept(targetName){
   }
 }
 
-window.triggerPixeraTestpatternCue=async(cueNumber)=>{
-  const cue=Number(cueNumber);
-  const cueLabel=PIXERA_TESTPATTERN_CUE_LABELS[cue] || `Cue ${cue}`;
-  if(!Number.isFinite(cue)) return;
+window.triggerPixeraTestpatternCue=async(cueName)=>{
+  const cue=String(cueName||'').trim();
+  if(!cue) return;
   if(pixeraTestpatternBusy) return;
 
   if(demoMode){
-    pixeraActiveTestpatternCue=cue;
+    pixeraActiveTestpatternCue=(cue===pixeraActiveTestpatternCue)?null:cue;
     renderPixeraTestpatternButtons();
-    addLogT('info','pixera_testpattern_triggered',{cue,label:cueLabel});
+    addLogT('info','pixera_testpattern_triggered',{cue,label:cue});
     return;
   }
 
@@ -9187,13 +9192,51 @@ window.triggerPixeraTestpatternCue=async(cueNumber)=>{
       const list=visible.length ? visible.join(', ') : '—';
       throw new Error(`${t('pixera_testpattern_missing')} ${t('pixera_testpattern_visible_timelines',{names:list})}`);
     }
+    if(cue===pixeraActiveTestpatternCue){
+      await timelineHandleCall(targetTimeline,'stop');
+      pixeraActiveTestpatternCue=null;
+      renderPixeraTestpatternButtons();
+      addLogT('info','pixera_testpattern_clean_triggered');
+      return;
+    }
     await stopPixeraTimelinesExcept(PIXERA_TESTPATTERN_TIMELINE_NAME);
-    await timelineHandleCallWithArgs(targetTimeline,'applyCueWithNumber',[cue]);
+    await pixeraApiCall(
+      buildPixeraPaths('Pixera.Compound.applyCueOnTimeline'),
+      [{timelineName:PIXERA_TESTPATTERN_TIMELINE_NAME,cueName:cue}]
+    );
     pixeraActiveTestpatternCue=cue;
     renderPixeraTestpatternButtons();
-    addLogT('info','pixera_testpattern_triggered',{cue,label:cueLabel});
+    addLogT('info','pixera_testpattern_triggered',{cue,label:cue});
   }catch(e){
     addError(t('pixera_testpattern_failed',{error:e}));
+  }finally{
+    pixeraTestpatternBusy=false;
+  }
+};
+
+window.cleanPixeraTestpattern=async()=>{
+  if(pixeraTestpatternBusy) return;
+  if(demoMode){
+    pixeraActiveTestpatternCue=null;
+    renderPixeraTestpatternButtons();
+    addLogT('info','pixera_testpattern_clean_triggered');
+    return;
+  }
+
+  pixeraTestpatternBusy=true;
+  try{
+    const targetTimeline=await getTimelineHandleByName(PIXERA_TESTPATTERN_TIMELINE_NAME,true);
+    if(!targetTimeline){
+      const visible=await getPixeraVisibleTimelineNames();
+      const list=visible.length ? visible.join(', ') : '—';
+      throw new Error(`${t('pixera_testpattern_missing')} ${t('pixera_testpattern_visible_timelines',{names:list})}`);
+    }
+    await timelineHandleCall(targetTimeline,'stop');
+    pixeraActiveTestpatternCue=null;
+    renderPixeraTestpatternButtons();
+    addLogT('info','pixera_testpattern_clean_triggered');
+  }catch(e){
+    addError(t('pixera_testpattern_clean_failed',{error:e}));
   }finally{
     pixeraTestpatternBusy=false;
   }
