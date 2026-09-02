@@ -1010,7 +1010,17 @@ _setupEmergencyListener();
                 <div class="setting-hint">HTTPS-Verbindung fuer automatische Tickets und Standort-Synchronisation.</div>
               </div>
             </div>
-            <div id="hub-ticket-settings" style="margin-top:14px">
+            <div id="hub-pin-gate" style="margin-top:12px">
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="password" inputmode="numeric" maxlength="4" id="hub-pin-input"
+                  style="width:110px;padding:8px 12px;font-size:18px;letter-spacing:10px;text-align:center;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;outline:none"
+                  autocomplete="off" placeholder="••••"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();openHubTicketSettings()}" />
+                <button class="btn btn-g" onclick="openHubTicketSettings()">Entsperren</button>
+              </div>
+              <div id="hub-pin-error" style="min-height:16px;font-size:11px;color:#fca5a5;margin-top:4px"></div>
+            </div>
+            <div id="hub-ticket-settings" style="display:none;margin-top:14px">
               <div style="display:grid;gap:8px;margin-bottom:12px">
                 <label style="font-size:11px;color:var(--muted)">Hub API URL
                   <input id="hub-api-url-input" type="url" placeholder="https://europe-west1-...cloudfunctions.net"
@@ -1037,6 +1047,7 @@ _setupEmergencyListener();
                 <button class="btn btn-g" style="flex:1;min-width:120px" onclick="saveHubTicketSettings()">Speichern</button>
                 <button class="btn btn-o" style="flex:1;min-width:120px" onclick="testHubConnection()">Verbindung testen</button>
                 <button class="btn btn-o" style="flex:1;min-width:120px" onclick="createHubTestTicket()">Testticket erstellen</button>
+                <button class="btn" style="flex:1;min-width:100px;background:var(--card2);border:1px solid var(--border)" onclick="lockHubTicketSettings()">Sperren</button>
               </div>
               <div id="hub-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
             </div>
@@ -1971,7 +1982,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.35';
+const APP_VERSION_FALLBACK = '1.0.36';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -4946,6 +4957,27 @@ function applyHubTicketSettingsUI(){
   });
 }
 
+function openHubTicketSettings(){
+  const pin=String(document.getElementById('hub-pin-input')?.value||'').trim();
+  const err=document.getElementById('hub-pin-error');
+  if(pin!==VIEW_MODE_PIN){
+    if(err) err.textContent=locales[currentLang].view_mode_wrong_code;
+    document.getElementById('hub-pin-input')?.focus();
+    return;
+  }
+  if(err) err.textContent='';
+  document.getElementById('hub-pin-gate').style.display='none';
+  document.getElementById('hub-ticket-settings').style.display='block';
+  applyHubTicketSettingsUI();
+}
+
+function lockHubTicketSettings(){
+  document.getElementById('hub-ticket-settings').style.display='none';
+  document.getElementById('hub-pin-gate').style.display='block';
+  const input=document.getElementById('hub-pin-input');
+  if(input) input.value='';
+}
+
 async function saveHubTicketSettings(){
   const values={
     apiUrl:String(document.getElementById('hub-api-url-input')?.value||'').trim(),
@@ -4999,8 +5031,9 @@ async function resolveHubContext(){
     deviceId:String(cfg?.hub_device_id||'').trim(),
     source:'projektil-control'
   });
-  if(result?.locationName){
-    cfg.location_name=String(result.locationName);
+  const locationName=String(result?.locationName||result?.venue||result?.name||result?.Name||'').trim();
+  if(locationName){
+    cfg.location_name=locationName;
     await persistSiteMetadata(cfg.location_name,cfg.anydesk_address||'');
     applyVenueName();
   }
@@ -5009,7 +5042,7 @@ async function resolveHubContext(){
     cfg.hub_city=String(result.city||result.stadt||'').trim();
     cfg.hub_year=String(result.year||result.jahr||'').trim();
     cfg.hub_show=String(result.show||result.showName||'').trim();
-    cfg.hub_venue=String(result.venue||result.locationName||'').trim();
+    cfg.hub_venue=String(result.venue||locationName||'').trim();
     cfg.hub_play_period_start=String(result.playPeriodStart||result.spielperiodeStart||'').trim();
     cfg.hub_play_period_end=String(result.playPeriodEnd||result.spielperiodeEnd||'').trim();
   }
@@ -5213,6 +5246,8 @@ async function createHubTestTicket(){
 window.saveHubTicketSettings=saveHubTicketSettings;
 window.testHubConnection=testHubConnection;
 window.createHubTestTicket=createHubTestTicket;
+window.openHubTicketSettings=openHubTicketSettings;
+window.lockHubTicketSettings=lockHubTicketSettings;
 
 window.saveVenueName=async function(){
   const val = (document.getElementById('venue-name-input')?.value || '').trim();
