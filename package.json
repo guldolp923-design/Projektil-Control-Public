@@ -1,6 +1,6 @@
 {
   "name": "projektil-control",
-  "version": "1.0.37",
+  "version": "1.0.38",
   "description": "PROJEKTIL Show Control — Tauri App",
   "scripts": {
     "dev": "tauri dev",
