@@ -22,6 +22,9 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# Runtime configuration may contain Telegram/API secrets
+config.json
+
 # macOS
 .DS_Store
 

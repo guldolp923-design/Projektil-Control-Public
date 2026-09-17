@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use chrono::{Local, TimeZone};
+use chrono::{Local, NaiveDate, TimeZone};
 use futures_util::{SinkExt, StreamExt};
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 use tokio::time::timeout;
@@ -219,6 +219,9 @@ static APP_LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
 static LAST_LOG_PRUNE_MS: OnceLock<Mutex<u64>> = OnceLock::new();
 static TELEGRAM_LAST_SENT: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
 static CONFIG_VERSIONS: OnceLock<Mutex<Vec<ConfigVersion>>> = OnceLock::new();
+static CONFIG_STORE: OnceLock<Mutex<serde_json::Value>> = OnceLock::new();
+static CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
+static CONFIG_WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct ConfigVersion {
@@ -230,6 +233,14 @@ struct ConfigVersion {
 
 fn config_versions() -> &'static Mutex<Vec<ConfigVersion>> {
     CONFIG_VERSIONS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn config_store() -> &'static Mutex<serde_json::Value> {
+    CONFIG_STORE.get_or_init(|| Mutex::new(default_config_json()))
+}
+
+fn config_write_lock() -> &'static Mutex<()> {
+    CONFIG_WRITE_LOCK.get_or_init(|| Mutex::new(()))
 }
 
 // ============================================================
@@ -417,6 +428,65 @@ fn system_log_path(app: Option<&AppHandle>) -> Result<PathBuf, String> {
 
 fn error_log_path(app: Option<&AppHandle>) -> Result<PathBuf, String> {
     Ok(resolve_log_dir(app)?.join("error.log"))
+}
+
+fn daily_csv_dir(app: Option<&AppHandle>) -> Result<PathBuf, String> {
+    let dir = resolve_log_dir(app)?.join("daily-csv");
+    fs::create_dir_all(&dir)
+        .map_err(|e| format!("Daily-CSV-Verzeichnis konnte nicht erstellt werden: {}", e))?;
+    Ok(dir)
+}
+
+fn validate_daily_csv_date(date: &str) -> Result<NaiveDate, String> {
+    let clean = date.trim();
+    if clean.len() != 10 || clean.chars().enumerate().any(|(idx, ch)| {
+        if idx == 4 || idx == 7 { ch != '-' } else { !ch.is_ascii_digit() }
+    }) {
+        return Err("Datum muss im Format YYYY-MM-DD sein".to_string());
+    }
+    NaiveDate::parse_from_str(clean, "%Y-%m-%d")
+        .map_err(|e| format!("Ungültiges Daily-CSV-Datum: {}", e))
+}
+
+fn daily_csv_path(app: Option<&AppHandle>, date: &str) -> Result<PathBuf, String> {
+    let parsed = validate_daily_csv_date(date)?;
+    Ok(daily_csv_dir(app)?.join(format!("projektil-log-{}.csv", parsed.format("%Y-%m-%d"))))
+}
+
+fn prune_daily_csv_files(app: Option<&AppHandle>) -> Result<(), String> {
+    let dir = daily_csv_dir(app)?;
+    let today = Local::now().date_naive();
+    let cutoff = today - chrono::Duration::days(60);
+    for entry in fs::read_dir(&dir).map_err(|e| format!("Daily-CSV-Verzeichnis konnte nicht gelesen werden: {}", e))? {
+        let entry = match entry { Ok(v) => v, Err(_) => continue };
+        let path = entry.path();
+        if !path.is_file() { continue; }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue; };
+        let Some(date_part) = name.strip_prefix("projektil-log-").and_then(|s| s.strip_suffix(".csv")) else { continue; };
+        if let Ok(date) = NaiveDate::parse_from_str(date_part, "%Y-%m-%d") {
+            if date < cutoff {
+                let _ = fs::remove_file(path);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn list_daily_csv_dates(app: Option<&AppHandle>) -> Result<Vec<String>, String> {
+    let dir = daily_csv_dir(app)?;
+    let mut dates = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|e| format!("Daily-CSV-Verzeichnis konnte nicht gelesen werden: {}", e))? {
+        let entry = match entry { Ok(v) => v, Err(_) => continue };
+        let path = entry.path();
+        if !path.is_file() { continue; }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue; };
+        let Some(date_part) = name.strip_prefix("projektil-log-").and_then(|s| s.strip_suffix(".csv")) else { continue; };
+        if NaiveDate::parse_from_str(date_part, "%Y-%m-%d").is_ok() {
+            dates.push(date_part.to_string());
+        }
+    }
+    dates.sort();
+    Ok(dates)
 }
 
 fn read_log_entries(path: &PathBuf) -> Vec<AppLogEntry> {
@@ -616,7 +686,9 @@ fn backup_config_on_change(config_path: &Path, config_content: &str) -> Result<(
 }
 
 fn write_app_log(level: &str, message: &str, timestamp_ms: u64, app: Option<&AppHandle>) -> Result<(), String> {
-    let clean_level = if level.eq_ignore_ascii_case("error") {
+    let cfg = get_config();
+    let suppressed = level.eq_ignore_ascii_case("error") && error_event_is_suppressed(message, &cfg);
+    let clean_level = if level.eq_ignore_ascii_case("error") && !suppressed {
         "error".to_string()
     } else {
         "info".to_string()
@@ -885,6 +957,12 @@ fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<S
     if m.contains("snmp-werte von switch") || m.contains("snmp values") && m.contains("switch") {
         push("poe_switch_offline");
     }
+    if (m.contains("keine snmp-werte") || m.contains("snmp values")) && m.contains("ups") {
+        push("ups_offline");
+    }
+    if (m.contains("keine modbus-werte") || m.contains("modbus values")) && m.contains("janitza") {
+        push("janitza_offline");
+    }
     if m.contains("snmp-werte von router") || m.contains("snmp values") && (m.contains("router") || m.contains("rutx")) {
         push("rutx_offline");
     }
@@ -923,6 +1001,11 @@ fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<S
     out
 }
 
+fn error_event_is_suppressed(message: &str, cfg: &serde_json::Value) -> bool {
+    let Some(suppressed) = cfg["suppressed_error_events"].as_array() else { return false; };
+    let keys: Vec<String> = suppressed.iter().filter_map(|value| value.as_str()).map(|key| key.trim().to_ascii_lowercase()).filter(|key| !key.is_empty()).collect();
+    detect_telegram_alert_events(message, cfg).iter().any(|event| keys.iter().any(|key| key == event || (event.ends_with("_offline") && key == "offline")))
+}
 fn should_send_telegram_for_error(level: &str, message: &str, cfg: &serde_json::Value) -> bool {
     if !level.eq_ignore_ascii_case("error") {
         return false;
@@ -3610,6 +3693,7 @@ fn default_config_json() -> serde_json::Value {
         "pixera_ip": "192.168.1.31", "pixera_port": 1338,
         "pixera_octo1_ip": "192.168.1.32", "pixera_octo2_ip": "192.168.1.33",
         "pixera_octo_port": 4000,
+        "pixera_hub_port": 4000,
         "pixera_octo_count": 2,
         "pixera_api_root": "",
         "pixera_pjlink_module": "PJ_Link__16ch",
@@ -3626,6 +3710,12 @@ fn default_config_json() -> serde_json::Value {
         "projector_start": 101, "projector_count": 16,
         "interactive_enabled": false,
         "interactive_scanner_count": 2,
+        "interactive_pc_ip": "192.168.1.36",
+        "interactive_scanner1_ip": "192.168.1.34",
+        "interactive_scanner2_ip": "192.168.1.35",
+        "interactive_pc_mac": "",
+        "interactive_scanner1_mac": "",
+        "interactive_scanner2_mac": "",
         "emergency_switch_enabled": false,
         "hotline": "+41 44 492 51 69",
         "location_name": "",
@@ -3634,6 +3724,7 @@ fn default_config_json() -> serde_json::Value {
         "hub_api_token": "",
         "hub_project_id": "",
         "hub_device_id": "",
+        "suppressed_error_events": [],
         "telegram": {
             "enabled": false,
             "bot_token": "",
@@ -3685,6 +3776,10 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     if !obj.contains_key("pixera_octo_port") {
         obj.insert("pixera_octo_port".to_string(), serde_json::json!(4000));
     }
+    if !obj.contains_key("pixera_hub_port") {
+        let fallback_port = obj.get("pixera_octo_port").and_then(|v| v.as_u64()).unwrap_or(4000);
+        obj.insert("pixera_hub_port".to_string(), serde_json::json!(fallback_port));
+    }
     if !obj.contains_key("pixera_octo_count") {
         obj.insert("pixera_octo_count".to_string(), serde_json::json!(2));
     }
@@ -3697,9 +3792,31 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     if !obj.contains_key("interactive_scanner_count") {
         obj.insert("interactive_scanner_count".to_string(), serde_json::json!(2));
     }
+    if !obj.contains_key("interactive_pc_ip") {
+        obj.insert("interactive_pc_ip".to_string(), serde_json::json!("192.168.1.36"));
+    }
+    if !obj.contains_key("interactive_scanner1_ip") {
+        obj.insert("interactive_scanner1_ip".to_string(), serde_json::json!("192.168.1.34"));
+    }
+    if !obj.contains_key("interactive_scanner2_ip") {
+        obj.insert("interactive_scanner2_ip".to_string(), serde_json::json!("192.168.1.35"));
+    }
+    if !obj.contains_key("interactive_pc_mac") {
+        obj.insert("interactive_pc_mac".to_string(), serde_json::json!(""));
+    }
+    if !obj.contains_key("interactive_scanner1_mac") {
+        obj.insert("interactive_scanner1_mac".to_string(), serde_json::json!(""));
+    }
+    if !obj.contains_key("interactive_scanner2_mac") {
+        obj.insert("interactive_scanner2_mac".to_string(), serde_json::json!(""));
+    }
     if !obj.contains_key("emergency_switch_enabled") {
         obj.insert("emergency_switch_enabled".to_string(), serde_json::json!(false));
     }
+    if !obj.contains_key("suppressed_error_events") {
+        obj.insert("suppressed_error_events".to_string(), serde_json::json!([]));
+    }
+
     if !obj.contains_key("d40_03_ip") {
         obj.insert("d40_03_ip".to_string(), serde_json::json!("192.168.1.53"));
     }
@@ -3879,57 +3996,81 @@ fn is_src_tauri_config_path(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn read_config_json_from_disk() -> Option<(PathBuf, serde_json::Value)> {
-    for path in config_path_candidates() {
-        // Never treat src-tauri/config.json as runtime state file.
-        if is_src_tauri_config_path(&path) {
-            continue;
-        }
-        let content = match fs::read_to_string(&path) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        let json = match serde_json::from_str::<serde_json::Value>(&content) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        return Some((path, json));
+fn canonical_config_path() -> Result<PathBuf, String> {
+    if let Some(path) = CONFIG_PATH.get() { return Ok(path.clone()); }
+    let app = APP_HANDLE.get().ok_or_else(|| "AppHandle ist noch nicht initialisiert".to_string())?;
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join("config.json");
+    let _ = CONFIG_PATH.set(path.clone());
+    Ok(path)
+}
+
+fn newest_valid_config_backup(path: &Path) -> Option<serde_json::Value> {
+    let dir = path.parent()?.join("config_backups");
+    let mut candidates = Vec::new();
+    for entry in fs::read_dir(dir).ok()? {
+        let candidate = entry.ok()?.path();
+        if !candidate.file_name()?.to_string_lossy().starts_with("config.v") { continue; }
+        let value = serde_json::from_str::<serde_json::Value>(&fs::read_to_string(&candidate).ok()?).ok()?;
+        let modified = fs::metadata(&candidate).ok()?.modified().ok()?;
+        candidates.push((modified, value));
     }
-    None
+    candidates.sort_by_key(|item| item.0);
+    candidates.pop().map(|item| item.1)
+}
+
+fn atomic_write_config(path: &Path, body: &str) -> Result<(), String> {
+    let temp = path.with_extension("json.tmp");
+    fs::write(&temp, body).map_err(|e| e.to_string())?;
+    if fs::rename(&temp, path).is_err() {
+        let _ = fs::remove_file(path);
+        fs::rename(&temp, path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn initialize_config_store() -> Result<(), String> {
+    let path = canonical_config_path()?;
+    let mut cfg = match fs::read_to_string(&path) {
+        Ok(body) => serde_json::from_str::<serde_json::Value>(&body).unwrap_or_else(|_| newest_valid_config_backup(&path).unwrap_or_else(default_config_json)),
+        Err(_) => {
+            let legacy = config_path_candidates().into_iter()
+                .filter(|candidate| candidate != &path && !is_src_tauri_config_path(candidate))
+                .find_map(|candidate| {
+                    let body = fs::read_to_string(candidate).ok()?;
+                    serde_json::from_str::<serde_json::Value>(&body).ok()
+                });
+            legacy.unwrap_or_else(default_config_json)
+        },
+    };
+    ensure_config_defaults(&mut cfg);
+    if let Ok(mut store) = config_store().lock() { *store = cfg; }
+    let _ = write_app_log("info", &format!("Config-Pfad: {}", path.display()), now_timestamp_ms(), APP_HANDLE.get());
+    Ok(())
+}
+
+fn read_config_json_from_disk() -> Option<(PathBuf, serde_json::Value)> {
+    initialize_config_store().ok()?;
+    Some((canonical_config_path().ok()?, config_store().lock().ok()?.clone()))
 }
 
 fn resolve_config_write_path() -> PathBuf {
-    if let Some((path, _)) = read_config_json_from_disk() {
-        return path;
-    }
-
-    for path in config_path_candidates() {
-        if is_src_tauri_config_path(&path) {
-            continue;
-        }
-        if let Some(parent) = path.parent() {
-            if parent.as_os_str().is_empty() {
-                return path;
-            }
-            if fs::create_dir_all(parent).is_ok() {
-                return path;
-            }
-        } else {
-            return path;
-        }
-    }
-
-    PathBuf::from("config.json")
+    canonical_config_path().unwrap_or_else(|_| PathBuf::from("config.json"))
 }
 
 fn write_config_json_to_disk(cfg: &serde_json::Value) -> Result<(), String> {
     let path = resolve_config_write_path();
     let body = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
-    fs::write(path, body).map_err(|e| e.to_string())
+    backup_config_on_change(&path, &body)?;
+    atomic_write_config(&path, &body)?;
+    if let Ok(mut store) = config_store().lock() { *store = cfg.clone(); }
+    let _ = write_app_log("info", &format!("Config gespeichert: {}", path.display()), now_timestamp_ms(), APP_HANDLE.get());
+    Ok(())
 }
-
 #[tauri::command]
 fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
     let mut cfg = read_config_json_from_disk()
         .map(|(_, json)| json)
         .unwrap_or_else(default_config_json);
@@ -3954,6 +4095,7 @@ fn save_hub_config(
     project_id: String,
     device_id: String,
 ) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
     let url = api_url.trim();
     if !url.is_empty() && !url.starts_with("https://") {
         return Err("Hub API muss eine HTTPS-URL verwenden".to_string());
@@ -4014,6 +4156,7 @@ fn hub_post_json(
 
 #[tauri::command]
 fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, channel_id: Option<String>, alert_events: Option<Vec<String>>) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
     let mut cfg = read_config_json_from_disk()
         .map(|(_, json)| json)
         .unwrap_or_else(default_config_json);
@@ -4052,6 +4195,89 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, chann
 }
 
 #[tauri::command]
+fn save_suppressed_error_events(events: Vec<String>) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
+    let allowed = ["janitza_offline", "janitza_asymmetry", "janitza_overfrequency", "janitza_underfrequency", "ups_offline", "ups_battery", "nas_offline", "poe_switch_offline", "rutx_offline", "pixera_offline", "trigger_missed", "timeline_error", "emergency", "panic", "keyword_match"];
+    let cleaned: Vec<String> = events.into_iter().map(|event| event.trim().to_ascii_lowercase()).filter(|event| allowed.contains(&event.as_str())).collect();
+    let mut cfg = read_config_json_from_disk().map(|(_, json)| json).unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
+    cfg["suppressed_error_events"] = serde_json::json!(cleaned);
+    write_config_json_to_disk(&cfg)?;
+    Ok(true)
+}
+
+fn normalize_mac_address(mac: &str) -> Result<[u8; 6], String> {
+    let cleaned: String = mac.chars().filter(|ch| ch.is_ascii_hexdigit()).collect();
+    if cleaned.len() != 12 {
+        return Err("MAC-Adresse muss 12 Hex-Zeichen enthalten".to_string());
+    }
+    let mut out = [0u8; 6];
+    for idx in 0..6 {
+        let start = idx * 2;
+        out[idx] = u8::from_str_radix(&cleaned[start..start+2], 16)
+            .map_err(|_| "Ungültige MAC-Adresse".to_string())?;
+    }
+    Ok(out)
+}
+
+fn normalize_mac_string(mac: &str) -> Result<String, String> {
+    let bytes = normalize_mac_address(mac)?;
+    Ok(bytes.iter().map(|byte| format!("{:02X}", byte)).collect::<Vec<_>>().join(":"))
+}
+
+#[tauri::command]
+fn save_interactive_device_config(
+    pixera_hub_port: Option<u16>,
+    interactive_pc_ip: String,
+    interactive_scanner1_ip: String,
+    interactive_scanner2_ip: String,
+    interactive_pc_mac: String,
+    interactive_scanner1_mac: String,
+    interactive_scanner2_mac: String,
+) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
+    let mut cfg = read_config_json_from_disk().map(|(_, json)| json).unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
+
+    let normalize_optional_mac = |value: String| -> Result<String, String> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() { Ok(String::new()) } else { normalize_mac_string(trimmed) }
+    };
+
+    if let Some(obj) = cfg.as_object_mut() {
+        if let Some(port) = pixera_hub_port {
+            let safe_port = if port == 0 { 4000 } else { port };
+            obj.insert("pixera_hub_port".to_string(), serde_json::json!(safe_port));
+            obj.insert("pixera_octo_port".to_string(), serde_json::json!(safe_port));
+        }
+        obj.insert("interactive_pc_ip".to_string(), serde_json::json!(interactive_pc_ip.trim()));
+        obj.insert("interactive_scanner1_ip".to_string(), serde_json::json!(interactive_scanner1_ip.trim()));
+        obj.insert("interactive_scanner2_ip".to_string(), serde_json::json!(interactive_scanner2_ip.trim()));
+        obj.insert("interactive_pc_mac".to_string(), serde_json::json!(normalize_optional_mac(interactive_pc_mac)?));
+        obj.insert("interactive_scanner1_mac".to_string(), serde_json::json!(normalize_optional_mac(interactive_scanner1_mac)?));
+        obj.insert("interactive_scanner2_mac".to_string(), serde_json::json!(normalize_optional_mac(interactive_scanner2_mac)?));
+    }
+    write_config_json_to_disk(&cfg)?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn send_wake_on_lan(mac: String) -> Result<bool, String> {
+    let mac_bytes = normalize_mac_address(&mac)?;
+    let mut packet = Vec::with_capacity(102);
+    packet.extend_from_slice(&[0xFF; 6]);
+    for _ in 0..16 {
+        packet.extend_from_slice(&mac_bytes);
+    }
+    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| format!("Wake-on-LAN Socket Fehler: {}", e))?;
+    socket.set_broadcast(true).map_err(|e| format!("Wake-on-LAN Broadcast Fehler: {}", e))?;
+    socket
+        .send_to(&packet, "255.255.255.255:9")
+        .map_err(|e| format!("Wake-on-LAN Versand fehlgeschlagen: {}", e))?;
+    Ok(true)
+}
+
+#[tauri::command]
 fn save_ui_state(
     demo_mode: Option<bool>,
     startup_mode: Option<String>,
@@ -4071,6 +4297,7 @@ fn save_ui_state(
     projector_control_states: Option<Vec<String>>,
     projector_status_updated_at: Option<u64>,
 ) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
     let mut cfg = read_config_json_from_disk()
         .map(|(_, json)| json)
         .unwrap_or_else(default_config_json);
@@ -4262,6 +4489,64 @@ fn load_app_logs(app: AppHandle, limit: Option<usize>) -> Result<serde_json::Val
         "system": system_entries,
         "errors": error_entries
     }))
+}
+
+#[tauri::command]
+fn get_daily_log_csv_status(app: AppHandle) -> Result<serde_json::Value, String> {
+    prune_daily_csv_files(Some(&app))?;
+    let dir = daily_csv_dir(Some(&app))?;
+    Ok(serde_json::json!({
+        "dir": dir.to_string_lossy().to_string(),
+        "dates": list_daily_csv_dates(Some(&app))?,
+        "retentionDays": 60
+    }))
+}
+
+#[tauri::command]
+fn save_daily_log_csv(app: AppHandle, date: String, csv_content: String) -> Result<bool, String> {
+    let parsed = validate_daily_csv_date(&date)?;
+    let path = daily_csv_path(Some(&app), &date)?;
+    let parent = path.parent().ok_or_else(|| "Ungültiger Daily-CSV-Pfad".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|e| format!("Daily-CSV-Verzeichnis konnte nicht erstellt werden: {}", e))?;
+    let tmp_path = path.with_extension("csv.tmp");
+    fs::write(&tmp_path, csv_content)
+        .map_err(|e| format!("Daily-CSV konnte nicht geschrieben werden: {}", e))?;
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| format!("Alte Daily-CSV konnte nicht ersetzt werden: {}", e))?;
+    }
+    fs::rename(&tmp_path, &path)
+        .map_err(|e| format!("Daily-CSV konnte nicht atomar gespeichert werden: {}", e))?;
+    prune_daily_csv_files(Some(&app))?;
+    let _ = write_app_log(
+        "info",
+        &format!("Autosave CSV für {} gespeichert: {}", parsed.format("%Y-%m-%d"), path.display()),
+        now_timestamp_ms(),
+        Some(&app),
+    );
+    Ok(true)
+}
+
+#[tauri::command]
+fn open_daily_log_csv_folder(app: AppHandle) -> Result<bool, String> {
+    let dir = daily_csv_dir(Some(&app))?;
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = Command::new("explorer");
+        cmd.creation_flags(0x08000000);
+        cmd.arg(&dir).spawn().map_err(|e| format!("Daily-CSV-Ordner konnte nicht geöffnet werden: {}", e))?;
+        return Ok(true);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg(&dir).spawn().map_err(|e| format!("Daily-CSV-Ordner konnte nicht geöffnet werden: {}", e))?;
+        return Ok(true);
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open").arg(&dir).spawn().map_err(|e| format!("Daily-CSV-Ordner konnte nicht geöffnet werden: {}", e))?;
+        return Ok(true);
+    }
 }
 
 fn pjlink_read_line(stream: &mut TcpStream) -> Result<String, String> {
@@ -5066,6 +5351,7 @@ fn get_offline_mode_enabled() -> bool {
 
 #[tauri::command]
 fn set_offline_mode(enabled: bool) -> Result<(), String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
     let mut cfg = get_config();
     cfg["offline_mode_enabled"] = serde_json::json!(enabled);
     write_config_json_to_disk(&cfg)?;
@@ -5243,6 +5529,22 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             Ok(serde_json::json!(true))
         }
 
+        "save_suppressed_error_events" => Ok(serde_json::json!(save_suppressed_error_events(arg_optional_vec_string(args, &["events", "suppressed_error_events"]).unwrap_or_default())?)),
+
+        "save_interactive_device_config" => Ok(serde_json::json!(save_interactive_device_config(
+            arg_optional_u16(args, &["pixeraHubPort", "pixera_hub_port"]),
+            arg_string(args, &["interactivePcIp", "interactive_pc_ip"])? ,
+            arg_string(args, &["interactiveScanner1Ip", "interactive_scanner1_ip"])? ,
+            arg_string(args, &["interactiveScanner2Ip", "interactive_scanner2_ip"])? ,
+            arg_optional_string(args, &["interactivePcMac", "interactive_pc_mac"]).unwrap_or_default(),
+            arg_optional_string(args, &["interactiveScanner1Mac", "interactive_scanner1_mac"]).unwrap_or_default(),
+            arg_optional_string(args, &["interactiveScanner2Mac", "interactive_scanner2_mac"]).unwrap_or_default()
+        )?)),
+
+        "send_wake_on_lan" => Ok(serde_json::json!(send_wake_on_lan(
+            arg_string(args, &["mac"])?
+        )?)),
+
         "save_telegram_config" => Ok(serde_json::json!(save_telegram_config(
             arg_bool(args, &["enabled"])? ,
             arg_string(args, &["botToken", "bot_token"])? ,
@@ -5289,6 +5591,25 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
         "load_app_logs" => {
             let app = app_handle_required()?;
             load_app_logs(app, arg_optional_usize(args, &["limit"]))
+        }
+
+        "get_daily_log_csv_status" => {
+            let app = app_handle_required()?;
+            get_daily_log_csv_status(app)
+        }
+
+        "save_daily_log_csv" => {
+            let app = app_handle_required()?;
+            Ok(serde_json::json!(save_daily_log_csv(
+                app,
+                arg_string(args, &["date", "dateStr", "date_str"])? ,
+                arg_string(args, &["csvContent", "csv_content"])?
+            )?))
+        }
+
+        "open_daily_log_csv_folder" => {
+            let app = app_handle_required()?;
+            Ok(serde_json::json!(open_daily_log_csv_folder(app)?))
         }
 
         "open_external_url" => Ok(serde_json::json!(open_external_url(
@@ -5723,6 +6044,7 @@ fn main() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             let _ = APP_HANDLE.set(app_handle.clone());
+            let _ = initialize_config_store();
             let _ = resolve_log_dir(Some(&app_handle));
             install_panic_logging_hook();
             let _ = write_app_log("info", "Application startup", now_timestamp_ms(), Some(&app_handle));
@@ -5789,8 +6111,8 @@ fn main() {
             pixera_api_request, get_next_cue, get_upcoming_cues,
             send_emergency_notaus_osc, send_emergency_osc_to_switch, send_emergency_reset_osc,
             minimize_window, toggle_fullscreen,
-            hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_config,
-            save_site_metadata, save_hub_config, hub_post_json, save_telegram_config, save_ui_state, telegram_send_test, get_server_time_ms,
+            hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_daily_log_csv_status, save_daily_log_csv, open_daily_log_csv_folder, get_config,
+            save_site_metadata, save_hub_config, hub_post_json, save_telegram_config, save_suppressed_error_events, save_interactive_device_config, send_wake_on_lan, save_ui_state, telegram_send_test, get_server_time_ms,
             get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache, reset_all_device_failures
         ])
         .run(tauri::generate_context!())

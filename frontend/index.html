@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -477,10 +477,11 @@ body.ui-mobile .mobile-nav{display:grid;grid-template-columns:repeat(5,minmax(0,
 .mobile-more-icon{font-size:16px;line-height:1;flex-shrink:0}
 .mobile-more-label{font-size:11px;font-weight:700;line-height:1.1}
 body.ui-mobile #tab-projectors{overflow-x:hidden}
-body.ui-mobile .proj-toolbar{justify-content:stretch}
-body.ui-mobile .proj-select-wrap{display:flex;width:100%}
-body.ui-mobile .proj-select-toggle{width:100%}
-body.ui-mobile .proj-select-menu{left:0;right:0;top:44px;min-width:0;width:100%;max-width:100%}
+body.ui-mobile #tab-projectors .proj-toolbar{display:contents;margin:0}
+body.ui-mobile #tab-projectors .proj-select-wrap{position:static;display:block;width:0;height:0;pointer-events:none}
+body.ui-mobile #tab-projectors .proj-select-toggle{position:fixed;left:auto!important;right:14px;bottom:calc(90px + env(safe-area-inset-bottom,0px));z-index:117;width:128px!important;max-width:calc(100vw - 28px);padding:12px 16px;border-radius:999px;box-shadow:0 14px 34px rgba(0,0,0,.38),0 0 0 1px rgba(96,165,250,.18) inset;pointer-events:auto;white-space:nowrap}
+body.ui-mobile #tab-projectors .proj-select-menu{position:fixed;left:auto!important;right:14px!important;top:auto;bottom:calc(142px + env(safe-area-inset-bottom,0px));min-width:0;width:320px!important;max-width:calc(100vw - 28px);transform-origin:bottom right;pointer-events:auto;z-index:117}
+body.ui-mobile #tab-projectors .proj-select-menu.hidden{transform:translateY(8px) scale(.985)}
 body.ui-mobile .proj-toolbar-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 body.ui-mobile .proj-toolbar-buttons .btn{min-width:0;width:100%}
 body.ui-mobile .proj-grid{grid-template-columns:1fr!important}
@@ -907,6 +908,17 @@ _setupEmergencyListener();
                     </select>
                     <button class="btn btn-g" onclick="commitInteractiveScannerCountFromInput()" data-l10n-key="settings_ok">OK</button>
                   </div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:12px">
+                    <label style="font-size:11px;color:var(--muted)"><span data-l10n-key="pixera_hub_port_label">Pixera Hub Port</span><input id="pixera-hub-port-input" type="number" min="1" max="65535" placeholder="4000" style="display:block;width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;box-sizing:border-box" /></label>
+                    <label style="font-size:11px;color:var(--muted)"><span data-l10n-key="interactive_pc_ip_label">PC Interaktiv IP</span><input id="interactive-pc-ip-input" type="text" placeholder="192.168.1.36" style="display:block;width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;box-sizing:border-box" /></label>
+                    <label style="font-size:11px;color:var(--muted)"><span data-l10n-key="interactive_pc_mac_label">PC Interaktiv MAC</span><input id="interactive-pc-mac-input" type="text" placeholder="AA:BB:CC:DD:EE:FF" style="display:block;width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;box-sizing:border-box" /></label>
+                    <label style="font-size:11px;color:var(--muted)"><span data-l10n-key="interactive_scanner1_ip_label">Scanner 01 IP</span><input id="interactive-scanner1-ip-input" type="text" placeholder="192.168.1.34" style="display:block;width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;box-sizing:border-box" /></label>
+                    <label style="font-size:11px;color:var(--muted)"><span data-l10n-key="interactive_scanner1_mac_label">Scanner 01 MAC</span><input id="interactive-scanner1-mac-input" type="text" placeholder="AA:BB:CC:DD:EE:FF" style="display:block;width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;box-sizing:border-box" /></label>
+                    <label style="font-size:11px;color:var(--muted)"><span data-l10n-key="interactive_scanner2_ip_label">Scanner 02 IP</span><input id="interactive-scanner2-ip-input" type="text" placeholder="192.168.1.35" style="display:block;width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;box-sizing:border-box" /></label>
+                    <label style="font-size:11px;color:var(--muted)"><span data-l10n-key="interactive_scanner2_mac_label">Scanner 02 MAC</span><input id="interactive-scanner2-mac-input" type="text" placeholder="AA:BB:CC:DD:EE:FF" style="display:block;width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;box-sizing:border-box" /></label>
+                  </div>
+                  <button class="btn btn-g" style="width:100%;margin-top:8px" onclick="saveInteractiveDeviceSettings()" data-l10n-key="save_interactive_devices">Interaktiv-Geräte speichern</button>
+                  <div id="interactive-device-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
                 </div>
               </div>
               <div class="setting-block">
@@ -921,6 +933,19 @@ _setupEmergencyListener();
                   </label>
                 </div>
               </div>
+            </div>
+          </div>
+          <div class="setting-block">
+            <div class="setting-label" data-l10n-key="daily_csv_title">Automatischer Log-Export</div>
+            <div class="setting-hint" data-l10n-key="daily_csv_hint">Speichert jeden Tag um 23:59 eine CSV im Programmordner und behaelt 60 Tage.</div>
+            <div style="display:grid;gap:8px;margin-top:10px">
+              <div style="font-size:11px;color:var(--muted);font-family:var(--mono);word-break:break-all" id="daily-csv-path">—</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" style="flex:1;min-width:120px" onclick="refreshDailyCsvStatus()" data-l10n-key="daily_csv_refresh">Aktualisieren</button>
+                <button class="btn btn-o" style="flex:1;min-width:120px" onclick="openDailyCsvFolder()" data-l10n-key="daily_csv_open_folder">Ordner öffnen</button>
+                <button class="btn btn-g" style="flex:1;min-width:120px" onclick="runDailyCsvExportNow()" data-l10n-key="daily_csv_test_export">Heute exportieren</button>
+              </div>
+              <div id="daily-csv-status" style="min-height:16px;font-size:11px;color:var(--muted)"></div>
             </div>
           </div>
           <div class="setting-block">
@@ -1153,6 +1178,39 @@ _setupEmergencyListener();
               <div id="tg-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
             </div>
           </div>
+          <div class="setting-block" id="suppressed-error-settings">
+            <div class="setting-label" data-l10n-key="suppressed_errors_title">Fehler ausblenden</div>
+            <div class="setting-hint" data-l10n-key="suppressed_errors_hint">Ausgewaehlte Fehler bleiben im System-Log sichtbar, erscheinen aber nicht als aktive rote Fehler.</div>
+            <div class="tg-alert-grid" style="margin-top:14px">
+              <details open class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_janitza">Janitza</summary><div class="tg-event-options">
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_offline"> <span data-l10n-key="telegram_event_janitza_offline">Janitza offline</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_asymmetry"> <span data-l10n-key="telegram_event_janitza_asymmetry">Janitza Asymmetrie</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_overfrequency"> <span data-l10n-key="telegram_event_janitza_overfrequency">Janitza Ueberfrequenz</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_underfrequency"> <span data-l10n-key="telegram_event_janitza_underfrequency">Janitza Unterfrequenz</span></label>
+              </div></details>
+              <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_ups">UPS</summary><div class="tg-event-options">
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="ups_offline"> <span data-l10n-key="telegram_event_ups_offline">UPS offline</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="ups_battery"> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span></label>
+              </div></details>
+              <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_network">Netzwerk</summary><div class="tg-event-options">
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="nas_offline"> <span data-l10n-key="telegram_event_nas_offline">NAS offline</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="poe_switch_offline"> <span data-l10n-key="telegram_event_poe_offline">Switch offline</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="rutx_offline"> <span data-l10n-key="telegram_event_rutx_offline">Router offline</span></label>
+              </div></details>
+              <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_show">Show / Pixera</summary><div class="tg-event-options">
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="pixera_offline"> <span data-l10n-key="telegram_event_pixera_offline">Pixera offline</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="trigger_missed"> <span data-l10n-key="telegram_event_trigger_missed">Trigger nicht ausgeloest</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="timeline_error"> <span data-l10n-key="telegram_event_timeline_error">Timeline-Fehler</span></label>
+              </div></details>
+              <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_safety">Safety</summary><div class="tg-event-options">
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="emergency"> <span data-l10n-key="telegram_event_emergency">Emergency</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="panic"> <span data-l10n-key="telegram_event_panic">Panic</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="keyword_match"> <span data-l10n-key="telegram_event_keyword">Eigene Keywords</span></label>
+              </div></details>
+            </div>
+            <button class="btn btn-g" style="width:100%;margin-top:4px" onclick="saveSuppressedErrorSettings()" data-l10n-key="save">Speichern</button>
+            <div id="suppressed-error-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
+          </div>
           <!-- DEMO MODE -->
           <div class="setting-block">
             <div class="toggle-row">
@@ -1363,9 +1421,9 @@ _setupEmergencyListener();
       <div class="card">
         <div class="card-title" data-l10n-key="interactive_monitoring_title">Interaktiv Monitoring</div>
         <div class="setting-hint" id="interactive-disabled-note" data-l10n-key="interactive_disabled_note" style="display:none;margin-bottom:10px">Interaktiv-Monitoring ist deaktiviert.</div>
-        <div class="mon-row" id="int-scanner1-row"><span data-l10n-key="interactive_scanner_01_34">Scanner 01 (IP: 192.168.1.34)</span><span class="pill pill-r" id="int-scanner1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-        <div class="mon-row" id="int-scanner2-row"><span data-l10n-key="interactive_scanner_02_35">Scanner 02 (IP: 192.168.1.35)</span><span class="pill pill-r" id="int-scanner2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-        <div class="mon-row" id="int-pc-row"><span data-l10n-key="interactive_pc_36">PC Interaktiv (IP: 192.168.1.36)</span><span class="pill pill-r" id="int-pc"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+        <div class="mon-row" id="int-scanner1-row"><span id="int-scanner1-label">Scanner 01 (IP: 192.168.1.34)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" data-view-allow style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_scanner1')">Restart</button><button class="btn btn-g" data-view-allow style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_scanner1')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-scanner1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+        <div class="mon-row" id="int-scanner2-row"><span id="int-scanner2-label">Scanner 02 (IP: 192.168.1.35)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" data-view-allow style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_scanner2')">Restart</button><button class="btn btn-g" data-view-allow style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_scanner2')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-scanner2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+        <div class="mon-row" id="int-pc-row"><span id="int-pc-label">PC Interaktiv (IP: 192.168.1.36)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" data-view-allow style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_pc')">Restart</button><button class="btn btn-g" data-view-allow style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_pc')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-pc"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
         <div class="mon-row" id="int-artnet1-row"><span data-l10n-key="interactive_artnet_01_61">Scanner-Artnet 01 (IP: 192.168.1.61)</span><span class="pill pill-r" id="int-artnet1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         <div class="mon-row" id="int-artnet2-row"><span data-l10n-key="interactive_artnet_02_62">Scanner-Artnet 02 (IP: 192.168.1.62)</span><span class="pill pill-r" id="int-artnet2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
       </div>
@@ -1738,6 +1796,7 @@ function buildDefaultConfig(){
     pixera_octo1_ip:'192.168.1.32',
     pixera_octo2_ip:'192.168.1.33',
     pixera_octo_count:2,
+    pixera_hub_port:4000,
     pixera_api_root:'erwer',
     pixera_pjlink_module:'PJ_Link__16ch',
     pixera_scheduler_module:DEFAULT_PIXERA_SCHEDULER_MODULE,
@@ -1778,6 +1837,12 @@ function buildDefaultConfig(){
     hub_play_period_end:'',
     interactive_enabled:false,
     interactive_scanner_count:2,
+    interactive_pc_ip:'192.168.1.36',
+    interactive_scanner1_ip:'192.168.1.34',
+    interactive_scanner2_ip:'192.168.1.35',
+    interactive_pc_mac:'',
+    interactive_scanner1_mac:'',
+    interactive_scanner2_mac:'',
     emergency_switch_enabled:false,
     hotline:'+41 44 492 51 69'
   };
@@ -2254,6 +2319,15 @@ const locales = {
     settings_venue_hint: 'Wird im Show-Tab oben angezeigt. Z.B. "KKL Luzern - Saal 1".',
     settings_venue_placeholder: 'Standortname eingeben...',
     settings_ok: 'OK',
+    daily_csv_title: 'Automatischer Log-Export',
+    daily_csv_hint: 'Speichert jeden Tag um 23:59 eine CSV im Programmordner und behaelt 60 Tage.',
+    daily_csv_refresh: 'Aktualisieren',
+    daily_csv_open_folder: 'Ordner öffnen',
+    daily_csv_test_export: 'Heute exportieren',
+    daily_csv_saved: 'Autosave CSV fuer {date} gespeichert.',
+    daily_csv_backfill_done: 'Daily CSV Backfill abgeschlossen: {count} Datei(en) erstellt.',
+    daily_csv_status: 'Ordner: {path} | Dateien: {count}',
+    daily_csv_failed: 'Daily CSV Export fehlgeschlagen: {error}',
     save: 'Speichern',
     lock: 'Sperren',
     unlock: 'Entsperren',
@@ -2271,6 +2345,8 @@ const locales = {
     telegram_channel_id_label: 'Kanal-ID',
     telegram_alert_events_label: 'Alarm-Ereignisse',
     telegram_alert_events_hint: 'Nur diese Ereignisse loesen Telegram aus.',
+    suppressed_errors_title: 'Fehler ausblenden',
+    suppressed_errors_hint: 'Ausgewaehlte Fehler bleiben im System-Log sichtbar, erscheinen aber nicht als aktive rote Fehler.',
     telegram_group_janitza: 'Janitza',
     telegram_group_ups: 'UPS',
     telegram_group_network: 'Netzwerk',
@@ -2381,6 +2457,24 @@ const locales = {
     interactive_scanner_count_label: 'Anzahl Scanner (1-2)',
     interactive_scanner_count_hint: 'Die gleiche Anzahl Scanner-Artnet Gateways wird ebenfalls ueberwacht.',
     interactive_scanner_count_saved: 'Scanner-Anzahl auf {count} gesetzt',
+    pixera_hub_port_label: 'Pixera Hub Port',
+    interactive_pc_ip_label: 'PC Interaktiv IP',
+    interactive_pc_mac_label: 'PC Interaktiv MAC',
+    interactive_scanner1_ip_label: 'Scanner 01 IP',
+    interactive_scanner1_mac_label: 'Scanner 01 MAC',
+    interactive_scanner2_ip_label: 'Scanner 02 IP',
+    interactive_scanner2_mac_label: 'Scanner 02 MAC',
+    save_interactive_devices: 'Interaktiv-Geraete speichern',
+    interactive_devices_saved: 'Interaktiv-Geraete gespeichert',
+    wake_short: 'Wake',
+    confirm_reboot_device: '{label} wirklich neu starten?',
+    confirm_wake_device: '{label} wirklich einschalten?',
+    device_reboot_direct_sent: '[Pixera Hub] Direkter Neustart fuer {label} ({host}:{port}) via {method} gesendet',
+    device_reboot_fallback_sent: '[Pixera Hub] Modul-Fallback Neustart fuer {label} ({host}) gesendet',
+    device_reboot_direct_failed: '[Pixera Hub] Direkter Neustart fuer {label} fehlgeschlagen: {error}',
+    device_reboot_failed: '[Pixera Hub] Neustart fuer {label} fehlgeschlagen: {error}',
+    device_wake_sent: '[Wake-on-LAN] Magic Packet fuer {label} ({mac}) gesendet',
+    device_wake_failed: '[Wake-on-LAN] Einschalten fuer {label} fehlgeschlagen: {error}',
     interactive_monitoring_title: 'Interaktiv Monitoring',
     interactive_disabled_note: 'Interaktiv-Monitoring ist deaktiviert.',
     interactive_scanner_01_34: 'Scanner 01 (IP: 192.168.1.34)',
@@ -2711,6 +2805,15 @@ const locales = {
     settings_venue_hint: 'Shown at the top of the Show tab. Example: "KKL Lucerne - Hall 1".',
     settings_venue_placeholder: 'Enter location name...',
     settings_ok: 'OK',
+    daily_csv_title: 'Automatic log export',
+    daily_csv_hint: 'Saves a CSV in the program folder every day at 23:59 and keeps 60 days.',
+    daily_csv_refresh: 'Refresh',
+    daily_csv_open_folder: 'Open folder',
+    daily_csv_test_export: 'Export today',
+    daily_csv_saved: 'Autosave CSV for {date} saved.',
+    daily_csv_backfill_done: 'Daily CSV backfill finished: {count} file(s) created.',
+    daily_csv_status: 'Folder: {path} | Files: {count}',
+    daily_csv_failed: 'Daily CSV export failed: {error}',
     save: 'Save',
     lock: 'Lock',
     unlock: 'Unlock',
@@ -2728,6 +2831,8 @@ const locales = {
     telegram_channel_id_label: 'Channel ID',
     telegram_alert_events_label: 'Alert events',
     telegram_alert_events_hint: 'Only these events trigger Telegram messages.',
+    suppressed_errors_title: 'Hide errors',
+    suppressed_errors_hint: 'Selected errors remain visible in the system log but no longer appear as active red errors.',
     telegram_group_janitza: 'Janitza',
     telegram_group_ups: 'UPS',
     telegram_group_network: 'Network',
@@ -2838,6 +2943,24 @@ const locales = {
     interactive_scanner_count_label: 'Scanner count (1-2)',
     interactive_scanner_count_hint: 'The same number of scanner Art-Net gateways will also be monitored.',
     interactive_scanner_count_saved: 'Scanner count set to {count}',
+    pixera_hub_port_label: 'Pixera Hub port',
+    interactive_pc_ip_label: 'Interactive PC IP',
+    interactive_pc_mac_label: 'Interactive PC MAC',
+    interactive_scanner1_ip_label: 'Scanner 01 IP',
+    interactive_scanner1_mac_label: 'Scanner 01 MAC',
+    interactive_scanner2_ip_label: 'Scanner 02 IP',
+    interactive_scanner2_mac_label: 'Scanner 02 MAC',
+    save_interactive_devices: 'Save interactive devices',
+    interactive_devices_saved: 'Interactive devices saved',
+    wake_short: 'Wake',
+    confirm_reboot_device: 'Really reboot {label}?',
+    confirm_wake_device: 'Really wake {label}?',
+    device_reboot_direct_sent: '[Pixera Hub] Direct reboot for {label} ({host}:{port}) via {method} sent',
+    device_reboot_fallback_sent: '[Pixera Hub] Module fallback reboot for {label} ({host}) sent',
+    device_reboot_direct_failed: '[Pixera Hub] Direct reboot for {label} failed: {error}',
+    device_reboot_failed: '[Pixera Hub] Reboot for {label} failed: {error}',
+    device_wake_sent: '[Wake-on-LAN] Magic packet for {label} ({mac}) sent',
+    device_wake_failed: '[Wake-on-LAN] Wake for {label} failed: {error}',
     interactive_monitoring_title: 'Interactive monitoring',
     interactive_disabled_note: 'Interactive monitoring is disabled.',
     interactive_scanner_01_34: 'Scanner 01 (IP: 192.168.1.34)',
@@ -4283,6 +4406,33 @@ function collectTelegramAlertEventsFromUI(){
   return out;
 }
 
+function applySuppressedErrorEventsToUI(events){
+  const selected=new Set(Array.isArray(events)?events.map(value=>String(value).trim().toLowerCase()):[]);
+  document.querySelectorAll('.suppressed-error-check').forEach(input=>{
+    input.checked=selected.has(String(input.dataset.suppressedError||'').toLowerCase());
+  });
+}
+
+function collectSuppressedErrorEventsFromUI(){
+  return [...document.querySelectorAll('.suppressed-error-check:checked')]
+    .map(input=>String(input.dataset.suppressedError||'').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+async function saveSuppressedErrorSettings(){
+  const status=document.getElementById('suppressed-error-save-status');
+  const events=collectSuppressedErrorEventsFromUI();
+  if(status) status.textContent=locales[currentLang].status_saving;
+  try{
+    await invokeStrict('save_suppressed_error_events',{events});
+    cfg.suppressed_error_events=events;
+    if(status){status.style.color='#4ade80';status.textContent=locales[currentLang].status_saved_ok;}
+  }catch(error){
+    if(status){status.style.color='#fca5a5';status.textContent=t('status_error_with_detail',{error});}
+  }
+}
+window.saveSuppressedErrorSettings=saveSuppressedErrorSettings;
+
 function openTelegramSettings(){
   const pin = String(document.getElementById('tg-pin-input')?.value || '').trim();
   const err = document.getElementById('tg-pin-error');
@@ -5555,13 +5705,17 @@ function getInteractiveMonitorTargets(){
   if(!isInteractiveMonitoringEnabled()) return [];
   const scannerCount = getInteractiveScannerCount();
   const targets = [
-    { key:'interactive_pc', id:'int-pc', rowId:'int-pc-row', ip:'192.168.1.36', port:80, pingMethod:'icmp', label:'PC Interaktiv (IP: 192.168.1.36)' },
-    { key:'interactive_scanner1', id:'int-scanner1', rowId:'int-scanner1-row', ip:'192.168.1.34', port:80, pingMethod:'icmp', label:'Scanner 01 (IP: 192.168.1.34)' }
+    { key:'interactive_pc', id:'int-pc', rowId:'int-pc-row', labelId:'int-pc-label', ip:String(cfg?.interactive_pc_ip||'192.168.1.36').trim(), mac:String(cfg?.interactive_pc_mac||'').trim(), port:80, pingMethod:'icmp', label:`PC Interaktiv (IP: ${String(cfg?.interactive_pc_ip||'192.168.1.36').trim()})` },
+    { key:'interactive_scanner1', id:'int-scanner1', rowId:'int-scanner1-row', labelId:'int-scanner1-label', ip:String(cfg?.interactive_scanner1_ip||'192.168.1.34').trim(), mac:String(cfg?.interactive_scanner1_mac||'').trim(), port:80, pingMethod:'icmp', label:`Scanner 01 (IP: ${String(cfg?.interactive_scanner1_ip||'192.168.1.34').trim()})` }
   ];
   if(scannerCount >= 2){
-    targets.push({ key:'interactive_scanner2', id:'int-scanner2', rowId:'int-scanner2-row', ip:'192.168.1.35', port:80, pingMethod:'icmp', label:'Scanner 02 (IP: 192.168.1.35)' });
+    targets.push({ key:'interactive_scanner2', id:'int-scanner2', rowId:'int-scanner2-row', labelId:'int-scanner2-label', ip:String(cfg?.interactive_scanner2_ip||'192.168.1.35').trim(), mac:String(cfg?.interactive_scanner2_mac||'').trim(), port:80, pingMethod:'icmp', label:`Scanner 02 (IP: ${String(cfg?.interactive_scanner2_ip||'192.168.1.35').trim()})` });
   }
   return targets;
+}
+
+function getInteractiveTargetByKey(key){
+  return getInteractiveMonitorTargets().find(target=>target.key===key)||null;
 }
 
 function getArtNetMonitorTargets(){
@@ -5597,6 +5751,51 @@ window.setInteractiveScannerCount=(value)=>{
   addLogT('info', 'interactive_scanner_count_saved', {count});
 };
 
+function applyInteractiveDeviceSettingsUI(){
+  const values={
+    'pixera-hub-port-input':cfg?.pixera_hub_port||cfg?.pixera_octo_port||4000,
+    'interactive-pc-ip-input':cfg?.interactive_pc_ip||'192.168.1.36',
+    'interactive-pc-mac-input':cfg?.interactive_pc_mac||'',
+    'interactive-scanner1-ip-input':cfg?.interactive_scanner1_ip||'192.168.1.34',
+    'interactive-scanner1-mac-input':cfg?.interactive_scanner1_mac||'',
+    'interactive-scanner2-ip-input':cfg?.interactive_scanner2_ip||'192.168.1.35',
+    'interactive-scanner2-mac-input':cfg?.interactive_scanner2_mac||''
+  };
+  Object.entries(values).forEach(([id,value])=>{
+    const input=document.getElementById(id);
+    if(input&&document.activeElement!==input) input.value=String(value);
+  });
+}
+
+window.saveInteractiveDeviceSettings=async()=>{
+  const status=document.getElementById('interactive-device-save-status');
+  const payload={
+    pixeraHubPort:Number(document.getElementById('pixera-hub-port-input')?.value||4000),
+    interactivePcIp:String(document.getElementById('interactive-pc-ip-input')?.value||'').trim(),
+    interactiveScanner1Ip:String(document.getElementById('interactive-scanner1-ip-input')?.value||'').trim(),
+    interactiveScanner2Ip:String(document.getElementById('interactive-scanner2-ip-input')?.value||'').trim(),
+    interactivePcMac:String(document.getElementById('interactive-pc-mac-input')?.value||'').trim(),
+    interactiveScanner1Mac:String(document.getElementById('interactive-scanner1-mac-input')?.value||'').trim(),
+    interactiveScanner2Mac:String(document.getElementById('interactive-scanner2-mac-input')?.value||'').trim()
+  };
+  if(status){status.style.color='var(--muted)';status.textContent=locales[currentLang].status_saving;}
+  try{
+    await invokeStrict('save_interactive_device_config',payload);
+    cfg.pixera_hub_port=payload.pixeraHubPort;
+    cfg.pixera_octo_port=payload.pixeraHubPort;
+    cfg.interactive_pc_ip=payload.interactivePcIp;
+    cfg.interactive_scanner1_ip=payload.interactiveScanner1Ip;
+    cfg.interactive_scanner2_ip=payload.interactiveScanner2Ip;
+    cfg.interactive_pc_mac=payload.interactivePcMac;
+    cfg.interactive_scanner1_mac=payload.interactiveScanner1Mac;
+    cfg.interactive_scanner2_mac=payload.interactiveScanner2Mac;
+    applyInteractiveSettingsUI();
+    if(status){status.style.color='#4ade80';status.textContent=locales[currentLang].interactive_devices_saved;}
+  }catch(error){
+    if(status){status.style.color='#fca5a5';status.textContent=t('status_error_with_detail',{error});}
+  }
+};
+
 window.setEmergencySwitchEnabled=(enabled)=>{
   const active = enabled === true;
   cfg.emergency_switch_enabled = active;
@@ -5608,6 +5807,7 @@ window.setEmergencySwitchEnabled=(enabled)=>{
 function applyInteractiveSettingsUI(){
   const enabled = isInteractiveMonitoringEnabled();
   const scannerCount = getInteractiveScannerCount();
+  applyInteractiveDeviceSettingsUI();
 
   const enabledToggle=document.getElementById('interactive-enabled-toggle');
   if(enabledToggle) enabledToggle.checked = enabled;
@@ -5639,6 +5839,11 @@ function applyInteractiveSettingsUI(){
     const row = document.getElementById(id);
     if(row) row.style.display = visible ? '' : 'none';
   }
+
+  getInteractiveMonitorTargets().forEach(target=>{
+    const label=document.getElementById(target.labelId);
+    if(label) label.textContent=target.label;
+  });
 
   if(!enabled){
     ['interactive_pc','interactive_scanner1','interactive_scanner2','interactive_gateway1','interactive_gateway2'].forEach(key=>{ deviceState[key] = false; });
@@ -5699,10 +5904,17 @@ async function init(){
   }
   _schedulerModuleResolved='';
   cfg.pixera_octo_port = Number(cfg.pixera_octo_port || 4000);
+  cfg.pixera_hub_port = Number(cfg.pixera_hub_port || cfg.pixera_octo_port || 4000);
   cfg.pixera_octo_count = normalizePixeraOctoCount(cfg.pixera_octo_count);
   cfg.amp_count = normalizeAmpCount(cfg.amp_count);
   cfg.interactive_enabled = cfg.interactive_enabled === true;
   cfg.interactive_scanner_count = normalizeInteractiveScannerCount(cfg.interactive_scanner_count);
+  cfg.interactive_pc_ip = String(cfg.interactive_pc_ip || '192.168.1.36').trim();
+  cfg.interactive_scanner1_ip = String(cfg.interactive_scanner1_ip || '192.168.1.34').trim();
+  cfg.interactive_scanner2_ip = String(cfg.interactive_scanner2_ip || '192.168.1.35').trim();
+  cfg.interactive_pc_mac = String(cfg.interactive_pc_mac || '').trim();
+  cfg.interactive_scanner1_mac = String(cfg.interactive_scanner1_mac || '').trim();
+  cfg.interactive_scanner2_mac = String(cfg.interactive_scanner2_mac || '').trim();
   cfg.emergency_switch_enabled = normalizeEmergencySwitchEnabled(cfg.emergency_switch_enabled);
   cfg.d40_03_ip = String(cfg.d40_03_ip || '192.168.1.53').trim();
   cfg.poe_switch_ip = cfg.poe_switch_ip || DEFAULT_POE_IP;
@@ -5723,8 +5935,12 @@ async function init(){
   applyEmergencySwitchSettingsUI();
   applyVenueName();
   applyHubTicketSettingsUI();
+  applySuppressedErrorEventsToUI(cfg?.suppressed_error_events);
   translatePage();
   await loadPersistedLogs();
+  await refreshDailyCsvStatus();
+  await backfillMissingDailyCsvs();
+  startDailyCsvScheduler();
   updateMobileTestHome();
   startPersistedSystemLogSync();
   updateStartupModeSettingsUI();
@@ -7562,10 +7778,21 @@ let persistedLogsLoaded=false;
 let persistedSystemLogSyncTimer=null;
 let persistedSystemLogSyncInFlight=false;
 let sessionStartMs=Date.now();
+let dailyCsvTimer=null;
+let dailyCsvBackfillDone=false;
+const DAILY_CSV_RETENTION_DAYS=60;
 
 function formatLogTime(ts, withDate=false){
   const d = new Date(Number(ts)||Date.now());
   return withDate ? d.toLocaleString('de-CH') : d.toLocaleTimeString('de-CH');
+}
+
+function formatLocalDateKey(ts){
+  const d=new Date(Number(ts)||Date.now());
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
 }
 
 async function persistAppLog(type,msg,ts){
@@ -7668,12 +7895,38 @@ function addLog(type,msg,opts={}){
   }
 }
 
+function detectSuppressedErrorEvents(msg){
+  const text=String(msg||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss');
+  const events=[]; const push=key=>{if(!events.includes(key))events.push(key);};
+  if(text.includes('nicht ausgeloest')||text.includes('missed event')||text.includes('not fired'))push('trigger_missed');
+  if(text.includes('timeline error')||text.includes('ontimelineerror'))push('timeline_error');
+  if(text.includes('offline!')||text.includes(' ist offline')){push('offline');if(text.includes('janitza'))push('janitza_offline');if(text.includes('ups'))push('ups_offline');if(text.includes('nas'))push('nas_offline');if(text.includes('poe')||text.includes('switch'))push('poe_switch_offline');if(text.includes('rutx')||text.includes('router'))push('rutx_offline');if(text.includes('pixera')||text.includes('director')||text.includes('octo'))push('pixera_offline');}
+  if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&text.includes('ups'))push('ups_offline');
+  if((text.includes('keine modbus-werte')||text.includes('modbus values'))&&text.includes('janitza'))push('janitza_offline');
+  if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&text.includes('nas'))push('nas_offline');
+  if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&(text.includes('poe')||text.includes('switch')))push('poe_switch_offline');
+  if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&(text.includes('rutx')||text.includes('router')))push('rutx_offline');
+  if(text.includes('asymmetrie')||text.includes('asymmetry'))push('janitza_asymmetry');
+  if(text.includes('ueberfrequenz')||text.includes('overfrequency'))push('janitza_overfrequency');
+  if(text.includes('unterfrequenz')||text.includes('underfrequency'))push('janitza_underfrequency');
+  if(text.includes('batteriebetrieb')||text.includes('battery mode')||text.includes('akku warnung'))push('ups_battery');
+  if(text.includes('emergency')||text.includes('sofortalarm'))push('emergency'); if(text.includes('panic:'))push('panic'); if(text.includes('keyword'))push('keyword_match');
+  return events;
+}
+function isSuppressedErrorMessage(msg){
+  const selected=Array.isArray(cfg?.suppressed_error_events)?cfg.suppressed_error_events.map(value=>String(value).trim().toLowerCase()):[];
+  return selected.length>0 && detectSuppressedErrorEvents(msg).some(event=>selected.includes(event)||(event.endsWith('_offline')&&selected.includes('offline')));
+}
 function addError(msg,opts={}){
   const now=Number(opts.timestampMs)||Date.now();
   const persist=opts.persist!==false;
   const suppressDuplicate=opts.suppressDuplicate!==false;
   const showBanner=opts.showBanner!==false;
   const logToSystem=opts.logToSystem!==false;
+  if(isSuppressedErrorMessage(msg)){
+    addLog('suppressed',msg,{timestampMs:now,persist});
+    return;
+  }
   if(suppressDuplicate && errors.find(e=>e.msg===msg&&(now-e.ts)<60000))return;
   errors.unshift({id:errorIdCounter++,msg,time:formatLogTime(now,true),ts:now});
   if(errors.length>MAX_ERROR_ENTRIES_UI) errors.shift();
@@ -7732,12 +7985,136 @@ window.ackErrorById=(id)=>{
   updateErrorBadge();
 };
 
+function rowsToCsv(rows){
+  return rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+}
+
+function buildLogCsv(entries){
+  const rows=[['Zeit','Typ','Nachricht'],...entries.map(l=>[formatLogTime(l.ts,false),l.type,localizeLogMessage(l.msg)])];
+  return rowsToCsv(rows);
+}
+
 window.exportLog=()=>{
-  const rows=[['Zeit','Typ','Nachricht'],...logs.map(l=>[l.time,l.type,localizeLogMessage(l.msg)])];
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv=buildLogCsv(logs);
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download=`projektil-log-${new Date().toISOString().slice(0,10)}.csv`;a.click();
 };
+
+function normalizePersistedLogEntry(entry){
+  const ts=Number(entry?.timestamp_ms)||Date.now();
+  return {
+    type:String(entry?.level||'info').toLowerCase()==='error'?'error':'info',
+    msg:String(entry?.message||''),
+    ts,
+    time:formatLogTime(ts,false)
+  };
+}
+
+function mergeLogEntriesForCsv(persistedEntries){
+  const byKey=new Map();
+  const addEntry=(entry)=>{
+    const normalized=entry.timestamp_ms!==undefined?normalizePersistedLogEntry(entry):entry;
+    const key=`${Number(normalized.ts)||0}|${normalized.type}|${normalized.msg}`;
+    if(!byKey.has(key)) byKey.set(key,normalized);
+  };
+  (Array.isArray(persistedEntries)?persistedEntries:[]).forEach(addEntry);
+  logs.forEach(addEntry);
+  return [...byKey.values()].sort((a,b)=>b.ts-a.ts);
+}
+
+async function loadAllSystemLogEntriesForCsv(){
+  const data=await invoke('load_app_logs',{limit:100000});
+  return mergeLogEntriesForCsv(Array.isArray(data?.system)?data.system:[]);
+}
+
+function buildDailyCsv(entries,dateStr){
+  const dayEntries=entries.filter(entry=>formatLocalDateKey(entry.ts)===dateStr);
+  return buildLogCsv(dayEntries);
+}
+
+async function refreshDailyCsvStatus(){
+  const pathEl=document.getElementById('daily-csv-path');
+  const statusEl=document.getElementById('daily-csv-status');
+  try{
+    const status=await invokeStrict('get_daily_log_csv_status');
+    if(pathEl) pathEl.textContent=String(status?.dir||'—');
+    if(statusEl) statusEl.textContent=t('daily_csv_status',{path:String(status?.dir||'—'),count:Array.isArray(status?.dates)?status.dates.length:0});
+    return status;
+  }catch(error){
+    if(statusEl){statusEl.style.color='#fca5a5';statusEl.textContent=t('daily_csv_failed',{error});}
+    return null;
+  }
+}
+
+async function saveDailyCsvForDate(dateStr,entries=null){
+  const sourceEntries=entries||await loadAllSystemLogEntriesForCsv();
+  const csvContent=buildDailyCsv(sourceEntries,dateStr);
+  await invokeStrict('save_daily_log_csv',{date:dateStr,csvContent});
+  localStorage.setItem('dailyCsvLastExportDate',dateStr);
+  addLogT('info','daily_csv_saved',{date:dateStr},{persist:false});
+  await refreshDailyCsvStatus();
+  return true;
+}
+
+async function runDailyCsvExportNow(){
+  const statusEl=document.getElementById('daily-csv-status');
+  try{
+    const dateStr=formatLocalDateKey(Date.now());
+    await saveDailyCsvForDate(dateStr);
+    if(statusEl){statusEl.style.color='#4ade80';statusEl.textContent=t('daily_csv_saved',{date:dateStr});}
+  }catch(error){
+    if(statusEl){statusEl.style.color='#fca5a5';statusEl.textContent=t('daily_csv_failed',{error});}
+  }
+}
+
+async function openDailyCsvFolder(){
+  try{ await invokeStrict('open_daily_log_csv_folder'); }
+  catch(error){ addError(t('daily_csv_failed',{error}),{showBanner:false}); }
+}
+
+async function backfillMissingDailyCsvs(){
+  if(dailyCsvBackfillDone) return;
+  dailyCsvBackfillDone=true;
+  try{
+    const status=await refreshDailyCsvStatus();
+    const existing=new Set(Array.isArray(status?.dates)?status.dates:[]);
+    const entries=await loadAllSystemLogEntriesForCsv();
+    let created=0;
+    const now=new Date();
+    const shouldIncludeToday=now.getHours()>23||(now.getHours()===23&&now.getMinutes()>=59);
+    const firstOffset=shouldIncludeToday?0:1;
+    const lastOffset=shouldIncludeToday?DAILY_CSV_RETENTION_DAYS-1:DAILY_CSV_RETENTION_DAYS;
+    for(let offset=firstOffset;offset<=lastOffset;offset++){
+      const day=new Date();
+      day.setDate(day.getDate()-offset);
+      const dateStr=formatLocalDateKey(day.getTime());
+      if(existing.has(dateStr)) continue;
+      if(!entries.some(entry=>formatLocalDateKey(entry.ts)===dateStr)) continue;
+      await saveDailyCsvForDate(dateStr,entries);
+      existing.add(dateStr);
+      created++;
+    }
+    if(created>0) addLogT('info','daily_csv_backfill_done',{count:created});
+  }catch(error){
+    addError(t('daily_csv_failed',{error}),{showBanner:false});
+  }
+}
+
+function startDailyCsvScheduler(){
+  if(dailyCsvTimer) clearInterval(dailyCsvTimer);
+  dailyCsvTimer=setInterval(async()=>{
+    const now=new Date();
+    if(now.getHours()!==23||now.getMinutes()!==59) return;
+    const dateStr=formatLocalDateKey(now.getTime());
+    if(localStorage.getItem('dailyCsvLastExportDate')===dateStr) return;
+    try{ await saveDailyCsvForDate(dateStr); }
+    catch(error){ addError(t('daily_csv_failed',{error}),{showBanner:false}); }
+  },30000);
+}
+
+window.refreshDailyCsvStatus=refreshDailyCsvStatus;
+window.openDailyCsvFolder=openDailyCsvFolder;
+window.runDailyCsvExportNow=runDailyCsvExportNow;
 
 function renderLog(){
   const el=document.getElementById('system-log');if(!el)return;
@@ -8441,6 +8818,52 @@ async function hubCall(methodNames, params=[], options={}){
     }
   }
   throw firstError||new Error('Pixera hub call failed');
+}
+
+function getPixeraHubPort(){
+  return Number(cfg?.pixera_hub_port||cfg?.pixera_octo_port||4000);
+}
+
+async function directPixeraHubAction(host, actionNames=['forceReboot','reboot']){
+  const port=getPixeraHubPort();
+  const actions=Array.isArray(actionNames)?actionNames:[actionNames];
+  const paths=[];
+  const pushPath=(path)=>{ if(path&&!paths.includes(path)) paths.push(path); };
+  for(const action of actions){
+    pushPath(`PixeraHub.${action}`);
+    pushPath(`AVStumpfl.PixeraHub.${action}`);
+    pushPath(`Pixera.Hub.${action}`);
+    pushPath(action);
+  }
+  let firstError=null;
+  for(const path of paths){
+    try{
+      await pixeraApiCall([path],[],host,port,{allowEmpty:true});
+      return {method:path,port};
+    }catch(error){
+      if(!firstError) firstError=error;
+    }
+  }
+  throw firstError||new Error('Pixera Hub direct action failed');
+}
+
+async function rebootViaDirectHub(target, options={}){
+  try{
+    const result=await directPixeraHubAction(target.host,['forceReboot','reboot']);
+    addLogT('info','device_reboot_direct_sent',{label:target.label,host:target.host,port:result.port,method:result.method});
+    return {ok:true,path:'direct',method:result.method};
+  }catch(error){
+    addLogT('error','device_reboot_direct_failed',{label:target.label,error});
+    if(options.allowModuleFallback&&target.hubIndex){
+      await hubCall([
+        `Single_Hub.ForceReboot_${target.hubIndex}`,
+        `ForceReboot_${target.hubIndex}`
+      ]);
+      addLogT('info','device_reboot_fallback_sent',{label:target.label,host:target.host});
+      return {ok:true,path:'fallback'};
+    }
+    throw error;
+  }
 }
 
 async function schedulerCall(methodName, params=[], options={}){
@@ -9815,21 +10238,49 @@ window.restartPixeraServer=async(serverKey)=>{
       addError(t('pixera_restart_target_unresolved',{server:label}));
       return;
     }
+    if(!confirm(t('confirm_reboot_device',{label:target.label}))){
+      return;
+    }
 
-    await hubCall([
-      `Single_Hub.ForceReboot_${target.hubIndex}`,
-      `ForceReboot_${target.hubIndex}`
-    ]);
-    addLogT('info','pixera_restart_sent',{
-      server:target.label,
-      hubIndex:target.hubIndex,
-      host:target.host
-    });
+    await rebootViaDirectHub(target,{allowModuleFallback:true});
   }catch(e){
     addError(t('pixera_restart_failed',{
       server:getPixeraServerDisplayName(serverKey),
       error:e
     }));
+  }
+};
+
+window.restartInteractiveDevice=async(key)=>{
+  const target=getInteractiveTargetByKey(key);
+  if(!target||!target.ip){
+    addError(t('device_reboot_failed',{label:key,error:'IP fehlt'}));
+    return;
+  }
+  if(!confirm(t('confirm_reboot_device',{label:target.label}))){
+    return;
+  }
+  try{
+    await rebootViaDirectHub({host:target.ip,label:target.label},{allowModuleFallback:false});
+  }catch(error){
+    addError(t('device_reboot_failed',{label:target.label,error}));
+  }
+};
+
+window.wakeInteractiveDevice=async(key)=>{
+  const target=getInteractiveTargetByKey(key);
+  if(!target||!target.mac){
+    addError(t('device_wake_failed',{label:key,error:'MAC fehlt'}));
+    return;
+  }
+  if(!confirm(t('confirm_wake_device',{label:target.label}))){
+    return;
+  }
+  try{
+    await invokeStrict('send_wake_on_lan',{mac:target.mac});
+    addLogT('info','device_wake_sent',{label:target.label,mac:target.mac});
+  }catch(error){
+    addError(t('device_wake_failed',{label:target.label,error}));
   }
 };
 
