@@ -1,0 +1,14 @@
+{
+  "location_name": "",
+  "anydesk_address": "",
+  "telegram": {
+    "enabled": false,
+    "bot_token": "",
+    "chat_id": "",
+    "channel_id": ""
+  },
+  "hub_api_url": "",
+  "hub_api_token": "",
+  "hub_project_id": "",
+  "hub_device_id": ""
+}
