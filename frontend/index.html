@@ -65,7 +65,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-famil
 .setting-block{padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.03)}
 .setting-label{font-size:12px;color:#fff;font-weight:600;margin-bottom:4px}
 .setting-hint{font-size:11px;color:var(--muted);line-height:1.45}
-.settings-count-row{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:12px}
+.settings-count-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.brand-switch{display:flex;gap:8px;margin-top:8px}
+.brand-switch-btn{flex:1;padding:9px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+.brand-switch-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
 .tg-alert-grid{display:grid;gap:8px;margin-bottom:12px;font-size:12px}
 .tg-event-group{border:1px solid rgba(122,108,248,.24);border-radius:10px;background:linear-gradient(180deg,rgba(35,31,112,.78),rgba(27,24,95,.66));overflow:hidden;transition:border-color .16s,box-shadow .16s,background .16s}
 .tg-event-group[open]{border-color:rgba(96,165,250,.5);box-shadow:0 0 0 1px rgba(96,165,250,.18),0 10px 28px rgba(7,8,45,.22);background:linear-gradient(180deg,rgba(37,34,119,.9),rgba(28,24,99,.78))}
@@ -393,6 +396,12 @@ body.emergency-locked .btn-o{background:#9a3412}
 .proj-btns button{flex:1;padding:4px 0;font-size:9px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:#fff;font-family:inherit;transition:background .1s}
 .proj-btns .shutter-btn{border-color:#60a5fa;background:#1e3a8a;color:#fff}
 .proj-btns .shutter-btn.active{border-color:#ef4444;background:#7f1d1d;color:#fee2e2}
+.proj-extras-row{display:flex;gap:4px;margin-top:6px}
+.proj-extras-row button{flex:1;padding:4px 0;font-size:9px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:#fff;font-family:inherit;transition:background .1s}
+.testpattern-btn.active{background:#312e81;color:#c7d2fe;border-color:#818cf8}
+.proj-extras-row button:disabled{opacity:.55;cursor:default}
+body.ui-mobile .proj-extras-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+body.ui-mobile .proj-extras-row button{padding:8px 0;font-size:10px}
 .cam-preview-frame{background:#0a0a1a;border-radius:6px;position:relative;overflow:hidden;margin-bottom:10px;border:1px solid rgba(255,255,255,.08);width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
 .cam-preview-img{width:100%;height:100%;object-fit:contain;display:none;background:#000}
 .camera-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -630,6 +639,20 @@ _setupEmergencyListener();
     </div>
   </div>
 </div>
+<!-- GENERIC CONFIRM DIALOG (replaces browser confirm() for GUI-styled prompts) -->
+<div class="gain-dialog-backdrop" id="confirm-dialog-backdrop" onclick="if(event.target.id==='confirm-dialog-backdrop')resolveConfirmDialog(false)">
+  <div class="gain-dialog">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+      <h3 id="confirm-dialog-title" style="margin:0">Aktion bestaetigen?</h3>
+      <button class="btn" style="padding:6px 10px;font-size:12px" onclick="resolveConfirmDialog(false)">✕</button>
+    </div>
+    <p id="confirm-dialog-message" style="margin:0;font-size:13px;color:var(--muted);line-height:1.5"></p>
+    <div class="dlg-actions">
+      <button class="btn btn-o" data-l10n-key="cancel" onclick="resolveConfirmDialog(false)">Abbrechen</button>
+      <button class="btn btn-g" id="confirm-dialog-confirm-btn" onclick="resolveConfirmDialog(true)">OK</button>
+    </div>
+  </div>
+</div>
 <!-- VIEW MODE SMALL UNLOCK DIALOG -->
 <div class="gain-dialog-backdrop" id="view-unlock-small-backdrop" data-view-allow onclick="if(event.target.id==='view-unlock-small-backdrop')closeViewModeUnlockDialog()">
   <div class="gain-dialog">
@@ -841,6 +864,11 @@ _setupEmergencyListener();
         <button class="btn btn-o" style="padding:10px 20px;font-size:13px" onclick="allProjOff()" data-l10n-key="all_off">Alle OFF</button>
         <button class="btn proj-shutter-btn" id="all-proj-shutter-btn" style="padding:10px 20px;font-size:13px;color:#fff" onclick="allProjShutterToggle()" data-l10n-key="projector_all_shutter">Alle Shutter</button>
       </div>
+      <div style="text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:14px" data-l10n-key="projector_testpattern_all_title">TESTBILD &amp; QUELLE — ALLE</div>
+      <div class="proj-bulk-actions" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+        <button class="btn testpattern-btn" id="all-proj-testpattern-btn" style="padding:10px 20px;font-size:13px" onclick="allProjTestPatternToggle()" data-l10n-key="projector_testpattern_all_label">Testbild (Weiss) — Alle</button>
+        <button class="btn" style="padding:10px 20px;font-size:13px" onclick="allProjHdmi1()" data-l10n-key="projector_hdmi1_all_label">Alle auf HDMI 1</button>
+      </div>
     </div>
 
     <!-- SETTINGS -->
@@ -867,6 +895,22 @@ _setupEmergencyListener();
                 <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
                   <input id="projector-count-input" type="number" min="1" max="16" step="1" onchange="commitProjectorCountFromInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();commitProjectorCountFromInput();}" style="width:110px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff" />
                   <button class="btn btn-g" onclick="commitProjectorCountFromInput()" data-l10n-key="settings_ok">OK</button>
+                </div>
+              </div>
+              <div class="setting-block">
+                <div class="setting-label" data-l10n-key="projector_brand_label">Projektor-Hersteller</div>
+                <div class="setting-hint" data-l10n-key="projector_brand_hint">Gilt fuer alle PJ 1..N in dieser Show (keine Mischung).</div>
+                <div class="brand-switch">
+                  <button type="button" class="brand-switch-btn" id="projector-brand-panasonic-btn" onclick="setProjectorBrand('panasonic')" data-l10n-key="projector_brand_panasonic">Panasonic</button>
+                  <button type="button" class="brand-switch-btn" id="projector-brand-epson-btn" onclick="setProjectorBrand('epson')" data-l10n-key="projector_brand_epson">Epson</button>
+                </div>
+                <div id="epson-password-row" style="display:none;margin-top:10px">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="epson_web_password_label">Epson Web-Control-Passwort (optional)</div>
+                  <div style="display:flex;gap:8px">
+                    <input id="epson-web-password-input" type="password" autocomplete="off" data-l10n-placeholder-key="epson_web_password_placeholder" placeholder="Nur falls API Authentication aktiv" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                    <button class="btn btn-g" onclick="saveEpsonWebPassword()" data-l10n-key="settings_ok">OK</button>
+                  </div>
+                  <div id="epson-password-save-status" style="min-height:14px;font-size:10px;color:var(--muted);margin-top:4px"></div>
                 </div>
               </div>
               <div class="setting-block">
@@ -931,6 +975,24 @@ _setupEmergencyListener();
                     <input type="checkbox" id="emergency-switch-enabled-toggle" onchange="setEmergencySwitchEnabled(this.checked)" />
                     <span class="switch-slider"></span>
                   </label>
+                </div>
+              </div>
+              <div class="setting-block">
+                <div class="toggle-row">
+                  <div>
+                    <div class="setting-label" data-l10n-key="dante_enabled_title">Dantenetzwerk</div>
+                    <div class="setting-hint" data-l10n-key="dante_enabled_hint">Aktiviert Monitoring fuer die Dante-Audio-Geraete im Netzwerk.</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="dante-enabled-toggle" onchange="setDanteEnabled(this.checked)" />
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+                <div id="dante-devices-wrap" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)">
+                  <div class="setting-label" data-l10n-key="dante_devices_label">Ueberwachte Dante-Geraete</div>
+                  <div class="setting-hint" data-l10n-key="dante_devices_hint">Fix vorgegeben, nicht editierbar.</div>
+                  <div class="mon-row" style="margin-top:8px"><span data-l10n-key="dante_device1_71">Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)</span><span class="pill pill-r" id="settings-dante1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+                  <div class="mon-row"><span data-l10n-key="dante_device2_72">Dante AVIO 4x2 (IP: 192.168.1.72)</span><span class="pill pill-r" id="settings-dante2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
                 </div>
               </div>
             </div>
@@ -1016,8 +1078,12 @@ _setupEmergencyListener();
               <div style="display:grid;gap:8px;margin-bottom:12px">
                 <div>
                   <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="anydesk_address_field_label">AnyDesk-Adresse</div>
-                  <input id="ad-address-input" type="text" autocomplete="off" placeholder="123456789" data-l10n-placeholder-key="anydesk_address_placeholder"
-                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                  <div style="display:flex;gap:8px">
+                    <input id="ad-address-input" type="text" autocomplete="off" placeholder="123456789" data-l10n-placeholder-key="anydesk_address_placeholder"
+                      style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                    <button class="btn" style="padding:8px 10px;font-size:11px;white-space:nowrap" onclick="detectAnyDeskId()" data-l10n-key="anydesk_detect_button">Aktualisieren</button>
+                  </div>
+                  <div id="ad-detect-status" style="min-height:14px;font-size:10px;color:var(--muted);margin-top:4px"></div>
                 </div>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1207,7 +1273,13 @@ _setupEmergencyListener();
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="panic"> <span data-l10n-key="telegram_event_panic">Panic</span></label>
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="keyword_match"> <span data-l10n-key="telegram_event_keyword">Eigene Keywords</span></label>
               </div></details>
+              <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_interactive">Interaktiv</summary><div class="tg-event-options">
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="interactive_pc_offline"> <span data-l10n-key="telegram_event_interactive_pc">PC Interaktiv offline</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="interactive_scanner_offline"> <span data-l10n-key="telegram_event_interactive_scanner">Scanner offline</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="interactive_artnet_offline"> <span data-l10n-key="telegram_event_interactive_artnet">Scanner-ArtNet offline</span></label>
+              </div></details>
             </div>
+            <div class="setting-hint" style="margin-top:8px" data-l10n-key="suppressed_errors_interactive_hint">Tipp: Die Scanner-Artnet Gateways antworten gelegentlich verzoegert auf Ping-Anfragen. Wenn das oefter zu falschen Offline-Meldungen fuehrt, blende "Scanner-Artnet offline" hier aus.</div>
             <button class="btn btn-g" style="width:100%;margin-top:4px" onclick="saveSuppressedErrorSettings()" data-l10n-key="save">Speichern</button>
             <div id="suppressed-error-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
           </div>
@@ -1392,9 +1464,9 @@ _setupEmergencyListener();
       <div class="g3">
         <div class="card">
           <div class="card-title" data-l10n-key="pixera_system">Pixera System</div>
-          <div class="mon-row"><span id="mon-director-label">Director (IP: 192.168.1.31)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('director')">Restart</button><span class="pill pill-r" id="mon-director"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-          <div class="mon-row" id="mon-octo1-row"><span id="mon-octo1-label">Octo 01 (IP: 192.168.1.32)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo1')">Restart</button><span class="pill pill-r" id="mon-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-          <div class="mon-row" id="mon-octo2-row"><span id="mon-octo2-label">Octo 02 (IP: 192.168.1.33)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo2')">Restart</button><span class="pill pill-r" id="mon-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row"><span id="mon-director-label">Director (IP: 192.168.1.31)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" id="mon-director-restart-btn" hidden title="Nur sichtbar, wenn der Pixera-Hub-Dienst auf diesem Geraet verifiziert erreichbar ist" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('director')">Restart</button><span class="pill pill-r" id="mon-director"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row" id="mon-octo1-row"><span id="mon-octo1-label">Octo 01 (IP: 192.168.1.32)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" id="mon-octo1-restart-btn" hidden title="Nur sichtbar, wenn der Pixera-Hub-Dienst auf diesem Geraet verifiziert erreichbar ist" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo1')">Restart</button><span class="pill pill-r" id="mon-octo1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+          <div class="mon-row" id="mon-octo2-row"><span id="mon-octo2-label">Octo 02 (IP: 192.168.1.33)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" id="mon-octo2-restart-btn" hidden title="Nur sichtbar, wenn der Pixera-Hub-Dienst auf diesem Geraet verifiziert erreichbar ist" style="padding:2px 8px;font-size:9px" onclick="restartPixeraServer('octo2')">Restart</button><span class="pill pill-r" id="mon-octo2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
         </div>
         <div class="card">
           <div class="card-title" data-l10n-key="audio_infra">Audio / Infra</div>
@@ -1407,6 +1479,8 @@ _setupEmergencyListener();
           <div class="mon-row"><span data-l10n-key="poe_switch_24">PoE Switch (IP: 192.168.1.11)</span><span class="pill pill-r" id="mon-poe"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row"><span data-l10n-key="rutx50_1">Teltonika RUTX50 (IP: 192.168.1.1)</span><span class="pill pill-r" id="mon-rutx"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
           <div class="mon-row" id="mon-emergency-switch-row"><span data-l10n-key="emergency_switch_99">Notaus-Schalter (IP: 192.168.1.99)</span><span class="pill pill-r" id="mon-emergency-switch"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="mon-dante1-row"><span data-l10n-key="dante_device1_71">Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)</span><span class="pill pill-r" id="mon-dante1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+          <div class="mon-row" id="mon-dante2-row"><span data-l10n-key="dante_device2_72">Dante AVIO 4x2 (IP: 192.168.1.72)</span><span class="pill pill-r" id="mon-dante2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         </div>
         <div class="card">
           <div class="card-title" data-l10n-key="cameras_title">Cameras</div>
@@ -1421,9 +1495,9 @@ _setupEmergencyListener();
       <div class="card">
         <div class="card-title" data-l10n-key="interactive_monitoring_title">Interaktiv Monitoring</div>
         <div class="setting-hint" id="interactive-disabled-note" data-l10n-key="interactive_disabled_note" style="display:none;margin-bottom:10px">Interaktiv-Monitoring ist deaktiviert.</div>
-        <div class="mon-row" id="int-scanner1-row"><span id="int-scanner1-label">Scanner 01 (IP: 192.168.1.34)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" data-view-allow style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_scanner1')">Restart</button><button class="btn btn-g" data-view-allow style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_scanner1')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-scanner1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-        <div class="mon-row" id="int-scanner2-row"><span id="int-scanner2-label">Scanner 02 (IP: 192.168.1.35)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" data-view-allow style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_scanner2')">Restart</button><button class="btn btn-g" data-view-allow style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_scanner2')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-scanner2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
-        <div class="mon-row" id="int-pc-row"><span id="int-pc-label">PC Interaktiv (IP: 192.168.1.36)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" data-view-allow style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_pc')">Restart</button><button class="btn btn-g" data-view-allow style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_pc')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-pc"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+        <div class="mon-row" id="int-scanner1-row"><span id="int-scanner1-label">Scanner 01 (IP: 192.168.1.34)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" id="int-scanner1-restart-btn" data-view-allow hidden title="Nur sichtbar, wenn der Pixera-Hub-Dienst auf diesem Geraet verifiziert erreichbar ist" style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_scanner1')">Restart</button><button class="btn btn-g" data-view-allow hidden style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_scanner1')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-scanner1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+        <div class="mon-row" id="int-scanner2-row"><span id="int-scanner2-label">Scanner 02 (IP: 192.168.1.35)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" id="int-scanner2-restart-btn" data-view-allow hidden title="Nur sichtbar, wenn der Pixera-Hub-Dienst auf diesem Geraet verifiziert erreichbar ist" style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_scanner2')">Restart</button><button class="btn btn-g" data-view-allow hidden style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_scanner2')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-scanner2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
+        <div class="mon-row" id="int-pc-row"><span id="int-pc-label">PC Interaktiv (IP: 192.168.1.36)</span><span style="display:flex;align-items:center;gap:6px"><button class="btn" id="int-pc-restart-btn" data-view-allow hidden title="Nur sichtbar, wenn der Pixera-Hub-Dienst auf diesem Geraet verifiziert erreichbar ist" style="padding:2px 8px;font-size:9px" onclick="restartInteractiveDevice('interactive_pc')">Restart</button><button class="btn btn-g" data-view-allow hidden style="padding:2px 8px;font-size:9px" onclick="wakeInteractiveDevice('interactive_pc')" data-l10n-key="wake_short">Wake</button><span class="pill pill-r" id="int-pc"><span class="dot" style="width:6px;height:6px"></span>Offline</span></span></div>
         <div class="mon-row" id="int-artnet1-row"><span data-l10n-key="interactive_artnet_01_61">Scanner-Artnet 01 (IP: 192.168.1.61)</span><span class="pill pill-r" id="int-artnet1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
         <div class="mon-row" id="int-artnet2-row"><span data-l10n-key="interactive_artnet_02_62">Scanner-Artnet 02 (IP: 192.168.1.62)</span><span class="pill pill-r" id="int-artnet2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
       </div>
@@ -2016,7 +2090,7 @@ async function icmpPing(ip){
 let cfg={};
 const DEFAULT_POE_IP='192.168.1.11';
 const DEFAULT_RUTX50_IP='192.168.1.1';
-const projStates=Array.from({length:16},()=>({on:false,mute:false,ip:'',lampHours:null,model:'Unknown'}));
+const projStates=Array.from({length:16},()=>({on:false,mute:false,ip:'',lampHours:null,model:'Unknown',testPatternOn:null}));
 const projectorOnlineStates=Array.from({length:16},()=>false);
 const projectorControlStates=Array.from({length:16},()=> 'unknown');
 const projectorTransitionTimers=Array.from({length:16},()=>null);
@@ -2048,7 +2122,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.38';
+const APP_VERSION_FALLBACK = '1.0.40';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -2337,6 +2411,12 @@ const locales = {
     anydesk_address_hint: 'Wird in Telegram-Alarmen angehaengt.',
     anydesk_address_field_label: 'AnyDesk-Adresse',
     anydesk_address_placeholder: '123456789',
+    anydesk_detect_button: 'Aktualisieren',
+    anydesk_detecting: 'Suche AnyDesk-ID...',
+    anydesk_detected: 'Automatisch erkannt: {id}',
+    anydesk_not_found: 'Keine AnyDesk-ID gefunden (AnyDesk installiert?).',
+    anydesk_detect_failed: 'Erkennung fehlgeschlagen: {error}',
+    anydesk_auto_detected: 'AnyDesk-ID automatisch erkannt und gespeichert: {id}',
     telegram_notifications_title: 'Telegram Benachrichtigungen',
     telegram_notifications_hint: 'Bot-Token und Chat-ID konfigurieren. Kritische Fehler werden automatisch gesendet.',
     telegram_enabled_label: 'Benachrichtigungen aktiviert',
@@ -2346,12 +2426,14 @@ const locales = {
     telegram_alert_events_label: 'Alarm-Ereignisse',
     telegram_alert_events_hint: 'Nur diese Ereignisse loesen Telegram aus.',
     suppressed_errors_title: 'Fehler ausblenden',
-    suppressed_errors_hint: 'Ausgewaehlte Fehler bleiben im System-Log sichtbar, erscheinen aber nicht als aktive rote Fehler.',
+    suppressed_errors_hint: 'Ausgewaehlte Fehler werden komplett ignoriert: kein roter Fehler, kein Eintrag im System-Log.',
+    suppressed_errors_interactive_hint: 'Tipp: Die Scanner-Artnet Gateways antworten gelegentlich verzoegert auf Ping-Anfragen. Wenn das oefter zu falschen Offline-Meldungen fuehrt, blende "Scanner-Artnet offline" hier aus.',
     telegram_group_janitza: 'Janitza',
     telegram_group_ups: 'UPS',
     telegram_group_network: 'Netzwerk',
     telegram_group_show: 'Show / Pixera',
     telegram_group_safety: 'Safety',
+    telegram_group_interactive: 'Interaktiv',
     telegram_event_offline: 'Offline',
     telegram_event_janitza_offline: 'Janitza offline',
     telegram_event_janitza_asymmetry: 'Janitza Asymmetrie',
@@ -2368,6 +2450,9 @@ const locales = {
     telegram_event_emergency: 'Emergency',
     telegram_event_panic: 'Panic',
     telegram_event_keyword: 'Eigene Keywords',
+    telegram_event_interactive_pc: 'PC Interaktiv offline',
+    telegram_event_interactive_scanner: 'Scanner offline',
+    telegram_event_interactive_artnet: 'Scanner-ArtNet offline',
     telegram_send_test_button: 'Test senden',
     telegram_simulation_title: 'Alarm-Simulation (nutzt gespeicherte Telegram-Konfiguration)',
     telegram_option_trigger_missed: 'Trigger nicht ausgeloest',
@@ -2440,6 +2525,20 @@ const locales = {
     projector_count_label: 'Anzahl Projektoren (1-16)',
     projector_count_hint: 'Es werden nur PJ 1..N abgefragt. IP-Schema: 192.168.1.101 + Index.',
     projector_count_saved: 'Projektor-Anzahl auf {count} gesetzt',
+    projector_brand_label: 'Projektor-Hersteller',
+    projector_brand_hint: 'Gilt fuer alle PJ 1..N in dieser Show (keine Mischung).',
+    projector_brand_panasonic: 'Panasonic',
+    projector_brand_epson: 'Epson',
+    projector_brand_saved: 'Projektor-Hersteller auf {brand} gesetzt',
+    epson_web_password_label: 'Epson Web-Control-Passwort (optional)',
+    epson_web_password_placeholder: 'Nur falls API Authentication aktiv',
+    projector_testpattern_label: 'Testbild',
+    projector_hdmi1_label: 'HDMI 1',
+    projector_testpattern_all_label: 'Testbild (Weiss) — Alle',
+    projector_hdmi1_all_label: 'Alle auf HDMI 1',
+    projector_testpattern_all_title: 'TESTBILD & QUELLE — ALLE',
+    projector_action_failed: '{label}: {error}',
+    projector_actions_summary: '{ok} erfolgreich, {failed} fehlgeschlagen',
     pixera_octo_count_label: 'Anzahl Pixera Octos (0-2)',
     pixera_octo_count_hint: 'Legt fest, wie viele Octos abgefragt werden (0, 1 oder 2).',
     pixera_octo_count_saved: 'Pixera-Octo-Anzahl auf {count} gesetzt',
@@ -2454,6 +2553,14 @@ const locales = {
     emergency_switch_mode_hint: 'Aktiviert Monitoring fuer den Notaus-Schalter (IP: 192.168.1.99).',
     emergency_switch_enabled_log: 'Notaus-Monitoring aktiviert',
     emergency_switch_disabled_log: 'Notaus-Monitoring deaktiviert',
+    dante_enabled_title: 'Dantenetzwerk',
+    dante_enabled_hint: 'Aktiviert Monitoring fuer die Dante-Audio-Geraete im Netzwerk.',
+    dante_devices_label: 'Ueberwachte Dante-Geraete',
+    dante_devices_hint: 'Fix vorgegeben, nicht editierbar.',
+    dante_device1_71: 'Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)',
+    dante_device2_72: 'Dante AVIO 4x2 (IP: 192.168.1.72)',
+    dante_enabled_log: 'Dante-Monitoring aktiviert',
+    dante_disabled_log: 'Dante-Monitoring deaktiviert',
     interactive_scanner_count_label: 'Anzahl Scanner (1-2)',
     interactive_scanner_count_hint: 'Die gleiche Anzahl Scanner-Artnet Gateways wird ebenfalls ueberwacht.',
     interactive_scanner_count_saved: 'Scanner-Anzahl auf {count} gesetzt',
@@ -2468,11 +2575,16 @@ const locales = {
     interactive_devices_saved: 'Interaktiv-Geraete gespeichert',
     wake_short: 'Wake',
     confirm_reboot_device: '{label} wirklich neu starten?',
+    confirm_reboot_title: 'Neustart bestaetigen',
+    confirm_reboot_action: 'Neustarten',
     confirm_wake_device: '{label} wirklich einschalten?',
+    ok: 'OK',
     device_reboot_direct_sent: '[Pixera Hub] Direkter Neustart fuer {label} ({host}:{port}) via {method} gesendet',
     device_reboot_fallback_sent: '[Pixera Hub] Modul-Fallback Neustart fuer {label} ({host}) gesendet',
     device_reboot_direct_failed: '[Pixera Hub] Direkter Neustart fuer {label} fehlgeschlagen: {error}',
     device_reboot_failed: '[Pixera Hub] Neustart fuer {label} fehlgeschlagen: {error}',
+    device_reboot_attempt_result: '[Pixera Hub] Versuch {path} beantwortet mit: {result}',
+    device_reboot_attempt_failed: '[Pixera Hub] Versuch {path} fehlgeschlagen: {error}',
     device_wake_sent: '[Wake-on-LAN] Magic Packet fuer {label} ({mac}) gesendet',
     device_wake_failed: '[Wake-on-LAN] Einschalten fuer {label} fehlgeschlagen: {error}',
     interactive_monitoring_title: 'Interaktiv Monitoring',
@@ -2823,6 +2935,12 @@ const locales = {
     anydesk_address_hint: 'Included in Telegram alerts.',
     anydesk_address_field_label: 'AnyDesk address',
     anydesk_address_placeholder: '123456789',
+    anydesk_detect_button: 'Refresh',
+    anydesk_detecting: 'Looking up AnyDesk ID...',
+    anydesk_detected: 'Auto-detected: {id}',
+    anydesk_not_found: 'No AnyDesk ID found (is AnyDesk installed?).',
+    anydesk_detect_failed: 'Detection failed: {error}',
+    anydesk_auto_detected: 'AnyDesk ID auto-detected and saved: {id}',
     telegram_notifications_title: 'Telegram notifications',
     telegram_notifications_hint: 'Configure bot token and chat ID. Critical errors are sent automatically.',
     telegram_enabled_label: 'Notifications enabled',
@@ -2832,12 +2950,14 @@ const locales = {
     telegram_alert_events_label: 'Alert events',
     telegram_alert_events_hint: 'Only these events trigger Telegram messages.',
     suppressed_errors_title: 'Hide errors',
-    suppressed_errors_hint: 'Selected errors remain visible in the system log but no longer appear as active red errors.',
+    suppressed_errors_hint: 'Selected errors are fully ignored: no red error, no system log entry.',
+    suppressed_errors_interactive_hint: 'Tip: the scanner Art-Net gateways occasionally respond late to ping requests. If that causes frequent false offline alerts, hide "Scanner Art-Net offline" here.',
     telegram_group_janitza: 'Janitza',
     telegram_group_ups: 'UPS',
     telegram_group_network: 'Network',
     telegram_group_show: 'Show / Pixera',
     telegram_group_safety: 'Safety',
+    telegram_group_interactive: 'Interactive',
     telegram_event_offline: 'Offline',
     telegram_event_janitza_offline: 'Janitza offline',
     telegram_event_janitza_asymmetry: 'Janitza asymmetry',
@@ -2854,6 +2974,9 @@ const locales = {
     telegram_event_emergency: 'Emergency',
     telegram_event_panic: 'Panic',
     telegram_event_keyword: 'Custom keywords',
+    telegram_event_interactive_pc: 'Interactive PC offline',
+    telegram_event_interactive_scanner: 'Scanner offline',
+    telegram_event_interactive_artnet: 'Scanner Art-Net offline',
     telegram_send_test_button: 'Send test',
     telegram_simulation_title: 'Alert simulation (uses saved Telegram configuration)',
     telegram_option_trigger_missed: 'Trigger missed',
@@ -2926,6 +3049,20 @@ const locales = {
     projector_count_label: 'Projector count (1-16)',
     projector_count_hint: 'Only PJ 1..N are polled. IP pattern: 192.168.1.101 + index.',
     projector_count_saved: 'Projector count set to {count}',
+    projector_brand_label: 'Projector brand',
+    projector_brand_hint: 'Applies to all PJ 1..N in this show (no mixing).',
+    projector_brand_panasonic: 'Panasonic',
+    projector_brand_epson: 'Epson',
+    projector_brand_saved: 'Projector brand set to {brand}',
+    epson_web_password_label: 'Epson web control password (optional)',
+    epson_web_password_placeholder: 'Only needed if API Authentication is on',
+    projector_testpattern_label: 'Test pattern',
+    projector_hdmi1_label: 'HDMI 1',
+    projector_testpattern_all_label: 'Test pattern (White) — All',
+    projector_hdmi1_all_label: 'All to HDMI 1',
+    projector_testpattern_all_title: 'TEST PATTERN & SOURCE — ALL',
+    projector_action_failed: '{label}: {error}',
+    projector_actions_summary: '{ok} succeeded, {failed} failed',
     pixera_octo_count_label: 'Pixera Octo count (0-2)',
     pixera_octo_count_hint: 'Defines how many Octos are polled (0, 1 or 2).',
     pixera_octo_count_saved: 'Pixera Octo count set to {count}',
@@ -2940,6 +3077,14 @@ const locales = {
     emergency_switch_mode_hint: 'Enables monitoring for the emergency stop switch (IP: 192.168.1.99).',
     emergency_switch_enabled_log: 'Emergency stop monitoring enabled',
     emergency_switch_disabled_log: 'Emergency stop monitoring disabled',
+    dante_enabled_title: 'Dante network',
+    dante_enabled_hint: 'Enables monitoring for the Dante audio devices on the network.',
+    dante_devices_label: 'Monitored Dante devices',
+    dante_devices_hint: 'Fixed, not editable.',
+    dante_device1_71: 'Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)',
+    dante_device2_72: 'Dante AVIO 4x2 (IP: 192.168.1.72)',
+    dante_enabled_log: 'Dante monitoring enabled',
+    dante_disabled_log: 'Dante monitoring disabled',
     interactive_scanner_count_label: 'Scanner count (1-2)',
     interactive_scanner_count_hint: 'The same number of scanner Art-Net gateways will also be monitored.',
     interactive_scanner_count_saved: 'Scanner count set to {count}',
@@ -2954,11 +3099,16 @@ const locales = {
     interactive_devices_saved: 'Interactive devices saved',
     wake_short: 'Wake',
     confirm_reboot_device: 'Really reboot {label}?',
+    confirm_reboot_title: 'Confirm restart',
+    confirm_reboot_action: 'Restart',
     confirm_wake_device: 'Really wake {label}?',
+    ok: 'OK',
     device_reboot_direct_sent: '[Pixera Hub] Direct reboot for {label} ({host}:{port}) via {method} sent',
     device_reboot_fallback_sent: '[Pixera Hub] Module fallback reboot for {label} ({host}) sent',
     device_reboot_direct_failed: '[Pixera Hub] Direct reboot for {label} failed: {error}',
     device_reboot_failed: '[Pixera Hub] Reboot for {label} failed: {error}',
+    device_reboot_attempt_result: '[Pixera Hub] Attempt {path} responded with: {result}',
+    device_reboot_attempt_failed: '[Pixera Hub] Attempt {path} failed: {error}',
     device_wake_sent: '[Wake-on-LAN] Magic packet for {label} ({mac}) sent',
     device_wake_failed: '[Wake-on-LAN] Wake for {label} failed: {error}',
     interactive_monitoring_title: 'Interactive monitoring',
@@ -3552,6 +3702,9 @@ function translatePage(){
   if(typeof updateProjectorRangeSettingsUI === 'function'){
     updateProjectorRangeSettingsUI();
   }
+  if(typeof updateProjectorBrandSettingsUI === 'function'){
+    updateProjectorBrandSettingsUI();
+  }
   if(typeof updateViewModeUI === 'function'){
     updateViewModeUI();
   }
@@ -3839,6 +3992,11 @@ function normalizeCameraViewMode(mode){
   return mode === 'stream' ? 'stream' : 'snapshot';
 }
 
+// Genau zwei Zustaende, gilt fuer alle PJ 1..N (keine Mischung innerhalb einer Show).
+function normalizeProjectorBrand(brand){
+  return String(brand||'').trim().toLowerCase() === 'epson' ? 'epson' : 'panasonic';
+}
+
 function normalizeProjectorCount(count){
   const n = Number(count||16);
   return Math.max(1, Math.min(16, Number.isFinite(n) ? n : 16));
@@ -3860,6 +4018,10 @@ function normalizeInteractiveScannerCount(count){
 }
 
 function normalizeEmergencySwitchEnabled(enabled){
+  return enabled === true;
+}
+
+function normalizeDanteEnabled(enabled){
   return enabled === true;
 }
 
@@ -3925,6 +4087,7 @@ function applySharedUiStateFromConfig(cfgObj){
   const nextInteractiveEnabled = cfgObj?.interactive_enabled === true;
   const nextInteractiveScannerCount = normalizeInteractiveScannerCount(cfgObj?.interactive_scanner_count);
   const nextEmergencySwitchEnabled = normalizeEmergencySwitchEnabled(cfgObj?.emergency_switch_enabled);
+  const nextDanteEnabled = normalizeDanteEnabled(cfgObj?.dante_enabled);
   const demoRuntime = extractDemoRuntimeState(cfgObj);
   const incomingDemoRuntimeFingerprint = getDemoRuntimeFingerprint(demoRuntime);
   const localDemoRuntimeFingerprint = getDemoRuntimeFingerprint({
@@ -3944,6 +4107,7 @@ function applySharedUiStateFromConfig(cfgObj){
   const interactiveEnabledChanged = nextInteractiveEnabled !== (cfg?.interactive_enabled === true);
   const interactiveScannerCountChanged = nextInteractiveScannerCount !== normalizeInteractiveScannerCount(cfg?.interactive_scanner_count);
   const emergencySwitchEnabledChanged = nextEmergencySwitchEnabled !== normalizeEmergencySwitchEnabled(cfg?.emergency_switch_enabled);
+  const danteEnabledChanged = nextDanteEnabled !== normalizeDanteEnabled(cfg?.dante_enabled);
   const incomingProjectorStates = normalizeProjectorControlStates(cfgObj?.projector_control_states);
   const incomingProjectorStatusUpdatedAt = Number(cfgObj?.projector_status_updated_at) || 0;
 
@@ -3953,12 +4117,14 @@ function applySharedUiStateFromConfig(cfgObj){
   if(cameraModeChanged) cameraViewMode = nextCameraViewMode;
 
   cfgObj.camera_view_mode = nextCameraViewMode;
+  cfgObj.projector_brand = normalizeProjectorBrand(cfgObj?.projector_brand);
   cfgObj.projector_count = nextProjectorCount;
   cfgObj.pixera_octo_count = nextPixeraOctoCount;
   cfgObj.amp_count = nextAmpCount;
   cfgObj.interactive_enabled = nextInteractiveEnabled;
   cfgObj.interactive_scanner_count = nextInteractiveScannerCount;
   cfgObj.emergency_switch_enabled = nextEmergencySwitchEnabled;
+  cfgObj.dante_enabled = nextDanteEnabled;
 
   appStorage.set('demoMode', demoMode);
   appStorage.set('startupMode', startupMode);
@@ -4022,6 +4188,9 @@ function applySharedUiStateFromConfig(cfgObj){
   if(emergencySwitchEnabledChanged){
     applyEmergencySwitchSettingsUI();
   }
+  if(danteEnabledChanged){
+    applyDanteSettingsUI();
+  }
 
   if(incomingProjectorStatusUpdatedAt > projectorStatusSyncUpdatedAt){
     projectorStatusSyncUpdatedAt = incomingProjectorStatusUpdatedAt;
@@ -4043,12 +4212,14 @@ async function persistSharedUiState(changes={}){
   if(Object.prototype.hasOwnProperty.call(changes,'startupMode')) payload.startupMode = changes.startupMode;
   if(Object.prototype.hasOwnProperty.call(changes,'language')) payload.language = changes.language;
   if(Object.prototype.hasOwnProperty.call(changes,'cameraViewMode')) payload.cameraViewMode = changes.cameraViewMode;
+  if(Object.prototype.hasOwnProperty.call(changes,'projectorBrand')) payload.projectorBrand = changes.projectorBrand;
   if(Object.prototype.hasOwnProperty.call(changes,'projectorCount')) payload.projectorCount = changes.projectorCount;
   if(Object.prototype.hasOwnProperty.call(changes,'pixeraOctoCount')) payload.pixeraOctoCount = changes.pixeraOctoCount;
   if(Object.prototype.hasOwnProperty.call(changes,'ampCount')) payload.ampCount = changes.ampCount;
   if(Object.prototype.hasOwnProperty.call(changes,'interactiveEnabled')) payload.interactiveEnabled = changes.interactiveEnabled;
   if(Object.prototype.hasOwnProperty.call(changes,'interactiveScannerCount')) payload.interactiveScannerCount = changes.interactiveScannerCount;
   if(Object.prototype.hasOwnProperty.call(changes,'emergencySwitchEnabled')) payload.emergencySwitchEnabled = changes.emergencySwitchEnabled;
+  if(Object.prototype.hasOwnProperty.call(changes,'danteEnabled')) payload.danteEnabled = changes.danteEnabled;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp1Mutes')) payload.demoAmp1Mutes = changes.demoAmp1Mutes;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp2Mutes')) payload.demoAmp2Mutes = changes.demoAmp2Mutes;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp3Mutes')) payload.demoAmp3Mutes = changes.demoAmp3Mutes;
@@ -4064,7 +4235,7 @@ async function persistSharedUiState(changes={}){
 }
 
 function computeSharedUiStateFingerprint(state){
-  return `${state.demoMode?'1':'0'}|${state.startupMode}|${state.language}|${state.cameraViewMode}|${state.projectorCount}|${state.pixeraOctoCount}|${state.ampCount}|${state.interactiveEnabled?'1':'0'}|${state.interactiveScannerCount}|${state.emergencySwitchEnabled?'1':'0'}|${state.demoAmp1Mutes.join('')}|${state.demoAmp2Mutes.join('')}|${state.demoAmp3Mutes.join('')}|${state.demoProjectorOn.join('')}|${state.demoProjectorMute.join('')}`;
+  return `${state.demoMode?'1':'0'}|${state.startupMode}|${state.language}|${state.cameraViewMode}|${state.projectorBrand}|${state.projectorCount}|${state.pixeraOctoCount}|${state.ampCount}|${state.interactiveEnabled?'1':'0'}|${state.interactiveScannerCount}|${state.emergencySwitchEnabled?'1':'0'}|${state.danteEnabled?'1':'0'}|${state.demoAmp1Mutes.join('')}|${state.demoAmp2Mutes.join('')}|${state.demoAmp3Mutes.join('')}|${state.demoProjectorOn.join('')}|${state.demoProjectorMute.join('')}`;
 }
 
 function getCurrentSharedUiState(){
@@ -4082,12 +4253,14 @@ function getCurrentSharedUiState(){
     startupMode: normalizeStartupMode(startupMode),
     language: normalizeLanguage(currentLang),
     cameraViewMode: normalizeCameraViewMode(cameraViewMode),
+    projectorBrand: normalizeProjectorBrand(cfg?.projector_brand),
     projectorCount: normalizeProjectorCount(cfg?.projector_count),
     pixeraOctoCount: normalizePixeraOctoCount(cfg?.pixera_octo_count),
     ampCount: normalizeAmpCount(cfg?.amp_count),
     interactiveEnabled: cfg?.interactive_enabled === true,
     interactiveScannerCount: normalizeInteractiveScannerCount(cfg?.interactive_scanner_count),
     emergencySwitchEnabled: normalizeEmergencySwitchEnabled(cfg?.emergency_switch_enabled),
+    danteEnabled: normalizeDanteEnabled(cfg?.dante_enabled),
     demoAmp1Mutes: demoRuntime.amp1 || demoRuntime.demoAmp1Mutes,
     demoAmp2Mutes: demoRuntime.amp2 || demoRuntime.demoAmp2Mutes,
     demoAmp3Mutes: demoRuntime.amp3 || demoRuntime.demoAmp3Mutes,
@@ -4521,8 +4694,54 @@ function openAnyDeskSettings(){
   document.getElementById('ad-pin-gate').style.display = 'none';
   document.getElementById('ad-settings-panel').style.display = 'block';
   document.getElementById('ad-address-input').value = String(cfg?.anydesk_address || '');
+  detectAnyDeskId(); // async, non-blocking: upgrades the field if auto-detection succeeds
 }
 window.openAnyDeskSettings = openAnyDeskSettings;
+
+async function detectAnyDeskId(){
+  const statusEl = document.getElementById('ad-detect-status');
+  if(statusEl){ statusEl.style.color = 'var(--muted)'; statusEl.textContent = t('anydesk_detecting'); }
+  try{
+    const id = await invokeStrict('get_anydesk_id', {});
+    const input = document.getElementById('ad-address-input');
+    if(id){
+      if(input) input.value = id;
+      if(statusEl){ statusEl.style.color = '#4ade80'; statusEl.textContent = t('anydesk_detected', {id}); }
+      return id;
+    }
+    if(statusEl){ statusEl.style.color = 'var(--muted)'; statusEl.textContent = t('anydesk_not_found'); }
+    return null;
+  }catch(error){
+    if(statusEl){ statusEl.style.color = '#fca5a5'; statusEl.textContent = t('anydesk_detect_failed', {error}); }
+    return null;
+  }
+}
+window.detectAnyDeskId = detectAnyDeskId;
+
+// Einmaliger Auto-Check beim App-Start: schreibt die erkannte ID automatisch
+// in die persistierten Settings, falls das Feld noch leer ist oder von der
+// tatsaechlich ausgelesenen ID abweicht. Laeuft im Hintergrund, blockiert den
+// Start nicht, und schlaegt niemals hart fehl (AnyDesk evtl. nicht installiert).
+async function autoDetectAnyDeskOnStartup(){
+  try{
+    const id = await invokeStrict('get_anydesk_id', {});
+    if(!id) return;
+    const current = String(cfg?.anydesk_address || '').trim();
+    if(current === id) return;
+    const locationName = String(cfg?.location_name || '').trim();
+    const ok = await persistSiteMetadata(locationName, id);
+    if(!ok) return;
+    if(!cfg) cfg = {};
+    cfg.anydesk_address = id;
+    addLogT('info', 'anydesk_auto_detected', {id});
+    const input = document.getElementById('ad-address-input');
+    if(input) input.value = id;
+    const statusEl = document.getElementById('ad-detect-status');
+    if(statusEl){ statusEl.style.color = '#4ade80'; statusEl.textContent = t('anydesk_detected', {id}); }
+  }catch(error){
+    console.error('[anydesk-auto-detect]', error);
+  }
+}
 
 function lockAnyDeskSettings(){
   document.getElementById('ad-settings-panel').style.display = 'none';
@@ -4623,6 +4842,7 @@ function applyDemoMode(){
     }
   }
   if(isEmergencySwitchEnabled()) demoOnlineIds.push(['mon-emergency-switch']);
+  if(isDanteEnabled()) DANTE_DEVICES.forEach(target=>demoOnlineIds.push([target.monId, target.settingsId]));
   ['pixera','nas','poe','rutx','ups','janitza','cam1','cam2'].forEach(key=>{deviceState[key]=true;});
   [1,2,3].forEach(n=>{deviceState[`amp${n}`]=ampNumbers.includes(n);});
   deviceState.octo1 = octoCount>=1;
@@ -4636,6 +4856,7 @@ function applyDemoMode(){
     deviceState.interactive_gateway2 = scannerCount>=2;
   }
   deviceState.emergency_switch = isEmergencySwitchEnabled();
+  if(isDanteEnabled()) DANTE_DEVICES.forEach(target=>{deviceState[target.key]=true;});
   projectorOnlineStates.fill(true);
   ['overlay-amp1','overlay-amp2','overlay-amp3','overlay-nas','overlay-poe','overlay-rutx','overlay-ups','overlay-janitza','overlay-cam1','overlay-cam2'].forEach(id=>{
     const el = document.getElementById(id);
@@ -4654,6 +4875,7 @@ function applyDemoMode(){
   if(octoCount>=2) octoStates.push(true);
   const monitoringStates=[true,...ampStates,true,true,true,true,true,true,true,...octoStates,...projectorOnlineStates];
   if(isEmergencySwitchEnabled()) monitoringStates.push(true);
+  if(isDanteEnabled()) DANTE_DEVICES.forEach(()=>monitoringStates.push(true));
   updateMonitoringNavBadge(monitoringStates);
   updateInteractiveNavBadge(isInteractiveMonitoringEnabled() ? getInteractiveMonitorTargets().map(()=>true) : []);
   buildProjGrid();
@@ -4883,6 +5105,48 @@ function updateProjectorRangeSettingsUI(){
   if(!input) return;
   input.value=String(Math.max(1,Math.min(16,Number(cfg.projector_count||16))));
 }
+
+function getProjectorBrand(){
+  return normalizeProjectorBrand(cfg?.projector_brand);
+}
+
+function updateProjectorBrandSettingsUI(){
+  const brand=getProjectorBrand();
+  const panasonicBtn=document.getElementById('projector-brand-panasonic-btn');
+  const epsonBtn=document.getElementById('projector-brand-epson-btn');
+  if(panasonicBtn) panasonicBtn.classList.toggle('active', brand==='panasonic');
+  if(epsonBtn) epsonBtn.classList.toggle('active', brand==='epson');
+  const passwordRow=document.getElementById('epson-password-row');
+  if(passwordRow) passwordRow.style.display = brand==='epson' ? 'block' : 'none';
+  const passwordInput=document.getElementById('epson-web-password-input');
+  if(passwordInput && document.activeElement!==passwordInput) passwordInput.value=getEpsonWebPassword();
+}
+
+window.saveEpsonWebPassword=async()=>{
+  const status=document.getElementById('epson-password-save-status');
+  const value=String(document.getElementById('epson-web-password-input')?.value||'').trim();
+  if(status){ status.style.color='var(--muted)'; status.textContent=locales[currentLang].status_saving; }
+  try{
+    await invokeStrict('save_epson_web_password',{password:value});
+    cfg.epson_web_password=value;
+    if(status){ status.style.color='#4ade80'; status.textContent=locales[currentLang].status_saved_ok; }
+  }catch(error){
+    if(status){ status.style.color='#fca5a5'; status.textContent=t('status_error_with_detail',{error}); }
+  }
+};
+
+window.setProjectorBrand=(brand)=>{
+  const normalized=normalizeProjectorBrand(brand);
+  if(cfg.projector_brand===normalized) { updateProjectorBrandSettingsUI(); return; }
+  cfg.projector_brand=normalized;
+  persistSharedUiState({projectorBrand: normalized});
+  updateProjectorBrandSettingsUI();
+  // Karten-UI kennt nur das Trait/den globalen Wert, kein Rebuild der Karten
+  // noetig - nur die naechsten Testbild/HDMI1-Aktionen nutzen sofort das neue
+  // Protokoll. Sichtbarer Zustand (Testbild an/aus) wird beim naechsten
+  // get_test_pattern-Poll ohnehin neu vom jeweils aktiven Hersteller gelesen.
+  addLogT('info', 'projector_brand_saved', {brand: normalized});
+};
 
 function getAmpCount(){
   return normalizeAmpCount(cfg?.amp_count);
@@ -5155,6 +5419,20 @@ async function saveHubTicketSettings(){
     cfg.hub_project_id=values.projectId;
     cfg.hub_device_id=values.deviceId;
     if(status) status.textContent='Hub-Konfiguration gespeichert.';
+    // Sobald Token + Projekt-ID vorhanden sind, Standort direkt automatisch
+    // nachladen statt auf den naechsten App-Start oder einen separaten Klick
+    // auf "Verbindung testen" zu warten.
+    if(values.apiUrl && values.apiToken && values.projectId){
+      try{
+        const context=await resolveHubContext();
+        if(context?.ok===false) throw new Error(String(context.error||'Hub hat die Anfrage abgelehnt'));
+        if(status) status.textContent=`Hub-Konfiguration gespeichert. Standort erkannt: ${cfg.location_name||'nicht geliefert'}`;
+      }catch(locErr){
+        // Speichern war erfolgreich, nur die Standort-Erkennung ist fehlgeschlagen -
+        // alter Standort-Wert bleibt unveraendert (siehe resolveHubContext).
+        if(status) status.textContent=`Hub-Konfiguration gespeichert. Standort-Erkennung fehlgeschlagen: ${locErr?.message||locErr}`;
+      }
+    }
   }catch(e){
     if(status) status.textContent=`Speichern fehlgeschlagen: ${e?.message||e}`;
   }
@@ -5180,6 +5458,13 @@ async function hubPost(path,payload){
   return invokeStrict('hub_post_json',{url:`${base}/${String(path).replace(/^\//,'')}`,apiToken:token,payload});
 }
 
+// Real /resolve-location response shape (verified live against P001/P002/P003,
+// 2026-09-20): {"ok":true,"projectId","locationId","locationName","venue",
+// "country","city","year","show","playPeriodStart","playPeriodEnd","hubId"}.
+// "city" is consistently just the city ("Bruessel"/"Augsburg"/"Hannover"),
+// "locationName"/"venue" is consistently just the venue name (a building),
+// never pre-combined - so we build "Stadt, Venue" here ourselves. Country
+// comes as a German display name ("Belgien"/"Deutschland"), not an ISO code.
 async function resolveHubContext(){
   const projectId=String(cfg?.hub_project_id||'').trim();
   if(!projectId) throw new Error('Keine Projekt-ID konfiguriert');
@@ -5188,20 +5473,30 @@ async function resolveHubContext(){
     deviceId:String(cfg?.hub_device_id||'').trim(),
     source:'projektil-control'
   });
-  const locationName=String(result?.locationName||result?.venue||result?.name||result?.Name||'').trim();
-  if(locationName){
-    cfg.location_name=locationName;
+  const city=String(result?.city||'').trim();
+  const venueName=String(result?.locationName||result?.venue||'').trim();
+  const combinedLocation = city && venueName ? `${city}, ${venueName}` : (city || venueName);
+  // Nur bei Erfolg ueberschreiben - im Fehlerfall (leere Antwort) bleibt der
+  // zuletzt bekannte Standort unangetastet, statt geloescht zu werden.
+  if(combinedLocation){
+    cfg.location_name=combinedLocation;
     await persistSiteMetadata(cfg.location_name,cfg.anydesk_address||'');
+    // applyVenueName() zeigt bevorzugt den localStorage-Cache "venue_name" an
+    // (fuer sofortige Anzeige ohne auf cfg zu warten). Der wird sonst nur beim
+    // manuellen Speichern ueber das Standort-Feld aktualisiert - ohne dieses
+    // Update hier wuerde ein frueher mal manuell gesetzter Wert die frische,
+    // per Hub erkannte Adresse dauerhaft ueberdecken.
+    localStorage.setItem('venue_name', cfg.location_name);
     applyVenueName();
   }
   if(result && typeof result==='object'){
-    cfg.hub_country=String(result.country||result.land||'').trim();
-    cfg.hub_city=String(result.city||result.stadt||'').trim();
-    cfg.hub_year=String(result.year||result.jahr||'').trim();
-    cfg.hub_show=String(result.show||result.showName||'').trim();
-    cfg.hub_venue=String(result.venue||locationName||'').trim();
-    cfg.hub_play_period_start=String(result.playPeriodStart||result.spielperiodeStart||'').trim();
-    cfg.hub_play_period_end=String(result.playPeriodEnd||result.spielperiodeEnd||'').trim();
+    cfg.hub_country=String(result.country||'').trim();
+    cfg.hub_city=city;
+    cfg.hub_year=String(result.year??'').trim();
+    cfg.hub_show=String(result.show||'').trim();
+    cfg.hub_venue=venueName;
+    cfg.hub_play_period_start=String(result.playPeriodStart||'').trim();
+    cfg.hub_play_period_end=String(result.playPeriodEnd||'').trim();
   }
   return {...result,projectId};
 }
@@ -5237,7 +5532,7 @@ async function syncHubMetadata(){
   if(demoMode || !String(cfg?.hub_project_id||'').trim()) return null;
   try{
     const context=await resolveHubContext();
-    addLog('info',`Hub-Daten aktualisiert: ${context?.country||context?.land||''} ${context?.city||context?.stadt||''} / ${context?.show||context?.showName||''}`.trim(),{persist:true});
+    addLog('info',`Hub-Daten aktualisiert: ${context?.country||''} ${context?.city||''} / ${context?.show||''}`.trim(),{persist:true});
     return context;
   }catch(e){
     addLog('error',`Hub-Daten konnten nicht geladen werden: ${e?.message||e}`,{persist:true});
@@ -5426,8 +5721,15 @@ function applyVenueName(){
   const emoji = document.getElementById('venue-flag-emoji');
   const input = document.getElementById('venue-name-input');
   const venueMeta = resolveVenueMeta(val, currentLang);
+  // Flaggen-Erkennung bevorzugt ausschliesslich die von der Hub-API gelieferte
+  // Stadt (zuverlaessiger als aus dem kombinierten "Stadt, Venue"-String zu
+  // raten - der Venue-Name kann zufaellig eine andere Stadt/ein Land als
+  // Teilstring enthalten). Fallback auf die bisherige Logik, wenn kein
+  // hub_city vorhanden ist (z.B. manuell gepflegter Standort ohne Hub).
+  const hubCity = String(cfg?.hub_city || '').trim();
+  const flagEmoji = hubCity ? resolveVenueMeta(hubCity, currentLang).flagEmoji : venueMeta.flagEmoji;
   if(display) display.textContent = venueMeta.displayName || '—';
-  if(emoji) emoji.textContent = venueMeta.flagEmoji;
+  if(emoji) emoji.textContent = flagEmoji;
   if(input && input.value !== val) input.value = val;
   if(banner) banner.style.display = val ? 'flex' : 'none';
 }
@@ -5701,6 +6003,16 @@ function isEmergencySwitchEnabled(){
   return cfg?.emergency_switch_enabled === true;
 }
 
+function isDanteEnabled(){
+  return cfg?.dante_enabled === true;
+}
+
+// Fix vorgegeben (keine dynamische Liste/Anzahl) - siehe Auftrag Schritt 2.
+const DANTE_DEVICES=[
+  { key:'dante1', monId:'mon-dante1', settingsId:'settings-dante1', ip:'192.168.1.71', label:'Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)' },
+  { key:'dante2', monId:'mon-dante2', settingsId:'settings-dante2', ip:'192.168.1.72', label:'Dante AVIO 4x2 (IP: 192.168.1.72)' }
+];
+
 function getInteractiveMonitorTargets(){
   if(!isInteractiveMonitoringEnabled()) return [];
   const scannerCount = getInteractiveScannerCount();
@@ -5804,6 +6116,14 @@ window.setEmergencySwitchEnabled=(enabled)=>{
   addLogT('info', active ? 'emergency_switch_enabled_log' : 'emergency_switch_disabled_log');
 };
 
+window.setDanteEnabled=(enabled)=>{
+  const active = enabled === true;
+  cfg.dante_enabled = active;
+  persistSharedUiState({danteEnabled: active});
+  applyDanteSettingsUI();
+  addLogT('info', active ? 'dante_enabled_log' : 'dante_disabled_log');
+};
+
 function applyInteractiveSettingsUI(){
   const enabled = isInteractiveMonitoringEnabled();
   const scannerCount = getInteractiveScannerCount();
@@ -5865,6 +6185,24 @@ function applyEmergencySwitchSettingsUI(){
   if(!enabled){
     deviceState.emergency_switch = false;
     setStatus(['mon-emergency-switch'], false);
+  }
+}
+
+function applyDanteSettingsUI(){
+  const enabled = isDanteEnabled();
+  const toggle=document.getElementById('dante-enabled-toggle');
+  if(toggle) toggle.checked = enabled;
+
+  const wrap=document.getElementById('dante-devices-wrap');
+  if(wrap) wrap.style.display = enabled ? 'block' : 'none';
+
+  for(const target of DANTE_DEVICES){
+    const row=document.getElementById(`${target.monId}-row`);
+    if(row) row.style.display = enabled ? '' : 'none';
+    if(!enabled){
+      deviceState[target.key] = false;
+      setStatus([target.monId, target.settingsId], false);
+    }
   }
 }
 
@@ -5933,6 +6271,7 @@ async function init(){
   applyAmpSettingsUI();
   applyInteractiveSettingsUI();
   applyEmergencySwitchSettingsUI();
+  applyDanteSettingsUI();
   applyVenueName();
   applyHubTicketSettingsUI();
   applySuppressedErrorEventsToUI(cfg?.suppressed_error_events);
@@ -5997,14 +6336,19 @@ async function init(){
     await pollD40Status();
     await pollPixeraMasterMuteStatus(true);
     await syncHubMetadata();
+    probePixeraHubRebootCapability();
+    autoDetectAnyDeskOnStartup();
   }
   setInterval(pollAll,10000);
   setInterval(pollHubHeartbeat,30000);
   setInterval(pollArtNetGateways,30000);
+  setInterval(probePixeraHubRebootCapability,30000);
   setInterval(enforceProtocolFreshnessTimeouts,1000);
   setInterval(pollD40Status,5000);
   startPixeraMasterMutePolling();
   setInterval(syncProjectorsFromPjLink,5000);
+  setInterval(pollProjectorTestPatterns,20000);
+  pollProjectorTestPatterns();
   startSharedUiStateSync();
   setInterval(pollLocalBatteryStatus,LOCAL_BATTERY_POLL_INTERVAL_MS);
   await pollLocalBatteryStatus();
@@ -6875,9 +7219,9 @@ function buildProjGrid(){
     const card=document.createElement('div');
     card.className=`proj-card${isSelected?' selected':''}${projectorSelectionMode?' selectable':''}`;
     if(mobileLike){
-      card.innerHTML=`<div class="proj-mobile-top"><div class="proj-mobile-title"><div class="proj-mobile-name">PJ-${n}</div><div class="proj-mobile-model">${p.model||'Unknown Model'}</div></div><span style="width:12px;height:12px;border-radius:50%;background:${dotBg};display:block;flex-shrink:0"></span></div><div class="proj-mobile-meta"><span class="proj-mobile-chip">${displayIpLabel}</span><span class="proj-mobile-chip">Lamp ${lampHoursTxt} h</span><div class="proj-mobile-chip status"><span class="proj-mobile-link ${moduleOnline?'online':''}"><span class="proj-mobile-link-dot"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-mobile-actions"><button class="btn-g" onclick="event.stopPropagation();projOn(${i})">${locales[currentLang].projector_on}</button><button class="btn-o" onclick="event.stopPropagation();projOff(${i})">${locales[currentLang].projector_off}</button><button class="proj-shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div><div class="proj-webgui-row"><span style="font-size:10px;color:var(--muted)">WebGUI</span><button class="device-webgui-chip" data-view-allow onclick="event.stopPropagation();window.openProjectorWebGui(${i})">Open</button></div>`;
+      card.innerHTML=`<div class="proj-mobile-top"><div class="proj-mobile-title"><div class="proj-mobile-name">PJ-${n}</div><div class="proj-mobile-model">${p.model||'Unknown Model'}</div></div><span style="width:12px;height:12px;border-radius:50%;background:${dotBg};display:block;flex-shrink:0"></span></div><div class="proj-mobile-meta"><span class="proj-mobile-chip">${displayIpLabel}</span><span class="proj-mobile-chip">Lamp ${lampHoursTxt} h</span><div class="proj-mobile-chip status"><span class="proj-mobile-link ${moduleOnline?'online':''}"><span class="proj-mobile-link-dot"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-mobile-actions"><button class="btn-g" onclick="event.stopPropagation();projOn(${i})">${locales[currentLang].projector_on}</button><button class="btn-o" onclick="event.stopPropagation();projOff(${i})">${locales[currentLang].projector_off}</button><button class="proj-shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div><div class="proj-extras-row"><button id="proj-tp-${i}" class="testpattern-btn ${p.testPatternOn===true?'active':''}" onclick="event.stopPropagation();projToggleTestPattern(${i})">${locales[currentLang].projector_testpattern_label||'Testbild'}</button><button id="proj-hdmi1-${i}" onclick="event.stopPropagation();projSwitchHdmi1(${i})">${locales[currentLang].projector_hdmi1_label||'HDMI 1'}</button></div><div class="proj-webgui-row"><span style="font-size:10px;color:var(--muted)">WebGUI</span><button class="device-webgui-chip" data-view-allow onclick="event.stopPropagation();window.openProjectorWebGui(${i})">Open</button></div>`;
     } else {
-      card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="event.stopPropagation();projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="event.stopPropagation();projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button class="shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div><div class="proj-webgui-row"><span style="font-size:10px;color:var(--muted)">WebGUI</span><button class="device-webgui-chip" data-view-allow onclick="event.stopPropagation();window.openProjectorWebGui(${i})">Open</button></div>`;
+      card.innerHTML=`<div class="proj-header"><div><div class="proj-name">PJ-${n}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${displayIpLabel}</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">${p.model||'Unknown'}</div><div style="font-size:9px;color:var(--muted);font-family:var(--mono)">Lamp: ${lampHoursTxt} h</div></div><span style="width:8px;height:8px;border-radius:50%;background:${dotBg};display:block"></span></div><div class="proj-status-row"><span class="proj-ping"><span class="proj-ping-dot ${moduleOnline?'online':''}"></span>${locales[currentLang].projector_link_label||locales[currentLang].projector_ping_label}</span><div style="text-align:right"><div class="proj-status-caption">${locales[currentLang].projector_status_label}</div><span class="proj-status-pill ${statusState}">${statusLabel}</span></div></div><div class="proj-btns"><button onclick="event.stopPropagation();projOn(${i})" style="border-color:${p.on?'var(--green)':'var(--border)'}">${locales[currentLang].projector_on}</button><button onclick="event.stopPropagation();projOff(${i})" style="border-color:${!p.on?'var(--red)':'var(--border)'}">${locales[currentLang].projector_off}</button><button class="shutter-btn ${p.mute?'active':''}" onclick="event.stopPropagation();projShutterToggle(${i})">${locales[currentLang].shutter||'Shutter'}</button></div><div class="proj-extras-row"><button id="proj-tp-${i}" class="testpattern-btn ${p.testPatternOn===true?'active':''}" onclick="event.stopPropagation();projToggleTestPattern(${i})">${locales[currentLang].projector_testpattern_label||'Testbild'}</button><button id="proj-hdmi1-${i}" onclick="event.stopPropagation();projSwitchHdmi1(${i})">${locales[currentLang].projector_hdmi1_label||'HDMI 1'}</button></div><div class="proj-webgui-row"><span style="font-size:10px;color:var(--muted)">WebGUI</span><button class="device-webgui-chip" data-view-allow onclick="event.stopPropagation();window.openProjectorWebGui(${i})">Open</button></div>`;
     }
     createManagedEventListener(card, 'click', ()=>{ if(projectorSelectionMode) toggleProjectorSelection(i); });
     const overlay=document.createElement('div');
@@ -7176,6 +7520,161 @@ window.clearSelectedProjectorsOnly=clearSelectedProjectorsOnly;
 window.selectAllProjectors=selectAllProjectors;
 window.toggleProjectorSelection=toggleProjectorSelection;
 
+// ============================================================
+// PROJECTOR EXTRAS (Testbild / HDMI1) - Panasonic ODER Epson, EIN globaler
+// Hersteller-Schalter fuer die ganze Show (cfg.projector_brand). Die
+// Karten-UI und globalen Aktionen kennen nur diese generischen Funktionen -
+// welches Protokoll tatsaechlich verwendet wird, entscheidet ausschliesslich
+// das Rust-Backend anhand von cfg.projector_brand (projector_extras.rs).
+// ============================================================
+const projExtrasBusy={};
+
+function getEpsonWebPassword(){
+  return String(cfg?.epson_web_password||'').trim();
+}
+
+async function projGetTestPattern(index){
+  const ip=String(projStates[index]?.ip||'').trim();
+  if(!ip || ip==='0.0.0.0') return null;
+  if(demoMode) return projStates[index].testPatternOn;
+  try{
+    const on=await invokeStrict('projector_get_test_pattern',{ip});
+    projStates[index].testPatternOn=Boolean(on);
+  }catch(e){
+    // Abfrage fehlgeschlagen (z.B. Projektor gerade offline) - letzten
+    // bekannten Zustand NICHT ueberschreiben, statt optimistisch zu raten.
+  }
+  return projStates[index].testPatternOn;
+}
+
+async function projSetTestPattern(index, on){
+  const ip=String(projStates[index]?.ip||'').trim();
+  if(!ip || ip==='0.0.0.0'){ addError(t('projector_no_ip_configured',{index:index+1})); throw new Error('IP fehlt'); }
+  if(demoMode){ projStates[index].testPatternOn=on; return; }
+  await invokeStrict('projector_set_test_pattern',{ip,on});
+  await projGetTestPattern(index); // tatsaechlichen Geraetezustand nachladen statt optimistisch zu setzen
+}
+
+async function projSwitchHdmi1Ip(index){
+  const ip=String(projStates[index]?.ip||'').trim();
+  if(!ip || ip==='0.0.0.0'){ addError(t('projector_no_ip_configured',{index:index+1})); throw new Error('IP fehlt'); }
+  if(demoMode) return;
+  await invokeStrict('projector_switch_hdmi1',{ip});
+}
+
+window.projToggleTestPattern=async(index)=>{
+  if(projExtrasBusy[index]) return;
+  const btn=document.getElementById(`proj-tp-${index}`);
+  const nextOn=!(projStates[index]?.testPatternOn===true);
+  projExtrasBusy[index]=true;
+  if(btn) btn.disabled=true;
+  try{
+    await projSetTestPattern(index, nextOn);
+  }catch(e){
+    addError(t('projector_action_failed',{label:`PJ-${String(index+1).padStart(2,'0')} ${t('projector_testpattern_label')}`,error:e}));
+  }finally{
+    delete projExtrasBusy[index];
+    buildProjGrid();
+  }
+};
+
+window.projSwitchHdmi1=async(index)=>{
+  if(projExtrasBusy[index]) return;
+  const btn=document.getElementById(`proj-hdmi1-${index}`);
+  projExtrasBusy[index]=true;
+  if(btn) btn.disabled=true;
+  try{
+    await projSwitchHdmi1Ip(index);
+  }catch(e){
+    addError(t('projector_action_failed',{label:`PJ-${String(index+1).padStart(2,'0')} ${t('projector_hdmi1_label')}`,error:e}));
+  }finally{
+    delete projExtrasBusy[index];
+    if(btn) btn.disabled=false;
+  }
+};
+
+// Begrenzte Parallelitaet statt alle Geraete auf einmal anzufragen: mit 16
+// Projektoren gleichzeitig (z.B. beim Start oder "Alle"-Aktionen, wenn nicht
+// alle erreichbar sind) hat ein voller Promise.allSettled-Burst von 16
+// parallelen TCP-Verbindungsversuchen die App reproduzierbar abstuerzen
+// lassen (vermutlich Windows/AV-Schutz, der das als Port-Scan wertet, oder
+// Ressourcen-Erschoepfung - die exakte Ursache liess sich nicht bis ins
+// letzte Detail verifizieren, aber begrenzte Parallelitaet behebt es
+// zuverlaessig und bleibt trotzdem deutlich schneller als rein sequentiell).
+async function runWithConcurrencyLimit(items, limit, worker){
+  const results=new Array(items.length);
+  let cursor=0;
+  async function runNext(){
+    while(cursor<items.length){
+      const idx=cursor++;
+      try{
+        const value=await worker(items[idx], idx);
+        results[idx]={status:'fulfilled',value};
+      }catch(error){
+        results[idx]={status:'rejected',reason:error};
+      }
+    }
+  }
+  const workerCount=Math.max(1,Math.min(limit, items.length));
+  await Promise.all(Array.from({length:workerCount},()=>runNext()));
+  return results;
+}
+
+async function runProjectorActionWithSummary(indices, action){
+  const results=await runWithConcurrencyLimit(indices, 3, action);
+  const ok=results.filter(r=>r.status==='fulfilled').length;
+  const failed=results.length-ok;
+  return {ok,failed};
+}
+
+function areAllTestPatternsOn(indices){
+  if(!indices.length) return false;
+  return indices.every(i=>projStates[i]?.testPatternOn===true);
+}
+
+window.allProjTestPatternToggle=async()=>{
+  const indices=getConfiguredProjectorIndices();
+  if(!indices.length){ addError(t('projector_no_config_for_action',{label:t('projector_testpattern_all_label')})); return; }
+  const nextOn=!areAllTestPatternsOn(indices);
+  const btn=document.getElementById('all-proj-testpattern-btn');
+  if(btn) btn.disabled=true;
+  try{
+    const {ok,failed}=await runProjectorActionWithSummary(indices, i=>projSetTestPattern(i,nextOn));
+    addLogT(failed?'error':'info','projector_actions_summary',{ok,failed});
+  }finally{
+    if(btn) btn.disabled=false;
+    buildProjGrid();
+  }
+};
+
+window.allProjHdmi1=async()=>{
+  const indices=getConfiguredProjectorIndices();
+  if(!indices.length){ addError(t('projector_no_config_for_action',{label:t('projector_hdmi1_all_label')})); return; }
+  const btn=document.getElementById('all-proj-hdmi1-btn');
+  if(btn) btn.disabled=true;
+  try{
+    const {ok,failed}=await runProjectorActionWithSummary(indices, i=>projSwitchHdmi1Ip(i));
+    addLogT(failed?'error':'info','projector_actions_summary',{ok,failed});
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+};
+
+// Hintergrund-Poll: Testbild-Zustand ist ein echter Geraete-Ist-Zustand (nicht
+// nur "zuletzt geklickt") - dafuer periodisch get_test_pattern abfragen.
+async function pollProjectorTestPatterns(){
+  if(demoMode) return;
+  const indices=getConfiguredProjectorIndices();
+  if(!indices.length) return;
+  let changed=false;
+  await runWithConcurrencyLimit(indices, 3, async i=>{
+    const prev=projStates[i].testPatternOn;
+    await projGetTestPattern(i);
+    if(projStates[i].testPatternOn!==prev) changed=true;
+  });
+  if(changed) buildProjGrid();
+}
+
 function buildMonProjGrid(forceRebuild=false){
   const g=document.getElementById('mon-proj-grid');if(!g)return;
   if(!forceRebuild && g.children.length>0)return;
@@ -7304,6 +7803,28 @@ window.showPixeraGainDialog = (channel) => {
 
 window.closeGainDialog = () => {
   document.getElementById('gain-dialog-backdrop').classList.remove('show');
+};
+
+// Generic GUI-styled confirm dialog (replaces browser confirm() where a nicer prompt is wanted).
+let _confirmDialogResolve=null;
+function showConfirmDialog(title, message, confirmLabel){
+  return new Promise(resolve=>{
+    if(_confirmDialogResolve) resolveConfirmDialog(false); // close any stale dialog first
+    _confirmDialogResolve=resolve;
+    const titleEl=document.getElementById('confirm-dialog-title');
+    const msgEl=document.getElementById('confirm-dialog-message');
+    const confirmBtn=document.getElementById('confirm-dialog-confirm-btn');
+    if(titleEl) titleEl.textContent=title||'';
+    if(msgEl) msgEl.textContent=message||'';
+    if(confirmBtn) confirmBtn.textContent=confirmLabel||t('ok');
+    document.getElementById('confirm-dialog-backdrop').classList.add('show');
+  });
+}
+window.resolveConfirmDialog=(result)=>{
+  document.getElementById('confirm-dialog-backdrop').classList.remove('show');
+  const resolve=_confirmDialogResolve;
+  _confirmDialogResolve=null;
+  if(resolve) resolve(result);
 };
 
 window.confirmGainDialog = async () => {
@@ -7900,7 +8421,7 @@ function detectSuppressedErrorEvents(msg){
   const events=[]; const push=key=>{if(!events.includes(key))events.push(key);};
   if(text.includes('nicht ausgeloest')||text.includes('missed event')||text.includes('not fired'))push('trigger_missed');
   if(text.includes('timeline error')||text.includes('ontimelineerror'))push('timeline_error');
-  if(text.includes('offline!')||text.includes(' ist offline')){push('offline');if(text.includes('janitza'))push('janitza_offline');if(text.includes('ups'))push('ups_offline');if(text.includes('nas'))push('nas_offline');if(text.includes('poe')||text.includes('switch'))push('poe_switch_offline');if(text.includes('rutx')||text.includes('router'))push('rutx_offline');if(text.includes('pixera')||text.includes('director')||text.includes('octo'))push('pixera_offline');}
+  if(text.includes('offline!')||text.includes(' ist offline')){push('offline');if(text.includes('janitza'))push('janitza_offline');if(text.includes('ups'))push('ups_offline');if(text.includes('nas'))push('nas_offline');if(text.includes('poe')||text.includes('switch'))push('poe_switch_offline');if(text.includes('rutx')||text.includes('router'))push('rutx_offline');if(text.includes('pixera')||text.includes('director')||text.includes('octo'))push('pixera_offline');if(text.includes('artnet'))push('interactive_artnet_offline');else if(text.includes('scanner'))push('interactive_scanner_offline');if(text.includes('pc interaktiv'))push('interactive_pc_offline');}
   if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&text.includes('ups'))push('ups_offline');
   if((text.includes('keine modbus-werte')||text.includes('modbus values'))&&text.includes('janitza'))push('janitza_offline');
   if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&text.includes('nas'))push('nas_offline');
@@ -7918,15 +8439,14 @@ function isSuppressedErrorMessage(msg){
   return selected.length>0 && detectSuppressedErrorEvents(msg).some(event=>selected.includes(event)||(event.endsWith('_offline')&&selected.includes('offline')));
 }
 function addError(msg,opts={}){
+  if(isSuppressedErrorMessage(msg)){
+    return; // fully ignored: no log entry, no error list, no banner
+  }
   const now=Number(opts.timestampMs)||Date.now();
   const persist=opts.persist!==false;
   const suppressDuplicate=opts.suppressDuplicate!==false;
   const showBanner=opts.showBanner!==false;
   const logToSystem=opts.logToSystem!==false;
-  if(isSuppressedErrorMessage(msg)){
-    addLog('suppressed',msg,{timestampMs:now,persist});
-    return;
-  }
   if(suppressDuplicate && errors.find(e=>e.msg===msg&&(now-e.ts)<60000))return;
   errors.unshift({id:errorIdCounter++,msg,time:formatLogTime(now,true),ts:now});
   if(errors.length>MAX_ERROR_ENTRIES_UI) errors.shift();
@@ -8140,9 +8660,13 @@ function setDeviceOnline(key,online,label,overlayId){
   } else if(prev!==online){
     deviceState[key]=online;
     onProtocolDeviceOnlineStateChanged(key, online);
-    const icon=online?'🟢':'🔴';
-    addLogT(online?'info':'error','device_state_now',{icon,label,state:online?locales[currentLang].online.toUpperCase():locales[currentLang].offline.toUpperCase()});
-    if(!online) addError(t('device_offline_alert',{label}));
+    const offlineMsg=t('device_offline_alert',{label});
+    const suppressed=isSuppressedErrorMessage(offlineMsg);
+    if(!suppressed){
+      const icon=online?'🟢':'🔴';
+      addLogT(online?'info':'error','device_state_now',{icon,label,state:online?locales[currentLang].online.toUpperCase():locales[currentLang].offline.toUpperCase()});
+      if(!online) addError(offlineMsg);
+    }
   }
   if(overlayId){const ov=document.getElementById(overlayId);if(ov)ov.classList.toggle('show',!online);}
 }
@@ -8270,8 +8794,27 @@ async function pollAll(){
     setStatus(['mon-emergency-switch'], false);
   }
 
+  // Dantenetzwerk: exakt dieselbe simple Erreichbarkeitspruefung (tcpPing)
+  // wie beim Notaus-Schalter - kein Dante-eigenes Protokoll (kein mDNS,
+  // kein ConMon), nur ein/aus wie bei den uebrigen Geraeten.
+  const danteOnlineStates=[];
+  if(isDanteEnabled()){
+    for(const target of DANTE_DEVICES){
+      const online = await tcpPing(target.ip,80);
+      danteOnlineStates.push(online);
+      setDeviceOnline(target.key, online, target.label, null);
+      setStatus([target.monId, target.settingsId], online);
+    }
+  } else {
+    for(const target of DANTE_DEVICES){
+      setDeviceOnline(target.key, false, target.label, null);
+      setStatus([target.monId, target.settingsId], false);
+    }
+  }
+
   const monitoringStates=[directorOnline,...getConfiguredAmpNumbers().map(n=>ampOnlineStates[n-1]),nas,poe,rutx,ups,jan,c1,c2,...octoStates,...projectorOnlineStates];
   if(isEmergencySwitchEnabled()) monitoringStates.push(emergencySwitchOnline);
+  if(isDanteEnabled()) monitoringStates.push(...danteOnlineStates);
   updateMonitoringNavBadge(monitoringStates);
   updateInteractiveNavBadge(interactiveStates);
 }
@@ -8423,6 +8966,17 @@ async function runStartupConnectivityChecks(){
       port:80,
       run:()=>tcpPing('192.168.1.99',80,{throwOnFail:true})
     });
+  }
+
+  if(isDanteEnabled()){
+    for(const target of DANTE_DEVICES){
+      checks.push({
+        name:target.label.split(' (')[0],
+        host:target.ip,
+        port:80,
+        run:()=>tcpPing(target.ip,80,{throwOnFail:true})
+      });
+    }
   }
 
   // Include all configured projectors in startup checks via PJLink port.
@@ -8824,34 +9378,68 @@ function getPixeraHubPort(){
   return Number(cfg?.pixera_hub_port||cfg?.pixera_octo_port||4000);
 }
 
-async function directPixeraHubAction(host, actionNames=['forceReboot','reboot']){
-  const port=getPixeraHubPort();
-  const actions=Array.isArray(actionNames)?actionNames:[actionNames];
-  const paths=[];
-  const pushPath=(path)=>{ if(path&&!paths.includes(path)) paths.push(path); };
-  for(const action of actions){
-    pushPath(`PixeraHub.${action}`);
-    pushPath(`AVStumpfl.PixeraHub.${action}`);
-    pushPath(`Pixera.Hub.${action}`);
-    pushPath(action);
+// Echtes Pixera-Hub-Protokoll (reverse-engineered aus dem Projektil_Hub Pixera-
+// Modul, Internal.sendCommand / Internal.queryHub): "Pixera Hub.exe" spricht
+// schlichtes HTTP/JSON auf seinem eigenen Port (Standard 4000), NICHT das
+// ws_avio-WebSocket-Protokoll der Pixera-Engine:
+//   POST http://{ip}:{port}/api/system.shutdown
+//     Content-Type: application/json, Body: {"json":{"type":"reboot","force":true}}
+//     -> Erfolg = HTTP 200
+//   GET  http://{ip}:{port}/api/pixera.running  -> Erfolg = HTTP 200
+async function pixeraHubHttpCall(host, method, body=null, options={}){
+  return invokeStrict('pixera_hub_command', {
+    host,
+    port: getPixeraHubPort(),
+    method,
+    body,
+    timeoutMs: options.timeoutMs || 4000
+  });
+}
+
+// Restart-Buttons duerfen nur erscheinen, wenn wirklich per echtem Hub-API-Call
+// (GET pixera.running) verifiziert wurde, dass auf dem Geraet ein Pixera-Hub-
+// Dienst antwortet. Wird alle 30 Sekunden neu geprueft.
+function getPixeraHubRebootTargets(){
+  const targets=[
+    { restartBtnId:'mon-director-restart-btn', ip:String(cfg?.pixera_ip||'').trim() }
+  ];
+  const octoCount=getPixeraOctoCount();
+  if(octoCount>=1){
+    const octo1Ip=getResolvedPixeraOctoHost(1)||String(cfg?.pixera_octo1_ip||'').trim();
+    targets.push({ restartBtnId:'mon-octo1-restart-btn', ip:octo1Ip });
   }
-  let firstError=null;
-  for(const path of paths){
+  if(octoCount>=2){
+    const octo2Ip=getResolvedPixeraOctoHost(2)||String(cfg?.pixera_octo2_ip||'').trim();
+    targets.push({ restartBtnId:'mon-octo2-restart-btn', ip:octo2Ip });
+  }
+  for(const target of getInteractiveMonitorTargets()){
+    const restartBtnId=`${target.id}-restart-btn`;
+    targets.push({ restartBtnId, ip:target.ip });
+  }
+  return targets;
+}
+
+async function probePixeraHubRebootCapability(){
+  await Promise.all(getPixeraHubRebootTargets().map(async target=>{
+    const btn=document.getElementById(target.restartBtnId);
+    if(!btn) return;
+    if(!target.ip){ btn.hidden=true; return; }
     try{
-      await pixeraApiCall([path],[],host,port,{allowEmpty:true});
-      return {method:path,port};
-    }catch(error){
-      if(!firstError) firstError=error;
+      await pixeraHubHttpCall(target.ip, 'pixera.running', null, {timeoutMs:2500});
+      btn.hidden=false;
+    }catch(e){
+      btn.hidden=true;
     }
-  }
-  throw firstError||new Error('Pixera Hub direct action failed');
+  }));
 }
 
 async function rebootViaDirectHub(target, options={}){
+  const force = options.force !== false; // default true (matches ForceReboot semantics)
   try{
-    const result=await directPixeraHubAction(target.host,['forceReboot','reboot']);
-    addLogT('info','device_reboot_direct_sent',{label:target.label,host:target.host,port:result.port,method:result.method});
-    return {ok:true,path:'direct',method:result.method};
+    const result=await pixeraHubHttpCall(target.host, 'system.shutdown', {type:'reboot', force});
+    addLogT('info','device_reboot_attempt_result',{path:'system.shutdown',result:JSON.stringify(result)});
+    addLogT('info','device_reboot_direct_sent',{label:target.label,host:target.host,port:getPixeraHubPort(),method:'system.shutdown'});
+    return {ok:true,path:'direct',method:'system.shutdown'};
   }catch(error){
     addLogT('error','device_reboot_direct_failed',{label:target.label,error});
     if(options.allowModuleFallback&&target.hubIndex){
@@ -10238,7 +10826,8 @@ window.restartPixeraServer=async(serverKey)=>{
       addError(t('pixera_restart_target_unresolved',{server:label}));
       return;
     }
-    if(!confirm(t('confirm_reboot_device',{label:target.label}))){
+    const confirmed=await showConfirmDialog(t('confirm_reboot_title'), t('confirm_reboot_device',{label:target.label}), t('confirm_reboot_action'));
+    if(!confirmed){
       return;
     }
 
@@ -10257,7 +10846,8 @@ window.restartInteractiveDevice=async(key)=>{
     addError(t('device_reboot_failed',{label:key,error:'IP fehlt'}));
     return;
   }
-  if(!confirm(t('confirm_reboot_device',{label:target.label}))){
+  const confirmed=await showConfirmDialog(t('confirm_reboot_title'), t('confirm_reboot_device',{label:target.label}), t('confirm_reboot_action'));
+  if(!confirmed){
     return;
   }
   try{

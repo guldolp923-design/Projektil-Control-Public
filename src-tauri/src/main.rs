@@ -1,6 +1,8 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 #![recursion_limit = "256"]
 mod oca;
+mod anydesk;
+mod projector_extras;
 use base64::{engine::general_purpose, Engine as _};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -221,6 +223,7 @@ static TELEGRAM_LAST_SENT: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new
 static CONFIG_VERSIONS: OnceLock<Mutex<Vec<ConfigVersion>>> = OnceLock::new();
 static CONFIG_STORE: OnceLock<Mutex<serde_json::Value>> = OnceLock::new();
 static CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
+static CONFIG_INITIALIZED: OnceLock<()> = OnceLock::new();
 static CONFIG_WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -687,8 +690,11 @@ fn backup_config_on_change(config_path: &Path, config_content: &str) -> Result<(
 
 fn write_app_log(level: &str, message: &str, timestamp_ms: u64, app: Option<&AppHandle>) -> Result<(), String> {
     let cfg = get_config();
-    let suppressed = level.eq_ignore_ascii_case("error") && error_event_is_suppressed(message, &cfg);
-    let clean_level = if level.eq_ignore_ascii_case("error") && !suppressed {
+    if level.eq_ignore_ascii_case("error") && error_event_is_suppressed(message, &cfg) {
+        // Fully ignored: no system log entry, no error log entry.
+        return Ok(());
+    }
+    let clean_level = if level.eq_ignore_ascii_case("error") {
         "error".to_string()
     } else {
         "info".to_string()
@@ -708,6 +714,23 @@ fn write_app_log(level: &str, message: &str, timestamp_ms: u64, app: Option<&App
         append_log_entry(&err_path, &entry)?;
     }
 
+    maybe_prune_logs(app);
+    Ok(())
+}
+
+fn write_app_log_unfiltered(level: &str, message: &str, timestamp_ms: u64, app: Option<&AppHandle>) -> Result<(), String> {
+    let clean_level = if level.eq_ignore_ascii_case("error") { "error" } else { "info" }.to_string();
+    let entry = AppLogEntry {
+        timestamp_ms,
+        level: clean_level.clone(),
+        message: message.replace('\n', " ").replace('\r', " "),
+    };
+    let sys_path = system_log_path(app)?;
+    append_log_entry(&sys_path, &entry)?;
+    if clean_level == "error" {
+        let err_path = error_log_path(app)?;
+        append_log_entry(&err_path, &entry)?;
+    }
     maybe_prune_logs(app);
     Ok(())
 }
@@ -951,6 +974,14 @@ fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<S
         }
         if m.contains("pixera") || m.contains("director") || m.contains("octo") {
             push("pixera_offline");
+        }
+        if m.contains("artnet") {
+            push("interactive_artnet_offline");
+        } else if m.contains("scanner") {
+            push("interactive_scanner_offline");
+        }
+        if m.contains("pc interaktiv") {
+            push("interactive_pc_offline");
         }
     }
 
@@ -1938,6 +1969,78 @@ async fn http_ping(ip: String, port: u16) -> Result<String, String> {
             }
         }
     }
+}
+
+// ============================================================
+// Pixera Hub HTTP API (plain HTTP/JSON, NOT the ws_avio protocol)
+// Reverse-engineered from the "Projektil_Hub" Pixera module source
+// (Internal.sendCommand / Internal.queryHub): the standalone
+// "Pixera Hub.exe" program listens on its own port (default 4000)
+// and speaks plain HTTP, e.g.:
+//   POST http://{ip}:{port}/api/system.shutdown
+//     Content-Type: application/json
+//     Body: {"json":{"type":"reboot","force":true}}
+//     -> success is HTTP 200 (body content is not JSON-validated)
+//   GET  http://{ip}:{port}/api/pixera.running
+//     -> success is HTTP 200, body is {"result":{"data":{"json":{...}}}}
+// ============================================================
+#[tauri::command]
+async fn pixera_hub_command(
+    host: String,
+    port: Option<u16>,
+    method: String,
+    body: Option<serde_json::Value>,
+    timeout_ms: Option<u64>,
+) -> Result<serde_json::Value, String> {
+    let host = host.trim().to_string();
+    if host.is_empty() {
+        return Err("Pixera Hub: keine IP angegeben".to_string());
+    }
+    let port = port.unwrap_or(4000);
+    let method = method.trim().to_string();
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(4000).max(500));
+
+    // reqwest::blocking spins up its own internal Tokio runtime. Calling it
+    // directly from inside this async command (which already runs on the
+    // Tauri/Tokio runtime) panics with "Cannot drop a runtime in a context
+    // where blocking is not allowed" as soon as that inner runtime is torn
+    // down. spawn_blocking runs it on a dedicated blocking-pool thread
+    // instead, which is the correct way to call blocking code from async.
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
+        let url = format!("http://{}:{}/api/{}", host, port, method);
+
+        let client = reqwest::blocking::Client::builder()
+            .timeout(timeout)
+            .build()
+            .map_err(|e| format!("Pixera Hub Client-Aufbau fehlgeschlagen: {}", e))?;
+
+        let response = match body {
+            Some(body_val) => {
+                let payload = serde_json::json!({ "json": body_val });
+                client
+                    .post(&url)
+                    .header("Content-Type", "application/json")
+                    .json(&payload)
+                    .send()
+            }
+            None => client.get(&url).send(),
+        };
+
+        let response = response.map_err(|e| format!("Pixera Hub Anfrage fehlgeschlagen ({}): {}", url, e))?;
+        let status = response.status();
+        let text = response.text().unwrap_or_default();
+
+        if !status.is_success() {
+            return Err(format!("Pixera Hub HTTP {}: {}", status.as_u16(), text));
+        }
+
+        if text.trim().is_empty() {
+            return Ok(serde_json::Value::Null);
+        }
+        Ok(serde_json::from_str::<serde_json::Value>(&text).unwrap_or_else(|_| serde_json::json!({ "raw": text })))
+    })
+    .await
+    .map_err(|e| format!("Pixera Hub Task fehlgeschlagen: {}", e))?
 }
 
 // ============================================================
@@ -3707,7 +3810,8 @@ fn default_config_json() -> serde_json::Value {
         "rutx50_snmp_port": 161, "rutx50_snmp_community": "public",
         "ups_ip": "192.168.1.6", "power_disp_ip": "192.168.1.5",
         "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
-        "projector_start": 101, "projector_count": 16,
+        "projector_start": 101, "projector_count": 16, "projector_brand": "panasonic",
+        "epson_web_password": "",
         "interactive_enabled": false,
         "interactive_scanner_count": 2,
         "interactive_pc_ip": "192.168.1.36",
@@ -3717,6 +3821,7 @@ fn default_config_json() -> serde_json::Value {
         "interactive_scanner1_mac": "",
         "interactive_scanner2_mac": "",
         "emergency_switch_enabled": false,
+        "dante_enabled": false,
         "hotline": "+41 44 492 51 69",
         "location_name": "",
         "anydesk_address": "",
@@ -3773,6 +3878,14 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
         return;
     };
 
+    if !obj.contains_key("projector_brand") {
+        // Migration fuer Shows von vor der Hersteller-Umstellung: Panasonic
+        // war bisher implizit der einzig unterstuetzte Hersteller.
+        obj.insert("projector_brand".to_string(), serde_json::json!("panasonic"));
+    }
+    if !obj.contains_key("epson_web_password") {
+        obj.insert("epson_web_password".to_string(), serde_json::json!(""));
+    }
     if !obj.contains_key("pixera_octo_port") {
         obj.insert("pixera_octo_port".to_string(), serde_json::json!(4000));
     }
@@ -3812,6 +3925,9 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     }
     if !obj.contains_key("emergency_switch_enabled") {
         obj.insert("emergency_switch_enabled".to_string(), serde_json::json!(false));
+    }
+    if !obj.contains_key("dante_enabled") {
+        obj.insert("dante_enabled".to_string(), serde_json::json!(false));
     }
     if !obj.contains_key("suppressed_error_events") {
         obj.insert("suppressed_error_events".to_string(), serde_json::json!([]));
@@ -4031,6 +4147,9 @@ fn atomic_write_config(path: &Path, body: &str) -> Result<(), String> {
 }
 
 fn initialize_config_store() -> Result<(), String> {
+    if CONFIG_INITIALIZED.get().is_some() {
+        return Ok(());
+    }
     let path = canonical_config_path()?;
     let mut cfg = match fs::read_to_string(&path) {
         Ok(body) => serde_json::from_str::<serde_json::Value>(&body).unwrap_or_else(|_| newest_valid_config_backup(&path).unwrap_or_else(default_config_json)),
@@ -4046,7 +4165,8 @@ fn initialize_config_store() -> Result<(), String> {
     };
     ensure_config_defaults(&mut cfg);
     if let Ok(mut store) = config_store().lock() { *store = cfg; }
-    let _ = write_app_log("info", &format!("Config-Pfad: {}", path.display()), now_timestamp_ms(), APP_HANDLE.get());
+    let _ = CONFIG_INITIALIZED.set(());
+    let _ = write_app_log_unfiltered("info", &format!("Config-Pfad: {}", path.display()), now_timestamp_ms(), APP_HANDLE.get());
     Ok(())
 }
 
@@ -4065,9 +4185,14 @@ fn write_config_json_to_disk(cfg: &serde_json::Value) -> Result<(), String> {
     backup_config_on_change(&path, &body)?;
     atomic_write_config(&path, &body)?;
     if let Ok(mut store) = config_store().lock() { *store = cfg.clone(); }
-    let _ = write_app_log("info", &format!("Config gespeichert: {}", path.display()), now_timestamp_ms(), APP_HANDLE.get());
+    let _ = write_app_log_unfiltered("info", &format!("Config gespeichert: {}", path.display()), now_timestamp_ms(), APP_HANDLE.get());
     Ok(())
 }
+#[tauri::command]
+fn get_anydesk_id() -> Result<Option<String>, String> {
+    anydesk::get_id()
+}
+
 #[tauri::command]
 fn save_site_metadata(location_name: String, anydesk_address: String) -> Result<bool, String> {
     let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
@@ -4197,7 +4322,7 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, chann
 #[tauri::command]
 fn save_suppressed_error_events(events: Vec<String>) -> Result<bool, String> {
     let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
-    let allowed = ["janitza_offline", "janitza_asymmetry", "janitza_overfrequency", "janitza_underfrequency", "ups_offline", "ups_battery", "nas_offline", "poe_switch_offline", "rutx_offline", "pixera_offline", "trigger_missed", "timeline_error", "emergency", "panic", "keyword_match"];
+    let allowed = ["janitza_offline", "janitza_asymmetry", "janitza_overfrequency", "janitza_underfrequency", "ups_offline", "ups_battery", "nas_offline", "poe_switch_offline", "rutx_offline", "pixera_offline", "trigger_missed", "timeline_error", "emergency", "panic", "keyword_match", "interactive_pc_offline", "interactive_scanner_offline", "interactive_artnet_offline"];
     let cleaned: Vec<String> = events.into_iter().map(|event| event.trim().to_ascii_lowercase()).filter(|event| allowed.contains(&event.as_str())).collect();
     let mut cfg = read_config_json_from_disk().map(|(_, json)| json).unwrap_or_else(default_config_json);
     ensure_config_defaults(&mut cfg);
@@ -4283,12 +4408,14 @@ fn save_ui_state(
     startup_mode: Option<String>,
     language: Option<String>,
     camera_view_mode: Option<String>,
+    projector_brand: Option<String>,
     projector_count: Option<u8>,
     pixera_octo_count: Option<u8>,
     amp_count: Option<u8>,
     interactive_enabled: Option<bool>,
     interactive_scanner_count: Option<u8>,
     emergency_switch_enabled: Option<bool>,
+    dante_enabled: Option<bool>,
     demo_amp1_mutes: Option<Vec<bool>>,
     demo_amp2_mutes: Option<Vec<bool>>,
     demo_amp3_mutes: Option<Vec<bool>>,
@@ -4322,6 +4449,11 @@ fn save_ui_state(
             let mode = if normalized == "stream" { "stream" } else { "snapshot" };
             obj.insert("camera_view_mode".to_string(), serde_json::json!(mode));
         }
+        if let Some(brand_raw) = projector_brand {
+            let normalized = brand_raw.trim().to_ascii_lowercase();
+            let brand = if normalized == "epson" { "epson" } else { "panasonic" };
+            obj.insert("projector_brand".to_string(), serde_json::json!(brand));
+        }
         if let Some(count_raw) = projector_count {
             let clamped = count_raw.clamp(1, 16);
             obj.insert("projector_count".to_string(), serde_json::json!(clamped));
@@ -4343,6 +4475,9 @@ fn save_ui_state(
         }
         if let Some(enabled) = emergency_switch_enabled {
             obj.insert("emergency_switch_enabled".to_string(), serde_json::json!(enabled));
+        }
+        if let Some(enabled) = dante_enabled {
+            obj.insert("dante_enabled".to_string(), serde_json::json!(enabled));
         }
         if demo_amp1_mutes.is_some() || demo_amp2_mutes.is_some() || demo_amp3_mutes.is_some() {
             let entry = obj
@@ -4899,6 +5034,69 @@ fn pjlink_set_shutter(ip: String, muted: bool, password: Option<String>) -> Resu
     if resp.contains("=ERR") {
         return Err(format!("PJLink SetShutter error: {}", resp));
     }
+    Ok(true)
+}
+
+// ============================================================
+// PROJEKTOR-ZUSATZFUNKTIONEN (Testbild, HDMI1) - Panasonic/Epson.
+// Der Hersteller ist EIN globaler Wert pro Show (cfg.projector_brand),
+// keine Mischung. Die Karten-UI und globalen Aktionen im Frontend kennen nur
+// diese drei generischen Commands - welches Protokoll tatsaechlich
+// verwendet wird, entscheidet ausschliesslich der persistierte Config-Wert,
+// nicht ein vom Frontend mitgeschickter Parameter (single source of truth).
+// ============================================================
+fn active_projector_extras() -> Box<dyn projector_extras::ProjectorExtras> {
+    let cfg = get_config();
+    let brand = cfg["projector_brand"].as_str().unwrap_or("panasonic").to_string();
+    let epson_password = cfg["epson_web_password"]
+        .as_str()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    projector_extras::projector_extras_for_brand(&brand, epson_password)
+}
+
+// async fn + spawn_blocking ist hier bewusst gewaehlt (nicht ein einfaches
+// sync fn): diese Commands blockieren bis zu mehrere Sekunden auf TCP/HTTP-
+// I/O gegen ggf. nicht erreichbare Projektoren. Als einfaches sync fn hat das
+// reproduzierbar zu einem "AppHangB1" gefuehrt (Windows hat die App als
+// haengend erkannt und zwangsbeendet, sichtbar in Get-WinEvent), sobald
+// mehrere solcher Aufrufe ueberlappten (z.B. beim periodischen Testbild-Poll
+// ueber mehrere Projektoren). spawn_blocking laesst die blockierende
+// Netzwerk-I/O auf dem dedizierten Blocking-Thread-Pool von Tokio laufen,
+// statt einen der wenigen Async-Worker-Threads (und damit potenziell die
+// WebView-IPC) zu blockieren - siehe auch pixera_hub_command weiter oben.
+#[tauri::command]
+async fn projector_set_test_pattern(ip: String, on: bool) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || active_projector_extras().set_test_pattern(ip.trim(), on))
+        .await
+        .map_err(|e| format!("Projektor-Task fehlgeschlagen: {}", e))?
+}
+
+#[tauri::command]
+async fn projector_get_test_pattern(ip: String) -> Result<bool, String> {
+    tokio::task::spawn_blocking(move || active_projector_extras().get_test_pattern(ip.trim()))
+        .await
+        .map_err(|e| format!("Projektor-Task fehlgeschlagen: {}", e))?
+}
+
+#[tauri::command]
+async fn projector_switch_hdmi1(ip: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || active_projector_extras().switch_to_hdmi1(ip.trim()))
+        .await
+        .map_err(|e| format!("Projektor-Task fehlgeschlagen: {}", e))?
+}
+
+#[tauri::command]
+fn save_epson_web_password(password: String) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
+    let mut cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
+    if let Some(obj) = cfg.as_object_mut() {
+        obj.insert("epson_web_password".to_string(), serde_json::json!(password.trim()));
+    }
+    write_config_json_to_disk(&cfg)?;
     Ok(true)
 }
 
@@ -5573,12 +5771,14 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_optional_string(args, &["startupMode", "startup_mode"]),
             arg_optional_string(args, &["language", "lang"]),
             arg_optional_string(args, &["cameraViewMode", "camera_view_mode"]),
+            arg_optional_string(args, &["projectorBrand", "projector_brand"]),
             arg_value(args, &["projectorCount", "projector_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,16) as u8),
             arg_value(args, &["pixeraOctoCount", "pixera_octo_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(0,2) as u8),
             arg_value(args, &["ampCount", "amp_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,3) as u8),
             arg_value(args, &["interactiveEnabled", "interactive_enabled"]).and_then(|v| v.as_bool()),
             arg_value(args, &["interactiveScannerCount", "interactive_scanner_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,2) as u8),
             arg_value(args, &["emergencySwitchEnabled", "emergency_switch_enabled"]).and_then(|v| v.as_bool()),
+            arg_value(args, &["danteEnabled", "dante_enabled"]).and_then(|v| v.as_bool()),
             arg_optional_vec_bool(args, &["demoAmp1Mutes", "demo_amp1_mutes"]),
             arg_optional_vec_bool(args, &["demoAmp2Mutes", "demo_amp2_mutes"]),
             arg_optional_vec_bool(args, &["demoAmp3Mutes", "demo_amp3_mutes"]),
@@ -6103,16 +6303,17 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            d40_command, d40_ping, d40_status, d40_set_gain, http_ping, icmp_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
+            d40_command, d40_ping, d40_status, d40_set_gain, http_ping, pixera_hub_command, icmp_ping, camera_ptz_command, camera_snapshot, camera_stream_frame, camera_prepare_stream, camera_restart_stream,
             system_get_battery_status,
             ups_get_status, ups_get_power_mode, ups_get_diagnostics, janitza_get_data, poe_switch_get_status, rutx50_get_status, nas_get_status,
             ups_get_status_managed, janitza_get_data_managed, nas_get_status_managed, poe_switch_get_status_managed, rutx50_get_status_managed,
             pjlink_poll_many, pjlink_detect_models, pjlink_set_power, pjlink_set_shutter,
+            projector_set_test_pattern, projector_get_test_pattern, projector_switch_hdmi1, save_epson_web_password,
             pixera_api_request, get_next_cue, get_upcoming_cues,
             send_emergency_notaus_osc, send_emergency_osc_to_switch, send_emergency_reset_osc,
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_daily_log_csv_status, save_daily_log_csv, open_daily_log_csv_folder, get_config,
-            save_site_metadata, save_hub_config, hub_post_json, save_telegram_config, save_suppressed_error_events, save_interactive_device_config, send_wake_on_lan, save_ui_state, telegram_send_test, get_server_time_ms,
+            save_site_metadata, get_anydesk_id, save_hub_config, hub_post_json, save_telegram_config, save_suppressed_error_events, save_interactive_device_config, send_wake_on_lan, save_ui_state, telegram_send_test, get_server_time_ms,
             get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache, reset_all_device_failures
         ])
         .run(tauri::generate_context!())
