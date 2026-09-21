@@ -2122,7 +2122,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.40';
+const APP_VERSION_FALLBACK = '1.0.41';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -5607,6 +5607,49 @@ async function createHubTicket(type, details={}){
   }
 }
 
+// Meldet JEDE Notaus-Ausloesung (Taster wie App) als Ticket im Hub. Bewusst
+// OHNE das clientseitige hubTicketFingerprints-Dedup, das createHubTicket()
+// fuer andere Fehlerarten nutzt: Taster und App-Bestaetigung sollen beide
+// wirklich beim Hub ankommen (gleicher Fingerprint), damit der Hub selbst
+// occurrenceCount hochzaehlt, statt dass der zweite Aufruf hier lokal
+// verschluckt wird, bevor er den Hub je erreicht.
+// Wird von confirmEmergency() bewusst OHNE await aufgerufen (fire-and-forget)
+// - ein langsamer oder nicht erreichbarer Hub darf die eigentliche
+// Notaus-Bedienung nie verzoegern oder blockieren. Fehler landen nur im
+// lokalen Log, nie als blockierender UI-Dialog. Kein Token in Log/Fehlertext,
+// da hub_post_json (main.rs) im Fehlerfall nur Server-Antwort/Netzwerkfehler
+// zurueckgibt, nie die gesendeten Header.
+async function reportEmergencyTicket(trigger){
+  const projectId=String(cfg?.hub_project_id||'').trim();
+  if(!projectId){
+    addLog('info',`Notaus-Ticket uebersprungen: keine Projektnummer hinterlegt (trigger=${trigger})`,{persist:true});
+    return;
+  }
+  if(!hubApiBaseUrl() || !String(cfg?.hub_api_token||'').trim()){
+    addLog('info',`Notaus-Ticket uebersprungen: Hub API nicht konfiguriert (trigger=${trigger})`,{persist:true});
+    return;
+  }
+  try{
+    const context=await resolveHubContext();
+    await hubPost('tickets',{
+      ...context,
+      deviceId:String(cfg?.hub_device_id||'').trim(),
+      type:'emergency_triggered',
+      title:'Notaus ausgeloest',
+      priority:'critical',
+      fingerprint:`${projectId}:emergency_triggered`,
+      source:'projektil-control',
+      sourceVersion:appVersion,
+      occurredAt:new Date().toISOString(),
+      details:{trigger}
+    });
+    addLog('info',`Notaus-Ticket an Hub gemeldet (trigger=${trigger})`,{persist:true});
+  }catch(e){
+    addLog('error',`Notaus-Ticket konnte nicht an Hub gemeldet werden (trigger=${trigger}): ${e?.message||e}`,{persist:true});
+  }
+}
+window.reportEmergencyTicket=reportEmergencyTicket;
+
 // Meldet dem Hub, dass ein zuvor gemeldeter Fehler wieder behoben ist. Der Hub protokolliert
 // dies im bestehenden Ticket, ohne es automatisch zu schliessen. Ist das Ticket bereits manuell
 // abgeschlossen worden, erzeugt der naechste erneute Fehler ueber createHubTicket ein neues Ticket.
@@ -7985,7 +8028,14 @@ window.triggerPowerOff=async()=>{
 
 window.confirmEmergency=async()=>{
   const isRemoteTrigger = _lastEmergencyTriggeredRemotelyTemp || lastEmergencyTriggeredRemotely;
-  
+
+  // Notaus-Ticket an den Hub melden - bewusst OHNE await (fire-and-forget):
+  // ein langsamer/nicht erreichbarer Hub darf die eigentliche Notaus-
+  // Bedienung unten (Lockscreen, OSC-Versand) niemals verzoegern oder
+  // blockieren. Fehler werden innerhalb von reportEmergencyTicket selbst
+  // nur lokal geloggt, nie hier hochgereicht.
+  reportEmergencyTicket(isRemoteTrigger ? 'button' : 'app');
+
   // Set state variables directly
   emergencyLockActive = true;
   viewModeLocked = true;
