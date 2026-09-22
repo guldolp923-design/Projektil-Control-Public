@@ -2122,7 +2122,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.41';
+const APP_VERSION_FALLBACK = '1.0.42';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -2834,6 +2834,9 @@ const locales = {
     janitza_error_with_detail: '[Janitza] FEHLER: {error}',
     ups_switched_to_battery_alarm: '[UPS] SOFORTALARM: UPS hat auf Batteriebetrieb gewechselt!{runtime}',
     ups_error_with_detail: '[UPS] FEHLER: {error}',
+    poe_error_with_detail: '[PoE Switch] FEHLER: {error}',
+    rutx_error_with_detail: '[RUTX50] FEHLER: {error}',
+    nas_error_with_detail: '[NAS] FEHLER: {error}',
     ups_back_to_mains_resolved: '[RESOLVED] UPS wieder im Netzbetrieb (Batteriemodus beendet).',
     ups_battery_watch_error: '[UPS] Battery-Watch FEHLER: {error}',
     system_battery_low_warning: '[SYSTEM] AKKU WARNUNG: Akkustand unter {threshold}% (aktuell {pct}%).',
@@ -3358,6 +3361,9 @@ const locales = {
     janitza_error_with_detail: '[Janitza] ERROR: {error}',
     ups_switched_to_battery_alarm: '[UPS] IMMEDIATE ALERT: UPS switched to battery mode!{runtime}',
     ups_error_with_detail: '[UPS] ERROR: {error}',
+    poe_error_with_detail: '[PoE Switch] ERROR: {error}',
+    rutx_error_with_detail: '[RUTX50] ERROR: {error}',
+    nas_error_with_detail: '[NAS] ERROR: {error}',
     ups_back_to_mains_resolved: '[RESOLVED] UPS back on mains power (battery mode ended).',
     ups_battery_watch_error: '[UPS] Battery watch ERROR: {error}',
     system_battery_low_warning: '[SYSTEM] BATTERY WARNING: charge below {threshold}% (currently {pct}%).',
@@ -7096,6 +7102,7 @@ async function pollPoeSwitchData(){
     markProtocolValueReceived('poe');
   }catch(e){
     console.error('[PoE SNMP]',e);
+    addError(t('poe_error_with_detail',{error:e}));
     const modelEl=document.getElementById('net-poe-model'); if(modelEl) modelEl.textContent=locales[currentLang].snmp_unreachable;
     const upEl=document.getElementById('net-poe-uptime'); if(upEl) upEl.textContent='—';
     const budgetEl=document.getElementById('net-poe-budget'); if(budgetEl) budgetEl.textContent='—';
@@ -7148,6 +7155,7 @@ async function pollRutx50Data(){
     markProtocolValueReceived('rutx');
   }catch(e){
     console.error('[RUTX50 SNMP]',e);
+    addError(t('rutx_error_with_detail',{error:e}));
     const modelEl=document.getElementById('net-rutx-model'); if(modelEl) modelEl.textContent=locales[currentLang].snmp_unreachable;
     const fwEl=document.getElementById('net-rutx-fw'); if(fwEl) fwEl.textContent='—';
     const opEl=document.getElementById('net-rutx-operator'); if(opEl) opEl.textContent='—';
@@ -7230,6 +7238,21 @@ async function pollNasData(){
     markProtocolValueReceived('nas');
   }catch(e){
     console.error('[NAS SNMP]',e);
+    addError(t('nas_error_with_detail',{error:e}));
+    const tEl=document.getElementById('nas-temp'); if(tEl){ tEl.textContent='—'; tEl.className='pow-val'; }
+    const upEl=document.getElementById('nas-uptime'); if(upEl) upEl.textContent='—';
+    for(let i=0;i<2;i++){
+      const el=document.getElementById(`raid${i+1}`);
+      if(el){ el.className='pill'; el.textContent='—'; }
+    }
+    for(let i=0;i<4;i++){
+      const el=document.getElementById(`disk${i+1}`);
+      if(el){ el.className='pill'; el.textContent='—'; }
+    }
+    ['nas-vol1','nas-vol2'].forEach(prefix=>{
+      const bar=document.getElementById(`${prefix}-bar`); if(bar) bar.style.width='0%';
+      const txt=document.getElementById(`${prefix}-txt`); if(txt) txt.textContent='— TB';
+    });
   }
 }
 
@@ -8844,13 +8867,14 @@ async function pollAll(){
     setStatus(['mon-emergency-switch'], false);
   }
 
-  // Dantenetzwerk: exakt dieselbe simple Erreichbarkeitspruefung (tcpPing)
-  // wie beim Notaus-Schalter - kein Dante-eigenes Protokoll (kein mDNS,
-  // kein ConMon), nur ein/aus wie bei den uebrigen Geraeten.
+  // Dantenetzwerk: Dante-Geraete haben kein Webinterface/keinen TCP-Port -
+  // deshalb reiner ICMP-Ping auf die IP (wie bei Scanner/Interaktiv-PC/
+  // ArtNet-Gateways), kein TCP-Connect-Check. Kein Dante-eigenes Protokoll
+  // (kein mDNS, kein ConMon), nur ein/aus wie bei den uebrigen Geraeten.
   const danteOnlineStates=[];
   if(isDanteEnabled()){
     for(const target of DANTE_DEVICES){
-      const online = await tcpPing(target.ip,80);
+      const online = await icmpPing(target.ip);
       danteOnlineStates.push(online);
       setDeviceOnline(target.key, online, target.label, null);
       setStatus([target.monId, target.settingsId], online);
@@ -9023,8 +9047,12 @@ async function runStartupConnectivityChecks(){
       checks.push({
         name:target.label.split(' (')[0],
         host:target.ip,
-        port:80,
-        run:()=>tcpPing(target.ip,80,{throwOnFail:true})
+        port:null,
+        run:async()=>{
+          const result = await icmpPing(target.ip);
+          if(!result) throw new Error('Host nicht erreichbar');
+          return result;
+        }
       });
     }
   }
