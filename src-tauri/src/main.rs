@@ -1831,9 +1831,9 @@ fn check_ups_anomalies(data: &serde_json::Map<String, serde_json::Value>, cfg: &
     };
 
     let bat_status    = get_i("bat_status");
-    let bat_ok        = get_i("bat_ok");
+    let bat_ok        = data.get("bat_ok").and_then(|v| v.as_i64());
     let output_load   = get_i("output_load"); // /10 = %
-    let output_online = get_i("output_online");
+    let output_online = data.get("output_online").and_then(|v| v.as_i64());
     let input_v       = get_i("input_voltage");
     let runtime       = get_i("runtime_ticks"); // Timeticks /100 = Sekunden
 
@@ -1847,7 +1847,10 @@ fn check_ups_anomalies(data: &serde_json::Map<String, serde_json::Value>, cfg: &
         warnings.push(format!("UNBEKANNTER BATTERIE-STATUS: {}", bat_status));
     }
 
-    if bat_ok == 0 {
+    // Nur warnen, wenn die SNMP-Abfrage tatsaechlich geantwortet hat. Ein fehlender Wert
+    // (Query-Timeout fuer dieses eine OID) darf nicht als "Batterie nicht OK" interpretiert
+    // werden - das erzeugt einen Fehlalarm ohne echten Bezug zum Batteriezustand.
+    if bat_ok == Some(0) {
         warnings.push("bat_ok = 0 (Batterie nicht OK)".to_string());
     }
 
@@ -1856,8 +1859,12 @@ fn check_ups_anomalies(data: &serde_json::Map<String, serde_json::Value>, cfg: &
         warnings.push(format!("UPS LAST {}% (Warnschwelle {}%)", load_pct, ups_load_warn));
     }
 
-    if output_online != 1 {
-        warnings.push(format!("⚠ OUTPUT nicht online (output_online={})", output_online));
+    // Gleiches Prinzip wie bei bat_ok: nur warnen, wenn die Abfrage tatsaechlich einen
+    // Wert geliefert hat. Ein fehlender Wert bedeutet Query-Timeout, nicht "nicht online".
+    if let Some(online) = output_online {
+        if online != 1 {
+            warnings.push(format!("⚠ OUTPUT nicht online (output_online={})", online));
+        }
     }
 
     if input_v > 0 && (input_v < v_min || input_v > v_max) {
