@@ -4357,7 +4357,9 @@ fn save_telegram_config(enabled: bool, bot_token: String, chat_id: String, chann
 #[tauri::command]
 fn save_suppressed_error_events(events: Vec<String>) -> Result<bool, String> {
     let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
-    let allowed = ["janitza_offline", "janitza_asymmetry", "janitza_overfrequency", "janitza_underfrequency", "ups_offline", "ups_battery", "nas_offline", "poe_switch_offline", "rutx_offline", "pixera_offline", "trigger_missed", "timeline_error", "emergency", "panic", "keyword_match", "interactive_pc_offline", "interactive_scanner_offline", "interactive_artnet_offline"];
+    // ups_battery und emergency sind absichtlich NICHT in dieser Liste: sicherheitskritische
+    // Meldungen (USV-Batteriebetrieb, Notaus) duerfen nie ausblendbar sein.
+    let allowed = ["janitza_offline", "janitza_asymmetry", "janitza_overfrequency", "janitza_underfrequency", "janitza_overvoltage", "janitza_undervoltage", "janitza_overload", "ups_offline", "nas_offline", "poe_switch_offline", "rutx_offline", "pixera_offline", "trigger_missed", "timeline_error", "panic", "keyword_match", "interactive_pc_offline", "interactive_scanner_offline", "interactive_artnet_offline"];
     let cleaned: Vec<String> = events.into_iter().map(|event| event.trim().to_ascii_lowercase()).filter(|event| allowed.contains(&event.as_str())).collect();
     let mut cfg = read_config_json_from_disk().map(|(_, json)| json).unwrap_or_else(default_config_json);
     ensure_config_defaults(&mut cfg);
