@@ -83,6 +83,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:#fff;font-famil
 .tg-event-check::after{content:'';width:8px;height:8px;clip-path:polygon(14% 44%,0 60%,45% 100%,100% 20%,84% 6%,43% 67%);background:#0a1338;transform:scale(0);transition:transform .14s}
 .tg-event-check:checked{background:linear-gradient(180deg,#7dd3fc,#60a5fa);border-color:#93c5fd;box-shadow:0 0 0 2px rgba(96,165,250,.18)}
 .tg-event-check:checked::after{transform:scale(1)}
+.tg-event-check:disabled{opacity:.45;cursor:not-allowed}
+.suppressed-error-locked{opacity:.85;cursor:default}
+.suppressed-error-locked:hover{background:transparent;border-color:transparent}
+.suppressed-error-locked-tag{font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--red);background:rgba(248,113,113,.14);border:1px solid rgba(248,113,113,.35);border-radius:6px;padding:1px 6px;margin-left:auto}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .switch{position:relative;display:inline-flex;width:62px;height:34px;cursor:pointer}
 .switch input{opacity:0;width:0;height:0}
@@ -1253,10 +1257,13 @@ _setupEmergencyListener();
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_asymmetry"> <span data-l10n-key="telegram_event_janitza_asymmetry">Janitza Asymmetrie</span></label>
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_overfrequency"> <span data-l10n-key="telegram_event_janitza_overfrequency">Janitza Ueberfrequenz</span></label>
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_underfrequency"> <span data-l10n-key="telegram_event_janitza_underfrequency">Janitza Unterfrequenz</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_overvoltage"> <span data-l10n-key="telegram_event_janitza_overvoltage">Janitza Ueberspannung</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_undervoltage"> <span data-l10n-key="telegram_event_janitza_undervoltage">Janitza Unterspannung</span></label>
+                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="janitza_overload"> <span data-l10n-key="telegram_event_janitza_overload">Janitza Hohe Last</span></label>
               </div></details>
               <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_ups">UPS</summary><div class="tg-event-options">
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="ups_offline"> <span data-l10n-key="telegram_event_ups_offline">UPS offline</span></label>
-                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="ups_battery"> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span></label>
+                <label class="tg-event-option suppressed-error-locked" title="Aus Sicherheitsgruenden immer aktiv"><input class="tg-event-check" type="checkbox" disabled> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span> <span class="suppressed-error-locked-tag" data-l10n-key="suppressed_error_locked_tag">gesperrt</span></label>
               </div></details>
               <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_network">Netzwerk</summary><div class="tg-event-options">
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="nas_offline"> <span data-l10n-key="telegram_event_nas_offline">NAS offline</span></label>
@@ -1269,7 +1276,7 @@ _setupEmergencyListener();
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="timeline_error"> <span data-l10n-key="telegram_event_timeline_error">Timeline-Fehler</span></label>
               </div></details>
               <details class="tg-event-group"><summary class="tg-event-summary" data-l10n-key="telegram_group_safety">Safety</summary><div class="tg-event-options">
-                <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="emergency"> <span data-l10n-key="telegram_event_emergency">Emergency</span></label>
+                <label class="tg-event-option suppressed-error-locked" title="Aus Sicherheitsgruenden immer aktiv"><input class="tg-event-check" type="checkbox" disabled> <span data-l10n-key="telegram_event_emergency">Emergency</span> <span class="suppressed-error-locked-tag" data-l10n-key="suppressed_error_locked_tag">gesperrt</span></label>
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="panic"> <span data-l10n-key="telegram_event_panic">Panic</span></label>
                 <label class="tg-event-option"><input class="suppressed-error-check" type="checkbox" data-suppressed-error="keyword_match"> <span data-l10n-key="telegram_event_keyword">Eigene Keywords</span></label>
               </div></details>
@@ -2122,7 +2129,7 @@ let projectorStatusSyncUpdatedAt = 0;
 let projectorStatusLastPersistedFingerprint = '';
 let activeUiMode = 'desktop';
 let uiModeResizeTimer = null;
-const APP_VERSION_FALLBACK = '1.0.42';
+const APP_VERSION_FALLBACK = '1.0.43';
 let appVersion = APP_VERSION_FALLBACK;
 const UPDATE_REPO = 'guldolp923-design/Projektil-Control-Public';
 let latestReleaseInfo = null;
@@ -2426,7 +2433,7 @@ const locales = {
     telegram_alert_events_label: 'Alarm-Ereignisse',
     telegram_alert_events_hint: 'Nur diese Ereignisse loesen Telegram aus.',
     suppressed_errors_title: 'Fehler ausblenden',
-    suppressed_errors_hint: 'Ausgewaehlte Fehler werden komplett ignoriert: kein roter Fehler, kein Eintrag im System-Log.',
+    suppressed_errors_hint: 'Ausgewaehlte Fehler werden komplett ignoriert: kein roter Fehler, kein Eintrag im System-Log. "UPS Batteriebetrieb" und "Emergency" sind aus Sicherheitsgruenden gesperrt und koennen nicht ausgeblendet werden.',
     suppressed_errors_interactive_hint: 'Tipp: Die Scanner-Artnet Gateways antworten gelegentlich verzoegert auf Ping-Anfragen. Wenn das oefter zu falschen Offline-Meldungen fuehrt, blende "Scanner-Artnet offline" hier aus.',
     telegram_group_janitza: 'Janitza',
     telegram_group_ups: 'UPS',
@@ -2439,6 +2446,10 @@ const locales = {
     telegram_event_janitza_asymmetry: 'Janitza Asymmetrie',
     telegram_event_janitza_overfrequency: 'Janitza Ueberfrequenz',
     telegram_event_janitza_underfrequency: 'Janitza Unterfrequenz',
+    telegram_event_janitza_overvoltage: 'Janitza Ueberspannung',
+    telegram_event_janitza_undervoltage: 'Janitza Unterspannung',
+    telegram_event_janitza_overload: 'Janitza Hohe Last',
+    suppressed_error_locked_tag: 'gesperrt',
     telegram_event_ups_offline: 'UPS offline',
     telegram_event_ups_battery: 'UPS Batteriebetrieb',
     telegram_event_nas_offline: 'NAS offline',
@@ -2953,7 +2964,7 @@ const locales = {
     telegram_alert_events_label: 'Alert events',
     telegram_alert_events_hint: 'Only these events trigger Telegram messages.',
     suppressed_errors_title: 'Hide errors',
-    suppressed_errors_hint: 'Selected errors are fully ignored: no red error, no system log entry.',
+    suppressed_errors_hint: 'Selected errors are fully ignored: no red error, no system log entry. "UPS battery mode" and "Emergency" are locked for safety reasons and cannot be hidden.',
     suppressed_errors_interactive_hint: 'Tip: the scanner Art-Net gateways occasionally respond late to ping requests. If that causes frequent false offline alerts, hide "Scanner Art-Net offline" here.',
     telegram_group_janitza: 'Janitza',
     telegram_group_ups: 'UPS',
@@ -2966,6 +2977,10 @@ const locales = {
     telegram_event_janitza_asymmetry: 'Janitza asymmetry',
     telegram_event_janitza_overfrequency: 'Janitza overfrequency',
     telegram_event_janitza_underfrequency: 'Janitza underfrequency',
+    telegram_event_janitza_overvoltage: 'Janitza overvoltage',
+    telegram_event_janitza_undervoltage: 'Janitza undervoltage',
+    telegram_event_janitza_overload: 'Janitza high load',
+    suppressed_error_locked_tag: 'locked',
     telegram_event_ups_offline: 'UPS offline',
     telegram_event_ups_battery: 'UPS battery mode',
     telegram_event_nas_offline: 'NAS offline',
@@ -8500,16 +8515,25 @@ function detectSuppressedErrorEvents(msg){
   if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&text.includes('nas'))push('nas_offline');
   if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&(text.includes('poe')||text.includes('switch')))push('poe_switch_offline');
   if((text.includes('keine snmp-werte')||text.includes('snmp values'))&&(text.includes('rutx')||text.includes('router')))push('rutx_offline');
-  if(text.includes('asymmetrie')||text.includes('asymmetry'))push('janitza_asymmetry');
-  if(text.includes('ueberfrequenz')||text.includes('overfrequency'))push('janitza_overfrequency');
+  if(text.includes('asymmetrie')||text.includes('unsymmetrie')||text.includes('asymmetry'))push('janitza_asymmetry');
+  if(text.includes('uberfrequenz')||text.includes('overfrequency'))push('janitza_overfrequency');
   if(text.includes('unterfrequenz')||text.includes('underfrequency'))push('janitza_underfrequency');
+  if(text.includes('uberspannung')||text.includes('overvoltage'))push('janitza_overvoltage');
+  if(text.includes('unterspannung')||text.includes('undervoltage'))push('janitza_undervoltage');
+  if(text.includes('hohe last')||text.includes('high load')||text.includes('overload'))push('janitza_overload');
   if(text.includes('batteriebetrieb')||text.includes('battery mode')||text.includes('akku warnung'))push('ups_battery');
   if(text.includes('emergency')||text.includes('sofortalarm'))push('emergency'); if(text.includes('panic:'))push('panic'); if(text.includes('keyword'))push('keyword_match');
   return events;
 }
+// Sicherheitskritisch: darf NIE unterdrueckbar sein, unabhaengig von gespeicherter Konfiguration
+// (z.B. Altbestand aus config.json vor dieser Absicherung).
+const NON_SUPPRESSIBLE_ERROR_EVENTS=['ups_battery','emergency'];
 function isSuppressedErrorMessage(msg){
-  const selected=Array.isArray(cfg?.suppressed_error_events)?cfg.suppressed_error_events.map(value=>String(value).trim().toLowerCase()):[];
-  return selected.length>0 && detectSuppressedErrorEvents(msg).some(event=>selected.includes(event)||(event.endsWith('_offline')&&selected.includes('offline')));
+  const selected=Array.isArray(cfg?.suppressed_error_events)?cfg.suppressed_error_events.map(value=>String(value).trim().toLowerCase()).filter(value=>!NON_SUPPRESSIBLE_ERROR_EVENTS.includes(value)):[];
+  if(selected.length===0) return false;
+  const detected=detectSuppressedErrorEvents(msg);
+  if(detected.some(event=>NON_SUPPRESSIBLE_ERROR_EVENTS.includes(event))) return false;
+  return detected.some(event=>selected.includes(event)||(event.endsWith('_offline')&&selected.includes('offline')));
 }
 function addError(msg,opts={}){
   if(isSuppressedErrorMessage(msg)){
