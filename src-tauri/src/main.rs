@@ -49,7 +49,6 @@ const CAMERA_MJPEG_PORT: u16 = 41777;
 const LAN_WEB_PORT_PREFERRED: u16 = 80;
 const LAN_WEB_PORT_FALLBACK: u16 = 41778;
 static ACTIVE_LAN_WEB_PORT: OnceLock<u16> = OnceLock::new();
-const OSC_LISTENER_PORT: u16 = 9001;
 const OSC_LISTENER_ADDR: &str = "0.0.0.0:9001";
 const OSC_BUFFER_SIZE: usize = 256;
 const OSC_EMERGENCY_CMD: &[u8] = b"/emergency_pressed";
@@ -66,8 +65,6 @@ const FALLBACK_PIXERA_SCHEDULER_MODULES: &[&str] = &[
 // QUERY CACHE & DEVICE HEALTH
 // ============================================================
 const QUERY_CACHE_TTL_MS: u64 = 30000;   // 30 seconds
-const DEVICE_HEALTH_CHECK_INTERVAL_MS: u64 = 60000;  // 1 minute
-const DEVICE_OFFLINE_THRESHOLD: u64 = 180000;  // 3 minutes
 
 #[derive(Debug, Clone)]
 struct CachedQuery {
@@ -89,10 +86,6 @@ struct DeviceHealthStatus {
 enum ErrorCategory {
     ConnectionTimeout,
     DeviceOffline,
-    InvalidResponse,
-    AuthenticationFailed,
-    ConfigurationError,
-    InternalError,
 }
 
 impl ErrorCategory {
@@ -100,10 +93,6 @@ impl ErrorCategory {
         match self {
             Self::ConnectionTimeout => "CONNECTION_TIMEOUT",
             Self::DeviceOffline => "DEVICE_OFFLINE",
-            Self::InvalidResponse => "INVALID_RESPONSE",
-            Self::AuthenticationFailed => "AUTH_FAILED",
-            Self::ConfigurationError => "CONFIG_ERROR",
-            Self::InternalError => "INTERNAL_ERROR",
         }
     }
 }
@@ -157,31 +146,6 @@ fn log_error_with_category(category: ErrorCategory, message: &str, device_id: Op
     if let Some(app) = app {
         let _ = write_app_log("error", &log_msg, now_timestamp_ms(), Some(app));
     }
-}
-
-fn get_or_cache_query(key: &str, fetch_fn: impl FnOnce() -> Option<String>) -> Option<String> {
-    // Check cache
-    if let Ok(cache) = query_cache().lock() {
-        if let Some(cached) = cache.get(key) {
-            let age_ms = now_timestamp_ms().saturating_sub(cached.timestamp_ms);
-            if age_ms < QUERY_CACHE_TTL_MS {
-                return Some(cached.data.clone());
-            }
-        }
-    }
-    
-    // Fetch fresh data
-    let result = fetch_fn()?;
-    
-    // Store in cache
-    if let Ok(mut cache) = query_cache().lock() {
-        cache.insert(key.to_string(), CachedQuery {
-            data: result.clone(),
-            timestamp_ms: now_timestamp_ms(),
-        });
-    }
-    
-    Some(result)
 }
 
 fn mark_device_online(device_id: &str) {
@@ -251,10 +215,7 @@ fn config_write_lock() -> &'static Mutex<()> {
 // ============================================================
 #[derive(Debug, Clone)]
 struct PooledConnection {
-    pub host: String,
-    pub port: u16,
     pub last_used_ms: u64,
-    pub connection_type: String,  // "snmp", "modbus_tcp"
 }
 
 static CONNECTION_POOL: OnceLock<Mutex<HashMap<String, PooledConnection>>> = OnceLock::new();
@@ -276,10 +237,7 @@ fn get_pooled_connection(host: &str, port: u16, conn_type: &str) -> String {
         
         // Add/update connection in pool
         pool.insert(key.clone(), PooledConnection {
-            host: host.to_string(),
-            port,
             last_used_ms: now_timestamp_ms(),
-            connection_type: conn_type.to_string(),
         });
     }
     key
@@ -1944,31 +1902,40 @@ fn normalize_ups_load_percent(raw: i64) -> i64 {
 // ============================================================
 // TCP Ping
 // ============================================================
+// async fn + spawn_blocking: die vermutlich am haeufigsten aufgerufene
+// Command in der ganzen App (praktisch jedes TCP-Geraet im Poll-Zyklus).
+// TcpStream::connect_timeout direkt in einer async fn ohne spawn_blocking
+// hat exakt dieses Muster andernorts bereits zu einem reproduzierbaren
+// AppHang gefuehrt - siehe projector_get_test_pattern weiter unten.
 #[tauri::command]
 async fn http_ping(ip: String, port: u16) -> Result<String, String> {
-    let addr = format!("{}:{}", ip, port);
-    match TcpStream::connect_timeout(
-        &addr.parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?,
-        Duration::from_millis(3000),
-    ) {
-        Ok(_) => {
-            mark_device_online(&format!("tcp:{}:{}", ip, port));
-            Ok("OK".to_string())
-        }
-        Err(e) => {
-            let err_str = e.to_string().to_lowercase();
-            // Windows Fehler 10061 = WSAECONNREFUSED
-            if err_str.contains("10061") || err_str.contains("connection refused") || err_str.contains("verweigerte") {
-                Ok("REFUSED".to_string())
-            } else if err_str.contains("timed out") || err_str.contains("timeout") {
-                Ok("TIMEOUT".to_string())
-            } else if err_str.contains("host") || err_str.contains("network") || err_str.contains("unreachable") || err_str.contains("erreichbar") {
-                Ok("UNREACHABLE".to_string())
-            } else {
-                Ok("REFUSED".to_string())
+    tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let addr = format!("{}:{}", ip, port);
+        match TcpStream::connect_timeout(
+            &addr.parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?,
+            Duration::from_millis(3000),
+        ) {
+            Ok(_) => {
+                mark_device_online(&format!("tcp:{}:{}", ip, port));
+                Ok("OK".to_string())
+            }
+            Err(e) => {
+                let err_str = e.to_string().to_lowercase();
+                // Windows Fehler 10061 = WSAECONNREFUSED
+                if err_str.contains("10061") || err_str.contains("connection refused") || err_str.contains("verweigerte") {
+                    Ok("REFUSED".to_string())
+                } else if err_str.contains("timed out") || err_str.contains("timeout") {
+                    Ok("TIMEOUT".to_string())
+                } else if err_str.contains("host") || err_str.contains("network") || err_str.contains("unreachable") || err_str.contains("erreichbar") {
+                    Ok("UNREACHABLE".to_string())
+                } else {
+                    Ok("REFUSED".to_string())
+                }
             }
         }
-    }
+    })
+    .await
+    .map_err(|e| format!("Ping-Task fehlgeschlagen: {}", e))?
 }
 
 // ============================================================
@@ -2046,24 +2013,36 @@ async fn pixera_hub_command(
 // ============================================================
 // ICMP Ping (Windows)
 // ============================================================
+// async fn + spawn_blocking (nicht ein einfaches sync fn): spawnt einen
+// blockierenden externen Prozess mit bis zu 1s Wartezeit. Wird sehr haeufig
+// fuer viele Geraete parallel aufgerufen (ArtNet, Interaktiv, Dante etc.) -
+// als einfaches sync fn hat genau dieses Muster bereits reproduzierbar zu
+// einem AppHang gefuehrt (siehe projector_get_test_pattern/-set_test_pattern
+// weiter unten). spawn_blocking laesst es auf dem dedizierten
+// Blocking-Thread-Pool laufen statt einen der Async-Worker-Threads (und
+// damit potenziell die WebView-IPC) zu blockieren.
 #[tauri::command]
-fn icmp_ping(ip: String) -> Result<bool, String> {
-    let mut cmd = Command::new("ping");
-    cmd.args(&["-n", "1", "-w", "1000", &ip]);
-    
-    #[cfg(target_os = "windows")]
-    {
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
-    
-    let output = cmd.output()
-        .map_err(|e| format!("Ping command fehlgeschlagen: {}", e))?;
+async fn icmp_ping(ip: String) -> Result<bool, String> {
+    tokio::task::spawn_blocking(move || -> Result<bool, String> {
+        let mut cmd = Command::new("ping");
+        cmd.args(&["-n", "1", "-w", "1000", &ip]);
 
-    let success = output.status.success();
-    if success {
-        mark_device_online(&format!("icmp:{}", ip));
-    }
-    Ok(success)
+        #[cfg(target_os = "windows")]
+        {
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        let output = cmd.output()
+            .map_err(|e| format!("Ping command fehlgeschlagen: {}", e))?;
+
+        let success = output.status.success();
+        if success {
+            mark_device_online(&format!("icmp:{}", ip));
+        }
+        Ok(success)
+    })
+    .await
+    .map_err(|e| format!("Ping-Task fehlgeschlagen: {}", e))?
 }
 
 #[tauri::command]
@@ -2136,53 +2115,60 @@ fn system_get_battery_status() -> Result<serde_json::Value, String> {
 // Panasonic AW-UE40/50 PTZ CGI proxy
 // Example: /cgi-bin/aw_ptz?cmd=%23R01&res=1
 // ============================================================
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung
+// (blockierendes TCP direkt in async fn hat andernorts bereits zu einem
+// AppHang gefuehrt).
 #[tauri::command]
 async fn camera_ptz_command(ip: String, command: String) -> Result<String, String> {
-    let addr = format!("{}:80", ip);
-    let mut stream = TcpStream::connect_timeout(
-        &addr.parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?,
-        Duration::from_millis(2000),
-    )
-    .map_err(|e| format!("Camera connect error: {}", e))?;
-    stream.set_read_timeout(Some(Duration::from_millis(2500))).ok();
+    tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let addr = format!("{}:80", ip);
+        let mut stream = TcpStream::connect_timeout(
+            &addr.parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?,
+            Duration::from_millis(2000),
+        )
+        .map_err(|e| format!("Camera connect error: {}", e))?;
+        stream.set_read_timeout(Some(Duration::from_millis(2500))).ok();
 
-    let encoded_cmd = if command.starts_with('#') {
-        format!("%23{}", &command[1..])
-    } else {
-        command
-    };
-    let path = format!("/cgi-bin/aw_ptz?cmd={}&res=1", encoded_cmd);
-    let req = format!(
-        "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
-        path, ip
-    );
+        let encoded_cmd = if command.starts_with('#') {
+            format!("%23{}", &command[1..])
+        } else {
+            command
+        };
+        let path = format!("/cgi-bin/aw_ptz?cmd={}&res=1", encoded_cmd);
+        let req = format!(
+            "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+            path, ip
+        );
 
-    stream
-        .write_all(req.as_bytes())
-        .map_err(|e| format!("Camera request error: {}", e))?;
+        stream
+            .write_all(req.as_bytes())
+            .map_err(|e| format!("Camera request error: {}", e))?;
 
-    let mut buf = Vec::new();
-    stream
-        .read_to_end(&mut buf)
-        .map_err(|e| format!("Camera read error: {}", e))?;
+        let mut buf = Vec::new();
+        stream
+            .read_to_end(&mut buf)
+            .map_err(|e| format!("Camera read error: {}", e))?;
 
-    let response = String::from_utf8_lossy(&buf);
-    if !response.contains("200 OK") {
-        return Err("Camera command failed (no HTTP 200 response)".to_string());
-    }
+        let response = String::from_utf8_lossy(&buf);
+        if !response.contains("200 OK") {
+            return Err("Camera command failed (no HTTP 200 response)".to_string());
+        }
 
-    let body = response
-        .split("\r\n\r\n")
-        .nth(1)
-        .unwrap_or("")
-        .trim()
-        .to_string();
+        let body = response
+            .split("\r\n\r\n")
+            .nth(1)
+            .unwrap_or("")
+            .trim()
+            .to_string();
 
-    if body.is_empty() {
-        Ok("OK".to_string())
-    } else {
-        Ok(body.lines().next().unwrap_or("OK").to_string())
-    }
+        if body.is_empty() {
+            Ok("OK".to_string())
+        } else {
+            Ok(body.lines().next().unwrap_or("OK").to_string())
+        }
+    })
+    .await
+    .map_err(|e| format!("Kamera-Task fehlgeschlagen: {}", e))?
 }
 
 #[tauri::command]
@@ -2278,9 +2264,10 @@ async fn camera_stream_frame(ip: String, stream: Option<u8>) -> Result<String, S
 // ============================================================
 #[tauri::command]
 async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
     let community = "projektil";
     let _pool_key = get_pooled_connection(&ip, 161, "snmp");  // Register in connection pool
-    
+
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
     socket.set_read_timeout(Some(Duration::from_millis(450))).ok();
     socket.connect(format!("{}:161", ip)).map_err(|e| e.to_string())?;
@@ -2442,10 +2429,15 @@ async fn ups_get_status(ip: String) -> Result<serde_json::Value, String> {
 
     mark_device_online(&format!("ups:{}", ip));
     Ok(serde_json::Value::Object(result))
+    })
+    .await
+    .map_err(|e| format!("UPS-Task fehlgeschlagen: {}", e))?
 }
 
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung.
 #[tauri::command]
 async fn ups_get_power_mode(ip: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
     let community = "projektil";
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
     socket.set_read_timeout(Some(Duration::from_millis(250))).ok();
@@ -2482,10 +2474,15 @@ async fn ups_get_power_mode(ip: String) -> Result<serde_json::Value, String> {
         "output_status": output_status,
         "output_online": output_online
     }))
+    })
+    .await
+    .map_err(|e| format!("UPS-Task fehlgeschlagen: {}", e))?
 }
 
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung.
 #[tauri::command]
 async fn ups_get_diagnostics(ip: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
     let community = "projektil";
     let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
     socket.set_read_timeout(Some(Duration::from_millis(450))).ok();
@@ -2575,6 +2572,9 @@ async fn ups_get_diagnostics(ip: String) -> Result<serde_json::Value, String> {
         "community": community,
         "results": results
     }))
+    })
+    .await
+    .map_err(|e| format!("UPS-Task fehlgeschlagen: {}", e))?
 }
 
 fn oid_to_string(oid: &[u32]) -> String {
@@ -2798,6 +2798,7 @@ fn query_host_storage_volume_usage(
 
 #[tauri::command]
 async fn nas_get_status(ip: String, community: Option<String>, port: Option<u16>) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
     let community = community.unwrap_or_else(|| "projektil".to_string());
     let port = port.unwrap_or(161);
 
@@ -2918,10 +2919,15 @@ async fn nas_get_status(ip: String, community: Option<String>, port: Option<u16>
 
     mark_device_online(&format!("nas:{}", ip));
     Ok(serde_json::Value::Object(result))
+    })
+    .await
+    .map_err(|e| format!("NAS-Task fehlgeschlagen: {}", e))?
 }
 
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung.
 #[tauri::command]
 async fn poe_switch_get_status(ip: String, community: Option<String>, port: Option<u16>) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
     let community = community.unwrap_or_else(|| "projektil".to_string());
     let port = port.unwrap_or(161);
 
@@ -3006,6 +3012,10 @@ async fn poe_switch_get_status(ip: String, community: Option<String>, port: Opti
             }
         }
 
+        if result.is_empty() {
+            continue;
+        }
+
         let probe = format!(
             "{} {}",
             result.get("sys_descr").and_then(|v| v.as_str()).unwrap_or(""),
@@ -3022,19 +3032,21 @@ async fn poe_switch_get_status(ip: String, community: Option<String>, port: Opti
             "Unknown"
         };
         result.insert("detected_model".to_string(), serde_json::json!(model));
-
-        if !result.is_empty() {
-            result.insert("snmp_community_used".to_string(), serde_json::json!(community_try));
-            mark_device_online(&format!("switch:{}", ip));
-            return Ok(serde_json::Value::Object(result));
-        }
+        result.insert("snmp_community_used".to_string(), serde_json::json!(community_try));
+        mark_device_online(&format!("switch:{}", ip));
+        return Ok(serde_json::Value::Object(result));
     }
 
     Err("SNMP keine Antwort vom PoE-Switch".to_string())
+    })
+    .await
+    .map_err(|e| format!("PoE-Switch-Task fehlgeschlagen: {}", e))?
 }
 
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung.
 #[tauri::command]
 async fn rutx50_get_status(ip: String, community: Option<String>, port: Option<u16>) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
     let community = community.unwrap_or_else(|| "projektil".to_string());
     let port = port.unwrap_or(161);
 
@@ -3114,6 +3126,10 @@ async fn rutx50_get_status(ip: String, community: Option<String>, port: Option<u
         }
     }
 
+    if result.is_empty() {
+        return Err("SNMP keine Antwort vom RUTX50".to_string());
+    }
+
     let descr = result
         .get("sys_descr")
         .and_then(|v| v.as_str())
@@ -3126,12 +3142,11 @@ async fn rutx50_get_status(ip: String, community: Option<String>, port: Option<u
     };
     result.insert("detected_model".to_string(), serde_json::json!(detected));
 
-    if result.is_empty() {
-        return Err("SNMP keine Antwort vom RUTX50".to_string());
-    }
-
     mark_device_online(&format!("rutx50:{}", ip));
     Ok(serde_json::Value::Object(result))
+    })
+    .await
+    .map_err(|e| format!("RUTX50-Task fehlgeschlagen: {}", e))?
 }
 
 fn snmp_get_packet(community: &str, oid: &[u32]) -> Vec<u8> {
@@ -3205,8 +3220,10 @@ fn encode_length(len: usize) -> Vec<u8> {
 //   19026 = P_gesamt (W)
 //   19050 = Frequenz (Hz)
 // ============================================================
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung.
 #[tauri::command]
 async fn janitza_get_data(ip: String) -> Result<serde_json::Value, String> {
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
     let _pool_key = get_pooled_connection(&ip, 502, "modbus_tcp");  // Register in connection pool
     let addr = format!("{}:502", ip);
     let mut stream = TcpStream::connect_timeout(
@@ -3269,6 +3286,9 @@ async fn janitza_get_data(ip: String) -> Result<serde_json::Value, String> {
         "power_kw":  power_kw,
         "warnings":  warnings,
     }))
+    })
+    .await
+    .map_err(|e| format!("Janitza-Task fehlgeschlagen: {}", e))?
 }
 
 #[tauri::command]
@@ -3405,7 +3425,7 @@ async fn janitza_get_data_managed(ip: String, app: AppHandle) -> Result<serde_js
 
 #[tauri::command]
 async fn nas_get_status_managed(ip: String, community: Option<String>, port: Option<u16>, app: AppHandle) -> Result<serde_json::Value, String> {
-    let cache_key = format!("nas:{}:{}:{}", ip, community.as_ref().unwrap_or(&"public".to_string()), port.unwrap_or(161));
+    let cache_key = format!("nas:{}:{}:{}", ip, community.as_ref().unwrap_or(&"projektil".to_string()), port.unwrap_or(161));
     
     check_rate_limit("nas_query")?;
     
@@ -3447,7 +3467,7 @@ async fn nas_get_status_managed(ip: String, community: Option<String>, port: Opt
 
 #[tauri::command]
 async fn poe_switch_get_status_managed(ip: String, community: Option<String>, port: Option<u16>, app: AppHandle) -> Result<serde_json::Value, String> {
-    let cache_key = format!("switch:{}:{}:{}", ip, community.as_ref().unwrap_or(&"public".to_string()), port.unwrap_or(161));
+    let cache_key = format!("switch:{}:{}:{}", ip, community.as_ref().unwrap_or(&"projektil".to_string()), port.unwrap_or(161));
     
     check_rate_limit("switch_query")?;
     
@@ -3489,7 +3509,7 @@ async fn poe_switch_get_status_managed(ip: String, community: Option<String>, po
 
 #[tauri::command]
 async fn rutx50_get_status_managed(ip: String, community: Option<String>, port: Option<u16>, app: AppHandle) -> Result<serde_json::Value, String> {
-    let cache_key = format!("rutx50:{}:{}:{}", ip, community.as_ref().unwrap_or(&"public".to_string()), port.unwrap_or(161));
+    let cache_key = format!("rutx50:{}:{}:{}", ip, community.as_ref().unwrap_or(&"projektil".to_string()), port.unwrap_or(161));
     
     check_rate_limit("rutx50_query")?;
     
@@ -3584,26 +3604,31 @@ fn open_external_url(url: String) -> Result<bool, String> {
     Err("Diese Plattform wird für URL-Open nicht unterstützt".to_string())
 }
 
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung.
 #[tauri::command]
-fn companion_press_emergency_button(url: String) -> Result<bool, String> {
-    let target_url = if url.trim().is_empty() {
-        "http://192.168.1.42:8000/api/location/1/2/0/press".to_string()
-    } else {
-        url
-    };
+async fn companion_press_emergency_button(url: String) -> Result<bool, String> {
+    tokio::task::spawn_blocking(move || -> Result<bool, String> {
+        let target_url = if url.trim().is_empty() {
+            "http://192.168.1.42:8000/api/location/1/2/0/press".to_string()
+        } else {
+            url
+        };
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(3))
-        .build()
-        .map_err(|e| format!("Companion-Client konnte nicht erstellt werden: {}", e))?;
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(3))
+            .build()
+            .map_err(|e| format!("Companion-Client konnte nicht erstellt werden: {}", e))?;
 
-    client
-        .post(&target_url)
-        .send()
-        .and_then(|response| response.error_for_status())
-        .map_err(|e| format!("Companion emergency press fehlgeschlagen: {}", e))?;
+        client
+            .post(&target_url)
+            .send()
+            .and_then(|response| response.error_for_status())
+            .map_err(|e| format!("Companion emergency press fehlgeschlagen: {}", e))?;
 
-    Ok(true)
+        Ok(true)
+    })
+    .await
+    .map_err(|e| format!("Companion-Task fehlgeschlagen: {}", e))?
 }
 
 fn osc_padded_string_bytes(value: &str) -> Vec<u8> {
@@ -3807,7 +3832,7 @@ fn default_config_json() -> serde_json::Value {
         "poe_switch_ip": "192.168.1.11", "poe_switch_name": "", "poe_switch_ping_port": 443,
         "poe_switch_snmp_port": 161, "poe_switch_snmp_community": "projektil",
         "rutx50_ip": "192.168.1.1", "rutx50_ping_port": 443,
-        "rutx50_snmp_port": 161, "rutx50_snmp_community": "public",
+        "rutx50_snmp_port": 161, "rutx50_snmp_community": "projektil",
         "ups_ip": "192.168.1.6", "power_disp_ip": "192.168.1.5",
         "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
         "projector_start": 101, "projector_count": 16, "projector_brand": "panasonic",
@@ -4245,38 +4270,48 @@ fn save_hub_config(
     Ok(true)
 }
 
+// async fn + spawn_blocking: dieser Client wird jetzt auch von der Notaus-
+// Ticket-Meldung genutzt (reportEmergencyTicket) - siehe http_ping weiter
+// oben fuer die generelle Begruendung. Bis zu 12s Timeout, und mehrere
+// Hub-Aufrufe koennen ueberlappen (Heartbeat, Tickets fuer mehrere gleich-
+// zeitig offline gehende Geraete, Notaus) - als sync fn ohne spawn_blocking
+// dasselbe Risiko wie bei den anderen hier gefixten Funktionen.
 #[tauri::command]
-fn hub_post_json(
+async fn hub_post_json(
     url: String,
     api_token: String,
     payload: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    let endpoint = url.trim();
-    if !endpoint.starts_with("https://") {
-        return Err("Hub API muss eine HTTPS-URL verwenden".to_string());
-    }
-    if api_token.trim().is_empty() {
-        return Err("Hub API-Token fehlt".to_string());
-    }
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(12))
-        .build()
-        .map_err(|e| e.to_string())?;
-    let response = client
-        .post(endpoint)
-        .bearer_auth(api_token.trim())
-        .header("X-Projektil-Client", "projektil-control")
-        .json(&payload)
-        .send()
-        .map_err(|e| format!("Hub API Netzwerkfehler: {}", e))?;
-    let status = response.status();
-    let text = response.text().map_err(|e| e.to_string())?;
-    let body = serde_json::from_str::<serde_json::Value>(&text)
-        .unwrap_or_else(|_| serde_json::json!({"raw": text}));
-    if !status.is_success() {
-        return Err(format!("Hub API Fehler {}: {}", status, body));
-    }
-    Ok(body)
+    tokio::task::spawn_blocking(move || -> Result<serde_json::Value, String> {
+        let endpoint = url.trim();
+        if !endpoint.starts_with("https://") {
+            return Err("Hub API muss eine HTTPS-URL verwenden".to_string());
+        }
+        if api_token.trim().is_empty() {
+            return Err("Hub API-Token fehlt".to_string());
+        }
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(12))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let response = client
+            .post(endpoint)
+            .bearer_auth(api_token.trim())
+            .header("X-Projektil-Client", "projektil-control")
+            .json(&payload)
+            .send()
+            .map_err(|e| format!("Hub API Netzwerkfehler: {}", e))?;
+        let status = response.status();
+        let text = response.text().map_err(|e| e.to_string())?;
+        let body = serde_json::from_str::<serde_json::Value>(&text)
+            .unwrap_or_else(|_| serde_json::json!({"raw": text}));
+        if !status.is_success() {
+            return Err(format!("Hub API Fehler {}: {}", status, body));
+        }
+        Ok(body)
+    })
+    .await
+    .map_err(|e| format!("Hub-Task fehlgeschlagen: {}", e))?
 }
 
 #[tauri::command]
@@ -4541,55 +4576,60 @@ fn save_ui_state(
     Ok(true)
 }
 
+// async fn + spawn_blocking: siehe http_ping weiter oben fuer die Begruendung.
 #[tauri::command]
-fn telegram_send_test(bot_token: String, chat_id: String) -> Result<String, String> {
-    let token = bot_token.trim().to_string();
-    let chat  = chat_id.trim().to_string();
-    if token.is_empty() || chat.is_empty() {
-        return Err("Bot-Token oder Chat-ID fehlt".to_string());
-    }
-    
-    let mut cfg = read_config_json_from_disk()
-        .map(|(_, json)| json)
-        .unwrap_or_else(default_config_json);
-    ensure_config_defaults(&mut cfg);
+async fn telegram_send_test(bot_token: String, chat_id: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let token = bot_token.trim().to_string();
+        let chat  = chat_id.trim().to_string();
+        if token.is_empty() || chat.is_empty() {
+            return Err("Bot-Token oder Chat-ID fehlt".to_string());
+        }
 
-    let timestamp_ms = now_timestamp_ms();
-    let location = cfg["location_name"].as_str().unwrap_or("").trim();
-    let location = if location.is_empty() { "unbekannt" } else { location };
-    let location_label = format_telegram_location_label(location);
-    let anydesk = cfg["anydesk_address"].as_str().unwrap_or("").trim();
-    let anydesk_line = if anydesk.is_empty() {
-        "Anydeskadresse: nicht gesetzt".to_string()
-    } else {
-        format!("Anydeskadresse: <a href=\"anydesk://{}\">{}</a>", anydesk, anydesk)
-    };
+        let mut cfg = read_config_json_from_disk()
+            .map(|(_, json)| json)
+            .unwrap_or_else(default_config_json);
+        ensure_config_defaults(&mut cfg);
 
-    let text = format!(
-        "🧪{}🧪\n{}\nTestnachricht\n{}",
-        location_label,
-        format_human_datetime(timestamp_ms),
-        anydesk_line
-    );
-    
-    let url = format!("https://api.telegram.org/bot{}/sendMessage", token);
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(8))
-        .build()
-        .map_err(|e| e.to_string())?;
-    
-    let form = [
-        ("chat_id", chat),
-        ("text", text),
-        ("parse_mode", "HTML".to_string()),
-        ("disable_web_page_preview", "true".to_string()),
-    ];
-    let resp = client.post(&url).form(&form).send().map_err(|e| e.to_string())?;
-    if resp.status().is_success() {
-        Ok("Testnachricht gesendet!".to_string())
-    } else {
-        Err(format!("Telegram API Fehler: {}", resp.status()))
-    }
+        let timestamp_ms = now_timestamp_ms();
+        let location = cfg["location_name"].as_str().unwrap_or("").trim();
+        let location = if location.is_empty() { "unbekannt" } else { location };
+        let location_label = format_telegram_location_label(location);
+        let anydesk = cfg["anydesk_address"].as_str().unwrap_or("").trim();
+        let anydesk_line = if anydesk.is_empty() {
+            "Anydeskadresse: nicht gesetzt".to_string()
+        } else {
+            format!("Anydeskadresse: <a href=\"anydesk://{}\">{}</a>", anydesk, anydesk)
+        };
+
+        let text = format!(
+            "🧪{}🧪\n{}\nTestnachricht\n{}",
+            location_label,
+            format_human_datetime(timestamp_ms),
+            anydesk_line
+        );
+
+        let url = format!("https://api.telegram.org/bot{}/sendMessage", token);
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(8))
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let form = [
+            ("chat_id", chat),
+            ("text", text),
+            ("parse_mode", "HTML".to_string()),
+            ("disable_web_page_preview", "true".to_string()),
+        ];
+        let resp = client.post(&url).form(&form).send().map_err(|e| e.to_string())?;
+        if resp.status().is_success() {
+            Ok("Testnachricht gesendet!".to_string())
+        } else {
+            Err(format!("Telegram API Fehler: {}", resp.status()))
+        }
+    })
+    .await
+    .map_err(|e| format!("Telegram-Task fehlgeschlagen: {}", e))?
 }
 
 #[tauri::command]
@@ -5706,11 +5746,11 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_string(args, &["deviceId", "device_id"])?
         )?)),
 
-        "hub_post_json" => Ok(hub_post_json(
+        "hub_post_json" => block_on_command(hub_post_json(
             arg_string(args, &["url"])? ,
             arg_string(args, &["apiToken", "api_token"])? ,
             arg_value(args, &["payload"]).cloned().unwrap_or_else(|| serde_json::json!({}))
-        )?),
+        )),
 
         "get_device_health_status" => Ok(serde_json::json!(get_device_health_status()?)),
         "get_offline_mode_enabled" => Ok(serde_json::json!(get_offline_mode_enabled())),
@@ -5751,10 +5791,10 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_optional_vec_string(args, &["alertEvents", "alert_events"])
         )?)),
 
-        "telegram_send_test" => Ok(serde_json::json!(telegram_send_test(
+        "telegram_send_test" => Ok(serde_json::json!(block_on_command(telegram_send_test(
             arg_string(args, &["botToken", "bot_token"])? ,
             arg_string(args, &["chatId", "chat_id"])?
-        )?)),
+        ))?)),
 
         "append_app_log" => {
             let app = app_handle_required()?;
