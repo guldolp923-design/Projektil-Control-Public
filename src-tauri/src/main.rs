@@ -3831,9 +3831,8 @@ fn default_config_json() -> serde_json::Value {
         "pixera_hub_port": 4000,
         "pixera_octo_count": 2,
         "pixera_api_root": "",
-        "pixera_pjlink_module": "PJ_Link__16ch",
         "pixera_scheduler_module": "Projektil_EventScheduler_V2_7",
-        "d40_01_ip": "192.168.1.51", "d40_02_ip": "192.168.1.52", "d40_03_ip": "192.168.1.53", "amp_count": 2, "d40_oca_port": 50014,
+        "d40_01_ip": "192.168.1.51", "d40_02_ip": "192.168.1.52", "d40_03_ip": "192.168.1.53", "amp_count": 2,
         "nas_ip": "192.168.1.21", "nas_port": 5000,
         "nas_snmp_port": 161, "nas_snmp_community": "projektil",
         "poe_switch_ip": "192.168.1.11", "poe_switch_name": "", "poe_switch_ping_port": 443,
@@ -3970,9 +3969,6 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     }
     if !obj.contains_key("pixera_api_root") {
         obj.insert("pixera_api_root".to_string(), serde_json::json!(""));
-    }
-    if !obj.contains_key("pixera_pjlink_module") {
-        obj.insert("pixera_pjlink_module".to_string(), serde_json::json!("PJ_Link__16ch"));
     }
     if !obj.contains_key("pixera_scheduler_module") {
         obj.insert(

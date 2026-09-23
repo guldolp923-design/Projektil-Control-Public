@@ -151,11 +151,16 @@ Per Doppelklick auf das Tray-Icon:
 ### D40 nicht erreichbar
 
 - IP-Adresse in der Konfiguration prüfen
-- TCP-Port `30013` muss erreichbar sein
+- TCP-Port `50014` (AES70/OCA) muss erreichbar sein
 - D40 muss im selben Netz sein
 
 ### Pixera-Verbindung schlägt fehl
 
 - IP und Port `1338` prüfen
 - Pixera muss laufen
+
+### Projektoren nicht erreichbar
+
+- Projektor-Statusabfragen laufen über PJLink direkt (TCP-Port `4352`), nicht über Pixera
+- IP-Adresse und Netzwerkfreigabe des Projektors prüfen
 - Control-Modul muss aktiv sein

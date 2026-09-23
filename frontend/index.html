@@ -571,7 +571,7 @@ _setupEmergencyListener();
         </div>
         <div class="startup-sub">System wird gestartet. Netzwerkgeräte und Dienste werden geprüft.</div>
       </div>
-      <div class="startup-version" id="startup-version">v1\.0\.8-beta</div>
+      <div class="startup-version" id="startup-version"></div>
     </div>
     <div class="startup-bar-wrap"><div class="startup-bar" id="startup-bar"></div></div>
     <div class="startup-meta">
@@ -1048,7 +1048,7 @@ _setupEmergencyListener();
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
               <div>
                 <div class="setting-label" data-l10n-key="software_version_title">Software-Version</div>
-                <div class="demo-state" id="app-version-display">v1.0.0</div>
+                <div class="demo-state" id="app-version-display"></div>
               </div>
               <div>
                 <div class="setting-label" data-l10n-key="update_title">Update</div>
@@ -1150,7 +1150,7 @@ _setupEmergencyListener();
           <!-- OLD BLOCKS HIDDEN FOR JS COMPAT -->
           <div class="setting-block" style="display:none">
             <div class="setting-label" data-l10n-key="software_version_title">Software-Version</div>
-            <div class="demo-state" id="app-version-display-hidden">v1.0.0</div>
+            <div class="demo-state" id="app-version-display-hidden"></div>
           </div>
           <div class="setting-block">
             <div class="toggle-row" style="margin-bottom:0">
@@ -1846,10 +1846,10 @@ function setupTauriEventListeners() {
 // Start setup immediately - uses __TAURI_INTERNALS__ directly
 setupTauriEventListeners();
 let _schedulerModuleResolved = '';
-const DEFAULT_PIXERA_HUB_MODULE = 'Pojektil_Hub_V1';
+const DEFAULT_PIXERA_HUB_MODULE = 'Projektil_Hub_V1';
 const FALLBACK_PIXERA_HUB_MODULES = [
   DEFAULT_PIXERA_HUB_MODULE,
-  'Projektil_Hub_V1',
+  'Pojektil_Hub_V1',
   'Pojektil_Hub',
   'Projektil_Hub'
 ];
@@ -1878,14 +1878,12 @@ function buildDefaultConfig(){
     pixera_octo2_ip:'192.168.1.33',
     pixera_octo_count:2,
     pixera_hub_port:4000,
-    pixera_api_root:'erwer',
-    pixera_pjlink_module:'PJ_Link__16ch',
+    pixera_api_root:'',
     pixera_scheduler_module:DEFAULT_PIXERA_SCHEDULER_MODULE,
     d40_01_ip:'192.168.1.51',
     d40_02_ip:'192.168.1.52',
     d40_03_ip:'192.168.1.53',
     amp_count:2,
-    d40_oca_port:50014,
     nas_ip:'192.168.1.21',
     nas_port:5000,
     nas_snmp_port:161,
@@ -2112,9 +2110,9 @@ let prevV={l1:null,l2:null,l3:null};
 let currentLang = appStorage.get('lang', 'de');
 let currentTab = appStorage.get('activeTab', 'show');
 let demoMode = appStorage.get('demoMode', false);
-// Always reset emergency lock on startup - hardware button re-triggers if needed
-appStorage.set('emergencyLockActive', false);
-appStorage.set('viewModeLocked', false);
+// Notaus-Sperre ist sicherheitskritisch und darf einen Neustart nicht ohne PIN
+// ueberleben-loesen; die tatsaechliche Wiederherstellung aus localStorage
+// passiert in init() (siehe dort), nicht hier beim Skript-Start.
 let viewModeLocked = false;
 let emergencyLockActive = false;
 let lastEmergencyTriggeredRemotely = false;  // Track if emergency was triggered by hardware button
@@ -6298,8 +6296,7 @@ async function init(){
   applySharedUiStateFromConfig(cfg);
   sharedUiStateLastPersistedFingerprint = computeSharedUiStateFingerprint(getCurrentSharedUiState());
   attachSharedUiInputSyncHooks();
-  cfg.pixera_api_root = (cfg.pixera_api_root||'erwer').toString();
-  cfg.pixera_pjlink_module = (cfg.pixera_pjlink_module||'PJ_Link__16ch').toString();
+  cfg.pixera_api_root = (cfg.pixera_api_root||'').toString();
   cfg.pixera_scheduler_module = (cfg.pixera_scheduler_module||DEFAULT_PIXERA_SCHEDULER_MODULE).toString();
   if(String(cfg.pixera_scheduler_module).trim().toLowerCase()==='eventscheduler_projektil_v17'){
     cfg.pixera_scheduler_module = DEFAULT_PIXERA_SCHEDULER_MODULE;
@@ -6326,10 +6323,12 @@ async function init(){
   _pixeraHubModuleResolved='';
   await resolveAppVersion();
   cfg.projector_count=Math.max(1,Math.min(16,Number(cfg.projector_count||16)));
-  viewModeLocked = startupMode === 'viewer';
-  emergencyLockActive = false;
+  // Notaus-Sperre ist sicherheitskritisch und muss einen App-Neustart ueberleben:
+  // nur eine PIN-Eingabe (disableViewMode) darf sie aufheben, kein Neustart.
+  emergencyLockActive = localStorage.getItem('emergencyLockActive') === '1';
+  viewModeLocked = emergencyLockActive || startupMode === 'viewer';
   localStorage.setItem('viewModeLocked', viewModeLocked ? '1' : '0');
-  localStorage.setItem('emergencyLockActive', '0');
+  localStorage.setItem('emergencyLockActive', emergencyLockActive ? '1' : '0');
   applyProjectorIpConfig();
   applyPixeraOctoSettingsUI();
   applyAmpSettingsUI();
@@ -9438,11 +9437,6 @@ async function detectProjectorModelsOnStartup(){
 
 function modulePaths(moduleName, methodName){
   return buildPixeraPaths(`${moduleName}.${methodName}`);
-}
-
-async function pjLinkCall(methodName, params=[]){
-  const moduleName=String(cfg.pixera_pjlink_module||'PJ_Link__16ch').trim();
-  return pixeraApiCall(modulePaths(moduleName, methodName), params);
 }
 
 async function hubCall(methodNames, params=[], options={}){
