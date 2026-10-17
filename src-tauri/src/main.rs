@@ -5926,6 +5926,8 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_optional_u16(args, &["targetPort", "target_port"])
         )?)),
 
+        "send_emergency_reset_osc" => Ok(serde_json::json!(send_emergency_reset_osc()?)),
+
         "system_get_battery_status" => system_get_battery_status(),
 
         "ups_get_status" => block_on_command(ups_get_status(arg_string(args, &["ip"])?)),
