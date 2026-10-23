@@ -400,11 +400,14 @@ body.emergency-locked .btn-o{background:#9a3412}
 .proj-btns button{flex:1;padding:4px 0;font-size:9px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:#fff;font-family:inherit;transition:background .1s}
 .proj-btns .shutter-btn{border-color:#60a5fa;background:#1e3a8a;color:#fff}
 .proj-btns .shutter-btn.active{border-color:#ef4444;background:#7f1d1d;color:#fee2e2}
-.proj-extras-row{display:flex;gap:4px;margin-top:6px}
+/* Testbild/HDMI1-Steuerung vorerst ausgeblendet - Protokoll funktioniert noch
+   nicht zuverlaessig, wird spaeter wieder aktiviert. Backend/JS-Funktionen
+   bleiben unangetastet, nur die Buttons sind unsichtbar. */
+.proj-extras-row{display:none;gap:4px;margin-top:6px}
 .proj-extras-row button{flex:1;padding:4px 0;font-size:9px;border-radius:3px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:#fff;font-family:inherit;transition:background .1s}
 .testpattern-btn.active{background:#312e81;color:#c7d2fe;border-color:#818cf8}
 .proj-extras-row button:disabled{opacity:.55;cursor:default}
-body.ui-mobile .proj-extras-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+body.ui-mobile .proj-extras-row{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 body.ui-mobile .proj-extras-row button{padding:8px 0;font-size:10px}
 .cam-preview-frame{background:#0a0a1a;border-radius:6px;position:relative;overflow:hidden;margin-bottom:10px;border:1px solid rgba(255,255,255,.08);width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
 .cam-preview-img{width:100%;height:100%;object-fit:contain;display:none;background:#000}
@@ -868,8 +871,9 @@ _setupEmergencyListener();
         <button class="btn btn-o" style="padding:10px 20px;font-size:13px" onclick="allProjOff()" data-l10n-key="all_off">Alle OFF</button>
         <button class="btn proj-shutter-btn" id="all-proj-shutter-btn" style="padding:10px 20px;font-size:13px;color:#fff" onclick="allProjShutterToggle()" data-l10n-key="projector_all_shutter">Alle Shutter</button>
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:14px" data-l10n-key="projector_testpattern_all_title">TESTBILD &amp; QUELLE — ALLE</div>
-      <div class="proj-bulk-actions" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+      <!-- Testbild/HDMI1 vorerst ausgeblendet, siehe .proj-extras-row -->
+      <div style="display:none;text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:14px" data-l10n-key="projector_testpattern_all_title">TESTBILD &amp; QUELLE — ALLE</div>
+      <div class="proj-bulk-actions" style="display:none;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
         <button class="btn testpattern-btn" id="all-proj-testpattern-btn" style="padding:10px 20px;font-size:13px" onclick="allProjTestPatternToggle()" data-l10n-key="projector_testpattern_all_label">Testbild (Weiss) — Alle</button>
         <button class="btn" style="padding:10px 20px;font-size:13px" onclick="allProjHdmi1()" data-l10n-key="projector_hdmi1_all_label">Alle auf HDMI 1</button>
       </div>
@@ -1197,22 +1201,19 @@ _setupEmergencyListener();
                 </div>
               </div>
               <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="telegram_alert_events_label">Alarm-Ereignisse</div>
-              <div style="font-size:11px;color:var(--muted);margin-bottom:8px" data-l10n-key="telegram_alert_events_hint">Nur diese Ereignisse loesen Telegram aus.</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:8px" data-l10n-key="telegram_alert_events_hint">Telegram meldet nur noch echte Geraete-Offline-Ereignisse (per Ping, nicht per SNMP). Notaus und USV-Batteriebetrieb sind immer aktiv.</div>
               <div class="tg-alert-grid">
                 <details open class="tg-event-group">
                   <summary class="tg-event-summary" data-l10n-key="telegram_group_janitza">Janitza</summary>
                   <div class="tg-event-options">
                     <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-offline"> <span data-l10n-key="telegram_event_janitza_offline">Janitza offline</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-asymmetry"> <span data-l10n-key="telegram_event_janitza_asymmetry">Janitza Asymmetrie</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-overfreq"> <span data-l10n-key="telegram_event_janitza_overfrequency">Janitza Ueberfrequenz</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-janitza-underfreq"> <span data-l10n-key="telegram_event_janitza_underfrequency">Janitza Unterfrequenz</span></label>
                   </div>
                 </details>
                 <details class="tg-event-group">
                   <summary class="tg-event-summary" data-l10n-key="telegram_group_ups">UPS</summary>
                   <div class="tg-event-options">
                     <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-ups-offline"> <span data-l10n-key="telegram_event_ups_offline">UPS offline</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-ups-battery"> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span></label>
+                    <label class="tg-event-option suppressed-error-locked" title="Sicherheitskritisch - immer aktiv"><input class="tg-event-check" type="checkbox" disabled> <span data-l10n-key="telegram_event_ups_battery">UPS Batteriebetrieb</span> <span class="suppressed-error-locked-tag" data-l10n-key="suppressed_error_locked_tag">gesperrt</span></label>
                   </div>
                 </details>
                 <details class="tg-event-group">
@@ -1227,16 +1228,12 @@ _setupEmergencyListener();
                   <summary class="tg-event-summary" data-l10n-key="telegram_group_show">Show / Pixera</summary>
                   <div class="tg-event-options">
                     <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-pixera-offline"> <span data-l10n-key="telegram_event_pixera_offline">Pixera offline</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-trigger-missed"> <span data-l10n-key="telegram_event_trigger_missed">Trigger nicht ausgeloest</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-timeline"> <span data-l10n-key="telegram_event_timeline_error">Timeline-Fehler</span></label>
                   </div>
                 </details>
                 <details class="tg-event-group">
                   <summary class="tg-event-summary" data-l10n-key="telegram_group_safety">Safety</summary>
                   <div class="tg-event-options">
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-emergency"> <span data-l10n-key="telegram_event_emergency">Emergency</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-panic"> <span data-l10n-key="telegram_event_panic">Panic</span></label>
-                    <label class="tg-event-option"><input class="tg-event-check" type="checkbox" id="tg-event-keyword"> <span data-l10n-key="telegram_event_keyword">Eigene Keywords</span></label>
+                    <label class="tg-event-option suppressed-error-locked" title="Sicherheitskritisch - immer aktiv"><input class="tg-event-check" type="checkbox" disabled> <span data-l10n-key="telegram_event_emergency">Emergency</span> <span class="suppressed-error-locked-tag" data-l10n-key="suppressed_error_locked_tag">gesperrt</span></label>
                   </div>
                 </details>
               </div>
@@ -1246,6 +1243,60 @@ _setupEmergencyListener();
                 <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockTelegramSettings()" data-l10n-key="lock">Sperren</button>
               </div>
               <div id="tg-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
+            </div>
+          </div>
+          <!-- HEARTBEAT STATUS-MONITORING -->
+          <div class="setting-block">
+            <div class="toggle-row" style="margin-bottom:0">
+              <div>
+                <div class="setting-label" data-l10n-key="heartbeat_title">Heartbeat</div>
+                <div class="setting-hint" data-l10n-key="heartbeat_hint">Meldet alle paar Sekunden den Status dieses Rechners und seiner Geraete per HTTPS an einen externen Status-Server. Reines Monitoring, keine eingehenden Verbindungen.</div>
+              </div>
+            </div>
+            <div id="hb-pin-gate" style="margin-top:12px">
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="password" inputmode="numeric" maxlength="4" id="hb-pin-input"
+                  style="width:110px;padding:8px 12px;font-size:18px;letter-spacing:10px;text-align:center;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;outline:none"
+                  autocomplete="off" placeholder="••••" data-l10n-placeholder-key="pin_placeholder"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();openHeartbeatSettings()}" />
+                <button class="btn btn-g" onclick="openHeartbeatSettings()" data-l10n-key="unlock">Entsperren</button>
+              </div>
+              <div id="hb-pin-error" style="min-height:16px;font-size:11px;color:#fca5a5;margin-top:4px"></div>
+            </div>
+            <div id="hb-settings-panel" style="display:none;margin-top:14px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                <label class="switch" for="heartbeat-enabled-toggle">
+                  <input type="checkbox" id="heartbeat-enabled-toggle">
+                  <span class="switch-slider"></span>
+                </label>
+                <span style="font-size:12px;color:var(--muted)" data-l10n-key="heartbeat_enabled_label">Heartbeat aktiviert</span>
+              </div>
+              <div style="display:grid;gap:8px;margin-bottom:12px">
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="heartbeat_url_label">Status-Server-URL</div>
+                  <input id="heartbeat-url-input" type="url" autocomplete="off" placeholder="https://status.example.com"
+                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;box-sizing:border-box" />
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px" data-l10n-key="heartbeat_api_key_label">API-Key</div>
+                  <input id="heartbeat-api-key-input" type="password" autocomplete="off" placeholder="unveraendert lassen: leer speichern"
+                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:#fff;font-size:12px;font-family:var(--mono);box-sizing:border-box" />
+                  <div id="heartbeat-key-status" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-g" style="flex:1;min-width:100px" onclick="saveHeartbeatSettings()" data-l10n-key="save">Speichern</button>
+                <button class="btn btn-o" style="flex:1;min-width:150px" onclick="sendHeartbeatTest()" data-l10n-key="heartbeat_test_button">Test-Heartbeat senden</button>
+                <button class="btn" style="flex:1;min-width:80px;background:var(--card2);border:1px solid var(--border)" onclick="lockHeartbeatSettings()" data-l10n-key="lock">Sperren</button>
+              </div>
+              <div id="heartbeat-save-status" style="min-height:16px;font-size:11px;margin-top:8px"></div>
+              <div id="heartbeat-test-status" style="min-height:16px;font-size:11px"></div>
+              <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:var(--muted);display:grid;gap:2px">
+                <div><span data-l10n-key="heartbeat_last_success_label">Letzter erfolgreicher Beat:</span> <span id="heartbeat-last-success">—</span></div>
+                <div><span data-l10n-key="heartbeat_consecutive_failures_label">Fehlgeschlagene Beats in Folge:</span> <span id="heartbeat-failures">—</span></div>
+                <div><span data-l10n-key="heartbeat_venue_place_label">Venue / Ort (naechster Beat):</span> <span id="heartbeat-venue-place">—</span></div>
+                <div><span data-l10n-key="heartbeat_demo_mode_label">Demo-Modus:</span> <span id="heartbeat-demo-mode">—</span></div>
+              </div>
             </div>
           </div>
           <div class="setting-block" id="suppressed-error-settings">
@@ -1884,6 +1935,8 @@ function buildDefaultConfig(){
     d40_02_ip:'192.168.1.52',
     d40_03_ip:'192.168.1.53',
     amp_count:2,
+    heartbeat_enabled:true,
+    heartbeat_url:'',
     nas_ip:'192.168.1.21',
     nas_port:5000,
     nas_snmp_port:161,
@@ -2429,7 +2482,7 @@ const locales = {
     telegram_chat_id_label: 'Chat-ID',
     telegram_channel_id_label: 'Kanal-ID',
     telegram_alert_events_label: 'Alarm-Ereignisse',
-    telegram_alert_events_hint: 'Nur diese Ereignisse loesen Telegram aus.',
+    telegram_alert_events_hint: 'Telegram meldet nur noch echte Geraete-Offline-Ereignisse (per Ping, nicht per SNMP). Notaus und USV-Batteriebetrieb sind immer aktiv.',
     suppressed_errors_title: 'Fehler ausblenden',
     suppressed_errors_hint: 'Ausgewaehlte Fehler werden komplett ignoriert: kein roter Fehler, kein Eintrag im System-Log. "UPS Batteriebetrieb" und "Emergency" sind aus Sicherheitsgruenden gesperrt und koennen nicht ausgeblendet werden.',
     suppressed_errors_interactive_hint: 'Tipp: Die Scanner-Artnet Gateways antworten gelegentlich verzoegert auf Ping-Anfragen. Wenn das oefter zu falschen Offline-Meldungen fuehrt, blende "Scanner-Artnet offline" hier aus.',
@@ -2562,6 +2615,35 @@ const locales = {
     emergency_switch_mode_hint: 'Aktiviert Monitoring fuer den Notaus-Schalter (IP: 192.168.1.99).',
     emergency_switch_enabled_log: 'Notaus-Monitoring aktiviert',
     emergency_switch_disabled_log: 'Notaus-Monitoring deaktiviert',
+    heartbeat_title: 'Heartbeat',
+    heartbeat_hint: 'Meldet alle paar Sekunden den Status dieses Rechners und seiner Geraete per HTTPS an einen externen Status-Server. Reines Monitoring, keine eingehenden Verbindungen.',
+    heartbeat_enabled_label: 'Heartbeat aktiviert',
+    heartbeat_url_label: 'Status-Server-URL',
+    heartbeat_api_key_label: 'API-Key',
+    heartbeat_test_button: 'Test-Heartbeat senden',
+    heartbeat_last_success_label: 'Letzter erfolgreicher Beat:',
+    heartbeat_consecutive_failures_label: 'Fehlgeschlagene Beats in Folge:',
+    heartbeat_venue_place_label: 'Venue / Ort (naechster Beat):',
+    heartbeat_venue_place_empty: 'noch kein Standort ermittelt',
+    heartbeat_demo_mode_label: 'Demo-Modus:',
+    heartbeat_demo_mode_yes: 'Ja (wird so gemeldet)',
+    heartbeat_demo_mode_no: 'Nein',
+    heartbeat_key_set_yes: 'API-Key gespeichert.',
+    heartbeat_key_set_no: 'Kein API-Key gespeichert.',
+    heartbeat_never: 'noch nie',
+    heartbeat_ago_seconds: 'vor {s}s',
+    heartbeat_ago_minutes: 'vor {m}min',
+    heartbeat_ago_hours: 'vor {h}h',
+    heartbeat_url_must_be_https: 'Die Status-Server-URL muss mit https:// beginnen.',
+    heartbeat_test_sending: 'Sende Test-Heartbeat...',
+    heartbeat_test_success: 'Test-Heartbeat erfolgreich gesendet.',
+    heartbeat_test_connected_exact: 'Verbunden als {system}, Standort gefunden.',
+    heartbeat_test_connected_place: 'Verbunden als {system}, nur Ort gefunden.',
+    heartbeat_test_connected_no_geo: 'Verbunden als {system}, Standort nicht gefunden.',
+    heartbeat_test_unauthorized: 'API-Key ungueltig (401).',
+    heartbeat_test_timeout: 'Zeitueberschreitung - Server nicht erreichbar.',
+    heartbeat_test_not_configured: 'Heartbeat ist nicht vollstaendig konfiguriert (URL und API-Key noetig).',
+    heartbeat_test_other_error: 'Fehler: {error}',
     dante_enabled_title: 'Dantenetzwerk',
     dante_enabled_hint: 'Aktiviert Monitoring fuer die Dante-Audio-Geraete im Netzwerk.',
     dante_devices_label: 'Ueberwachte Dante-Geraete',
@@ -2960,7 +3042,7 @@ const locales = {
     telegram_chat_id_label: 'Chat ID',
     telegram_channel_id_label: 'Channel ID',
     telegram_alert_events_label: 'Alert events',
-    telegram_alert_events_hint: 'Only these events trigger Telegram messages.',
+    telegram_alert_events_hint: 'Telegram now only reports real device offline events (via ping, not SNMP). Emergency and UPS battery mode are always active.',
     suppressed_errors_title: 'Hide errors',
     suppressed_errors_hint: 'Selected errors are fully ignored: no red error, no system log entry. "UPS battery mode" and "Emergency" are locked for safety reasons and cannot be hidden.',
     suppressed_errors_interactive_hint: 'Tip: the scanner Art-Net gateways occasionally respond late to ping requests. If that causes frequent false offline alerts, hide "Scanner Art-Net offline" here.',
@@ -3093,6 +3175,35 @@ const locales = {
     emergency_switch_mode_hint: 'Enables monitoring for the emergency stop switch (IP: 192.168.1.99).',
     emergency_switch_enabled_log: 'Emergency stop monitoring enabled',
     emergency_switch_disabled_log: 'Emergency stop monitoring disabled',
+    heartbeat_title: 'Heartbeat',
+    heartbeat_hint: 'Reports the status of this computer and its devices to an external status server over HTTPS every few seconds. Monitoring only, no inbound connections.',
+    heartbeat_enabled_label: 'Heartbeat enabled',
+    heartbeat_url_label: 'Status server URL',
+    heartbeat_api_key_label: 'API key',
+    heartbeat_test_button: 'Send test heartbeat',
+    heartbeat_last_success_label: 'Last successful beat:',
+    heartbeat_consecutive_failures_label: 'Consecutive failed beats:',
+    heartbeat_venue_place_label: 'Venue / place (next beat):',
+    heartbeat_venue_place_empty: 'no location resolved yet',
+    heartbeat_demo_mode_label: 'Demo mode:',
+    heartbeat_demo_mode_yes: 'Yes (reported as such)',
+    heartbeat_demo_mode_no: 'No',
+    heartbeat_key_set_yes: 'API key saved.',
+    heartbeat_key_set_no: 'No API key saved.',
+    heartbeat_never: 'never',
+    heartbeat_ago_seconds: '{s}s ago',
+    heartbeat_ago_minutes: '{m}min ago',
+    heartbeat_ago_hours: '{h}h ago',
+    heartbeat_url_must_be_https: 'The status server URL must start with https://.',
+    heartbeat_test_sending: 'Sending test heartbeat...',
+    heartbeat_test_success: 'Test heartbeat sent successfully.',
+    heartbeat_test_connected_exact: 'Connected as {system}, location found.',
+    heartbeat_test_connected_place: 'Connected as {system}, only place found.',
+    heartbeat_test_connected_no_geo: 'Connected as {system}, location not found.',
+    heartbeat_test_unauthorized: 'Invalid API key (401).',
+    heartbeat_test_timeout: 'Timed out - server unreachable.',
+    heartbeat_test_not_configured: 'Heartbeat is not fully configured (URL and API key required).',
+    heartbeat_test_other_error: 'Error: {error}',
     dante_enabled_title: 'Dante network',
     dante_enabled_hint: 'Enables monitoring for the Dante audio devices on the network.',
     dante_devices_label: 'Monitored Dante devices',
@@ -4548,24 +4659,18 @@ function normalizeTelegramAlertEvents(alertEvents){
   return cleaned.length ? cleaned : [...TELEGRAM_ALERT_EVENT_DEFAULTS];
 }
 
+// Telegram meldet seit der Vereinfachung nurnoch echte Geraete-Offline-Ereignisse
+// (per Ping) sowie Notaus/USV-Batteriebetrieb, die beide gesperrt/immer aktiv sind
+// (siehe is_telegram_always_on_event im Backend) und daher keine Checkbox mehr haben.
 function applyTelegramAlertEventsToUI(alertEvents){
   const selected = normalizeTelegramAlertEvents(alertEvents);
   const eventMap = {
     'tg-event-janitza-offline': 'janitza_offline',
-    'tg-event-janitza-asymmetry': 'janitza_asymmetry',
-    'tg-event-janitza-overfreq': 'janitza_overfrequency',
-    'tg-event-janitza-underfreq': 'janitza_underfrequency',
     'tg-event-ups-offline': 'ups_offline',
-    'tg-event-ups-battery': 'ups_battery',
     'tg-event-nas-offline': 'nas_offline',
     'tg-event-poe-offline': 'poe_switch_offline',
     'tg-event-rutx-offline': 'rutx_offline',
-    'tg-event-pixera-offline': 'pixera_offline',
-    'tg-event-trigger-missed': 'trigger_missed',
-    'tg-event-timeline': 'timeline_error',
-    'tg-event-emergency': 'emergency',
-    'tg-event-panic': 'panic',
-    'tg-event-keyword': 'keyword_match'
+    'tg-event-pixera-offline': 'pixera_offline'
   };
   for(const [id, key] of Object.entries(eventMap)){
     const el = document.getElementById(id);
@@ -4576,22 +4681,16 @@ function applyTelegramAlertEventsToUI(alertEvents){
 function collectTelegramAlertEventsFromUI(){
   const eventMap = {
     'tg-event-janitza-offline': 'janitza_offline',
-    'tg-event-janitza-asymmetry': 'janitza_asymmetry',
-    'tg-event-janitza-overfreq': 'janitza_overfrequency',
-    'tg-event-janitza-underfreq': 'janitza_underfrequency',
     'tg-event-ups-offline': 'ups_offline',
-    'tg-event-ups-battery': 'ups_battery',
     'tg-event-nas-offline': 'nas_offline',
     'tg-event-poe-offline': 'poe_switch_offline',
     'tg-event-rutx-offline': 'rutx_offline',
-    'tg-event-pixera-offline': 'pixera_offline',
-    'tg-event-trigger-missed': 'trigger_missed',
-    'tg-event-timeline': 'timeline_error',
-    'tg-event-emergency': 'emergency',
-    'tg-event-panic': 'panic',
-    'tg-event-keyword': 'keyword_match'
+    'tg-event-pixera-offline': 'pixera_offline'
   };
-  const out = [];
+  // emergency/ups_battery immer mitschreiben - das Backend erzwingt sie ohnehin
+  // (is_telegram_always_on_event), aber die gespeicherte Konfiguration soll das
+  // widerspiegeln statt auf eine entfernte Checkbox angewiesen zu sein.
+  const out = ['emergency','ups_battery'];
   for(const [id, key] of Object.entries(eventMap)){
     if(document.getElementById(id)?.checked) out.push(key);
   }
@@ -5534,6 +5633,7 @@ function handleHubHeartbeatResponse(response){
     const id=String(ticket.ticketId||ticket.id||'');
     if(!id || hubTicketFingerprints.has(`remote:${id}`)) return;
     hubTicketFingerprints.add(`remote:${id}`);
+    capSetSize(hubTicketFingerprints);
     const title=String(ticket.title||ticket.error||'Hub-Ticket aktualisiert');
     addLog('error',`Hub-Ticket ${id}: ${title}`,{persist:true});
     addError(`[Hub Ticket ${id}] ${title}`,{showBanner:true});
@@ -5543,6 +5643,7 @@ function handleHubHeartbeatResponse(response){
     const id=String(command.commandId||'');
     if(!id || hubTicketFingerprints.has(`command:${id}`)) return;
     hubTicketFingerprints.add(`command:${id}`);
+    capSetSize(hubTicketFingerprints);
     addLog('info',`Hub-Kommando empfangen: ${command.type||id}`,{persist:true});
   });
 }
@@ -5589,6 +5690,20 @@ async function pollHubHeartbeat(){
 
 const hubTicketFingerprints=new Set();
 const hubResolvedRecently=new Map();
+// Einfache Groessenbegrenzung gegen unbegrenztes Wachstum bei sehr lange
+// laufenden Installationen - ohne das wuerden diese Set/Map ueber Wochen
+// Betrieb immer weiter wachsen und nie wieder kleiner werden.
+const DEDUP_CAP=2000;
+function capSetSize(set,max=DEDUP_CAP){
+  if(set.size<=max) return;
+  let excess=set.size-max, i=0;
+  for(const key of set){ if(i++>=excess) break; set.delete(key); }
+}
+function capMapSize(map,max=DEDUP_CAP){
+  if(map.size<=max) return;
+  let excess=map.size-max, i=0;
+  for(const key of map.keys()){ if(i++>=excess) break; map.delete(key); }
+}
 function hubTicketFingerprintFor(type, details={}){
   const projectId=String(cfg?.hub_project_id||'').trim();
   return String(details.fingerprint||`${projectId}:${type}:${details.deviceId||'site'}`);
@@ -5600,6 +5715,7 @@ async function createHubTicket(type, details={}){
   const fingerprint=hubTicketFingerprintFor(type,details);
   if(hubTicketFingerprints.has(fingerprint)) return null;
   hubTicketFingerprints.add(fingerprint);
+  capSetSize(hubTicketFingerprints);
   try{
     const context=await resolveHubContext();
     const result=await hubPost('tickets',{
@@ -5679,6 +5795,7 @@ async function reportHubIncidentResolved(type, details={}){
   const lastResolvedAt=hubResolvedRecently.get(fingerprint)||0;
   if(Date.now()-lastResolvedAt<5000) return null; // Vermeidet doppelte Meldungen durch parallele Poller
   hubResolvedRecently.set(fingerprint,Date.now());
+  capMapSize(hubResolvedRecently);
   try{
     const context=await resolveHubContext();
     const result=await hubPost('tickets',{
@@ -6268,6 +6385,215 @@ function applyDanteSettingsUI(){
   }
 }
 
+// ============================================================
+// HEARTBEAT (Status-Monitoring an externen Server)
+// Der API-Key wird vom Backend nie zurueckgegeben - diese Funktionen
+// bekommen aus heartbeat_get_status immer nur key_set:true/false.
+// ============================================================
+function formatHeartbeatAge(lastSuccessMs){
+  const diffS=Math.max(0,Math.round((Date.now()-Number(lastSuccessMs))/1000));
+  if(diffS<60) return t('heartbeat_ago_seconds',{s:diffS});
+  const mins=Math.round(diffS/60);
+  if(mins<60) return t('heartbeat_ago_minutes',{m:mins});
+  const hours=Math.round(mins/60);
+  return t('heartbeat_ago_hours',{h:hours});
+}
+
+function applyHeartbeatStatusToUI(status){
+  if(!status) return;
+  const toggle=document.getElementById('heartbeat-enabled-toggle');
+  if(toggle) toggle.checked = status.enabled===true;
+  const setIfNotFocused=(id,value)=>{
+    const el=document.getElementById(id);
+    if(el && document.activeElement!==el) el.value = value;
+  };
+  setIfNotFocused('heartbeat-url-input', status.url||'');
+  const keyStatus=document.getElementById('heartbeat-key-status');
+  if(keyStatus) keyStatus.textContent = status.key_set ? t('heartbeat_key_set_yes') : t('heartbeat_key_set_no');
+  const lastSuccessEl=document.getElementById('heartbeat-last-success');
+  if(lastSuccessEl) lastSuccessEl.textContent = status.last_success_ms ? formatHeartbeatAge(status.last_success_ms) : t('heartbeat_never');
+  const failuresEl=document.getElementById('heartbeat-failures');
+  if(failuresEl) failuresEl.textContent = String(status.consecutive_failures||0);
+  const venuePlaceEl=document.getElementById('heartbeat-venue-place');
+  if(venuePlaceEl){
+    const venue=String(status.venue||'').trim();
+    const place=String(status.place||'').trim();
+    venuePlaceEl.textContent = (venue||place) ? `${venue||'—'} / ${place||'—'}` : t('heartbeat_venue_place_empty');
+  }
+  const demoModeEl=document.getElementById('heartbeat-demo-mode');
+  if(demoModeEl) demoModeEl.textContent = status.demo_mode ? t('heartbeat_demo_mode_yes') : t('heartbeat_demo_mode_no');
+}
+
+async function refreshHeartbeatStatus(){
+  try{
+    const status=await invokeStrict('heartbeat_get_status',{});
+    applyHeartbeatStatusToUI(status);
+  }catch(e){
+    console.error('[Heartbeat] status refresh failed',e);
+  }
+}
+
+let _heartbeatStatusTimer=null;
+function startHeartbeatStatusRefreshTimer(){
+  if(_heartbeatStatusTimer) clearInterval(_heartbeatStatusTimer);
+  _heartbeatStatusTimer=setInterval(refreshHeartbeatStatus,15000);
+}
+
+function openHeartbeatSettings(){
+  const pin=String(document.getElementById('hb-pin-input')?.value||'').trim();
+  const err=document.getElementById('hb-pin-error');
+  if(pin!==VIEW_MODE_PIN){
+    if(err) err.textContent=locales[currentLang].view_mode_wrong_code;
+    document.getElementById('hb-pin-input')?.focus();
+    return;
+  }
+  if(err) err.textContent='';
+  document.getElementById('hb-pin-gate').style.display='none';
+  document.getElementById('hb-settings-panel').style.display='block';
+  refreshHeartbeatStatus();
+}
+window.openHeartbeatSettings=openHeartbeatSettings;
+
+function lockHeartbeatSettings(){
+  document.getElementById('hb-settings-panel').style.display='none';
+  document.getElementById('hb-pin-gate').style.display='block';
+  const input=document.getElementById('hb-pin-input');
+  if(input) input.value='';
+}
+window.lockHeartbeatSettings=lockHeartbeatSettings;
+
+async function saveHeartbeatSettings(){
+  const status=document.getElementById('heartbeat-save-status');
+  const enabled=document.getElementById('heartbeat-enabled-toggle')?.checked===true;
+  const url=String(document.getElementById('heartbeat-url-input')?.value||'').trim();
+  if(url && !url.startsWith('https://')){
+    if(status){status.style.color='#fca5a5';status.textContent=t('heartbeat_url_must_be_https');}
+    return;
+  }
+  const apiKey=String(document.getElementById('heartbeat-api-key-input')?.value||'');
+  const payload={enabled,url,apiKey};
+  if(status){status.style.color='';status.textContent=t('status_saving');}
+  try{
+    await invokeStrict('heartbeat_set_config',payload);
+    const apiKeyInput=document.getElementById('heartbeat-api-key-input');
+    if(apiKeyInput) apiKeyInput.value='';
+    if(status){status.style.color='#4ade80';status.textContent=t('status_saved_ok');}
+    await refreshHeartbeatStatus();
+  }catch(e){
+    if(status){status.style.color='#fca5a5';status.textContent=t('status_error_with_detail',{error:e});}
+  }
+}
+window.saveHeartbeatSettings=saveHeartbeatSettings;
+
+window.sendHeartbeatTest=async()=>{
+  const statusEl=document.getElementById('heartbeat-test-status');
+  if(statusEl){statusEl.style.color='';statusEl.textContent=t('heartbeat_test_sending');}
+  try{
+    const result=await invokeStrict('heartbeat_send_test',{});
+    const outcome=String(result?.outcome||'');
+    let text;
+    if(outcome==='ok'){
+      const system=result?.system;
+      if(system && result?.geo==='exact') text=t('heartbeat_test_connected_exact',{system});
+      else if(system && result?.geo==='place') text=t('heartbeat_test_connected_place',{system});
+      else if(system && result?.geo==='none') text=t('heartbeat_test_connected_no_geo',{system});
+      else text=t('heartbeat_test_success'); // aelterer Server ohne system/geo im Antwortkoerper
+    }
+    else if(outcome==='401') text=t('heartbeat_test_unauthorized');
+    else if(outcome==='timeout') text=t('heartbeat_test_timeout');
+    else if(outcome==='not_configured') text=t('heartbeat_test_not_configured');
+    else text=t('heartbeat_test_other_error',{error:outcome});
+    if(statusEl){statusEl.style.color = outcome==='ok' ? '#4ade80' : '#fca5a5'; statusEl.textContent=text;}
+    await refreshHeartbeatStatus();
+  }catch(e){
+    if(statusEl){statusEl.style.color='#fca5a5';statusEl.textContent=t('status_error_with_detail',{error:e});}
+  }
+};
+
+/// Baut die aktuelle Geraeteliste fuer den Heartbeat-Payload NUR aus bereits
+/// vorhandenem Status (deviceState, wird von setDeviceOnline() in pollAll()/
+/// pollArtNetGateways() ohnehin laufend gepflegt). Keine neue Geraete-Abfrage.
+function buildHeartbeatDeviceSnapshot(){
+  const out=[];
+  const push=(key,label)=>{
+    if(!(key in deviceState)) return;
+    out.push({name:label, status: deviceState[key] ? 'ok' : 'offline'});
+  };
+
+  push('pixera_director', getPixeraServerDisplayName('director'));
+  if('pixera_api' in deviceState) out.push({name:'Pixera API (ws_avio)', status: deviceState['pixera_api'] ? 'ok' : 'offline'});
+  if(getPixeraOctoCount()>=1) push('octo1', getPixeraServerDisplayName('octo1'));
+  if(getPixeraOctoCount()>=2) push('octo2', getPixeraServerDisplayName('octo2'));
+
+  getConfiguredAmpNumbers().forEach(n=>push(`amp${n}`, `D40 AMP 0${n}`));
+
+  const projCount=Math.max(1,Math.min(16,Number(cfg?.projector_count||16)));
+  const controlStates=Array.isArray(cfg?.projector_control_states) ? cfg.projector_control_states : [];
+  for(let i=0;i<projCount;i++){
+    const ip=String(projStates?.[i]?.ip||'').trim();
+    if(!ip || ip==='0.0.0.0') continue; // nicht konfigurierter Projektor-Slot
+    const online=projectorOnlineStates[i];
+    let status='ok';
+    if(!online) status='offline';
+    else if(controlStates[i]==='error') status='error';
+    out.push({name:`PJ-${i+1}`, status});
+  }
+
+  push('nas','Synology NAS');
+  push('poe','PoE Switch');
+  push('rutx','Teltonika RUTX50');
+  push('ups','APC UPS');
+  push('janitza','Janitza UMG96RM-E');
+  push('cam1','Cam 01 PTZ');
+  push('cam2','Cam 02 PTZ');
+
+  if(isEmergencySwitchEnabled()) push('emergency_switch','Notaus-Schalter');
+  if(isDanteEnabled()){
+    DANTE_DEVICES.forEach(target=>push(target.key,target.label));
+  }
+  if(isInteractiveMonitoringEnabled()){
+    if(typeof getInteractiveMonitorTargets==='function'){
+      getInteractiveMonitorTargets().forEach(target=>push(target.key,target.label));
+    }
+    if(typeof getArtNetMonitorTargets==='function'){
+      getArtNetMonitorTargets().forEach(target=>push(target.key,target.label));
+    }
+  }
+  return out;
+}
+
+/// venue/place NIE neu abfragen - nur aus den bereits in Control vorhandenen
+/// Show-Daten lesen. Primär die vom Hub getrennt gelieferten hub_venue/hub_city
+/// (siehe resolveHubContext()); falls kein Hub konfiguriert ist, Fallback auf
+/// das manuell gepflegte kombinierte location_name-Feld ("Stadt, Venue").
+function getHeartbeatVenuePlace(){
+  const hubVenue=String(cfg?.hub_venue||'').trim();
+  const hubCity=String(cfg?.hub_city||'').trim();
+  if(hubVenue || hubCity) return {venue:hubVenue, place:hubCity};
+  const combined=String(cfg?.location_name||'').trim();
+  if(!combined) return {venue:'', place:''};
+  const commaIdx=combined.indexOf(', ');
+  if(commaIdx===-1) return {venue:combined, place:''};
+  return {place:combined.slice(0,commaIdx).trim(), venue:combined.slice(commaIdx+2).trim()};
+}
+
+function pushHeartbeatDeviceSnapshot(){
+  // Laeuft bewusst auf einem eigenen, unabhaengigen Timer statt am Ende von
+  // pollAll() zu haengen: pollAll() ist eine lange Kette von awaits ohne
+  // uebergreifendes try/catch - wirft irgendein einzelner Geraete-Check darin
+  // eine Exception, bricht die ganze Funktion an der Stelle ab und alles
+  // danach (auch bei jedem folgenden Tick) laeuft nie mehr. Venue/Standort
+  // im Heartbeat darf davon nicht abhaengen. Zusaetzlich hier noch defensiv
+  // try/catch, falls buildHeartbeatDeviceSnapshot()/getHeartbeatVenuePlace()
+  // selbst mal etwas Unerwartetes liefern.
+  try{
+    const {venue,place}=getHeartbeatVenuePlace();
+    invokeStrict('heartbeat_update_snapshot',{devices:buildHeartbeatDeviceSnapshot(),venue,place,demoMode:isDemoModeEnabled()}).catch(()=>{});
+  }catch(e){
+    console.error('[Heartbeat] snapshot build failed',e);
+  }
+}
+
 function refreshDeviceWebGuiBadges(){
   const setChipText=(id,ip)=>{
     const el=document.getElementById(id);
@@ -6337,6 +6663,8 @@ async function init(){
   applyDanteSettingsUI();
   applyVenueName();
   applyHubTicketSettingsUI();
+  refreshHeartbeatStatus();
+  startHeartbeatStatusRefreshTimer();
   applySuppressedErrorEventsToUI(cfg?.suppressed_error_events);
   translatePage();
   await loadPersistedLogs();
@@ -6403,6 +6731,8 @@ async function init(){
     autoDetectAnyDeskOnStartup();
   }
   setInterval(pollAll,10000);
+  pushHeartbeatDeviceSnapshot();
+  setInterval(pushHeartbeatDeviceSnapshot,10000);
   setInterval(pollHubHeartbeat,30000);
   setInterval(pollArtNetGateways,30000);
   setInterval(probePixeraHubRebootCapability,30000);
@@ -6537,6 +6867,7 @@ window.switchTab=(id,el)=>{
   if(id==='network'){pollPoeSwitchData();pollRutx50Data();}
   if(id==='cameras' && cameraViewMode==='stream') prewarmCameraStreams();
   updateCameraPreviewStreamState();
+  if(id==='error') refreshPersistedSystemLog();
   closeMobileMoreMenu();
   if(typeof updateMobileNavActive === 'function') updateMobileNavActive();
 };
@@ -8459,7 +8790,17 @@ async function loadPersistedLogs(){
   }
 }
 
+function isSystemLogViewActive(){
+  return currentTab==='error' && !document.hidden;
+}
+
 async function refreshPersistedSystemLog(){
+  // Nur neu laden/rendern, waehrend die Log-Seite tatsaechlich sichtbar ist.
+  // Vorher lief das alle 3s fuer die gesamte Laufzeit der App, unabhaengig
+  // vom aktiven Tab - bei lange laufenden Installationen mit entsprechend
+  // grossen Log-Dateien eine erhebliche, voellig unnoetige Dauerlast
+  // (Rust-seitiges Voll-Einlesen + JS-seitiges Voll-Rerendering alle 3s).
+  if(!isSystemLogViewActive()) return;
   if(!persistedLogsLoaded || persistedSystemLogSyncInFlight) return;
   persistedSystemLogSyncInFlight=true;
   try{
@@ -8488,7 +8829,7 @@ function startPersistedSystemLogSync(){
   if(persistedSystemLogSyncTimer) clearInterval(persistedSystemLogSyncTimer);
   persistedSystemLogSyncTimer=setInterval(()=>{
     refreshPersistedSystemLog();
-  },3000);
+  },10000);
 }
 
 function addLog(type,msg,opts={}){
@@ -8546,6 +8887,10 @@ function addError(msg,opts={}){
   if(suppressDuplicate && errors.find(e=>e.msg===msg&&(now-e.ts)<60000))return;
   errors.unshift({id:errorIdCounter++,msg,time:formatLogTime(now,true),ts:now});
   if(errors.length>MAX_ERROR_ENTRIES_UI) errors.shift();
+  // Fire-and-forget an den Heartbeat-Ringpuffer weiterreichen - nur fuer
+  // tatsaechlich neue (nicht unterdrueckte, nicht deduplizierte) Fehler,
+  // da wir diesen Punkt erst nach beiden obigen Checks erreichen.
+  invokeStrict('heartbeat_push_error',{msg}).catch(()=>{});
   renderErrors();updateErrorBadge();
   if(showBanner){
     document.getElementById('warn-text').textContent=msg;

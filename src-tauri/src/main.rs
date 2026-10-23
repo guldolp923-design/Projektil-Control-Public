@@ -2,6 +2,7 @@
 #![recursion_limit = "256"]
 mod oca;
 mod anydesk;
+mod heartbeat;
 mod projector_extras;
 use base64::{engine::general_purpose, Engine as _};
 use tauri::{
@@ -14,7 +15,7 @@ use std::fs::OpenOptions;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::net::{TcpListener, TcpStream, UdpSocket};
-use std::io::{Write, Read};
+use std::io::{Write, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -344,6 +345,7 @@ fn current_webgui_favicon() -> Vec<u8> {
 }
 
 const TELEGRAM_MIN_REPEAT_MS: u64 = 60_000;
+const TELEGRAM_LAST_SENT_RETENTION_MS: u64 = 24 * 60 * 60 * 1000; // 24h
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct AppLogEntry {
@@ -469,6 +471,51 @@ fn read_log_entries(path: &PathBuf) -> Vec<AppLogEntry> {
             }
         })
         .collect()
+}
+
+// Fuer reines Anzeigen (load_app_logs, vom Frontend alle paar Sekunden
+// aufgerufen) reicht ein beschraenktes Fenster vom Dateiende - die letzten
+// Zeilen sind wegen append_log_entry() ohnehin schon chronologisch die
+// neuesten. Im Gegensatz zu read_log_entries() (fuer prune_old_logs, das
+// die GANZE Datei kennen muss, um das 90-Tage-Retention-Fenster korrekt
+// anzuwenden) bleibt diese Variante bei grossen, lange gewachsenen
+// Log-Dateien konstant guenstig statt mit der Dateigroesse mitzuwachsen.
+const LOG_TAIL_READ_BYTES: u64 = 4 * 1024 * 1024; // 4 MB, grosszuegige Reserve fuer >2000 Zeilen
+
+fn read_recent_log_entries(path: &PathBuf, max_count: usize) -> Vec<AppLogEntry> {
+    let Ok(mut file) = fs::File::open(path) else { return Vec::new(); };
+    let file_len = file.metadata().map(|m| m.len()).unwrap_or(0);
+    let truncated_start = file_len > LOG_TAIL_READ_BYTES;
+    if truncated_start {
+        let seek_pos = file_len - LOG_TAIL_READ_BYTES;
+        if file.seek(SeekFrom::Start(seek_pos)).is_err() {
+            return Vec::new();
+        }
+    }
+
+    let cutoff = cutoff_timestamp_ms();
+    let mut lines = BufReader::new(file).lines();
+    if truncated_start {
+        // Erste Zeile verwerfen: wir sind mitten in die Datei gesprungen,
+        // diese Zeile ist wahrscheinlich nur ein abgeschnittenes Fragment.
+        lines.next();
+    }
+
+    let mut entries: Vec<AppLogEntry> = lines
+        .filter_map(|line| {
+            let text = line.ok()?;
+            let entry = serde_json::from_str::<AppLogEntry>(&text).ok()?;
+            if entry.timestamp_ms >= cutoff {
+                Some(entry)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+    entries.truncate(max_count);
+    entries
 }
 
 fn rewrite_log_entries(path: &PathBuf, entries: &[AppLogEntry]) -> Result<(), String> {
@@ -635,15 +682,41 @@ fn backup_config_on_change(config_path: &Path, config_content: &str) -> Result<(
                 hash: hash.clone(),
                 backup_path: backup_path.to_string_lossy().to_string(),
             });
-            
+
             // Keep only last 50 versions
             if versions.len() > 50 {
                 versions.remove(0);
             }
         }
+
+        // Die bisherige Versionsliste war zwar auf 50 Eintraege begrenzt, die
+        // Backup-DATEIEN auf der Platte wurden dabei aber nie geloescht - bei
+        // lange laufenden Installationen mit haeufigen Config-Aenderungen
+        // waechst config_backups/ dadurch unbegrenzt. Jetzt werden ueberzaehlige
+        // Dateien direkt mit entfernt.
+        prune_config_backup_files(&backups_dir, 50);
     }
-    
+
     Ok(())
+}
+
+fn prune_config_backup_files(backups_dir: &Path, keep: usize) {
+    let Ok(entries) = fs::read_dir(backups_dir) else { return; };
+    let mut files: Vec<(std::time::SystemTime, PathBuf)> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .filter_map(|e| {
+            let modified = e.metadata().ok()?.modified().ok()?;
+            Some((modified, e.path()))
+        })
+        .collect();
+    if files.len() <= keep {
+        return;
+    }
+    files.sort_by_key(|(modified, _)| *modified);
+    for (_, path) in files.iter().take(files.len() - keep) {
+        let _ = fs::remove_file(path);
+    }
 }
 
 fn write_app_log(level: &str, message: &str, timestamp_ms: u64, app: Option<&AppHandle>) -> Result<(), String> {
@@ -844,38 +917,6 @@ fn strip_resolution_prefix(message: &str) -> String {
         .to_string()
 }
 
-fn contains_critical_keyword(message: &str, cfg: &serde_json::Value) -> bool {
-    let m = message.to_ascii_lowercase();
-
-    let built_in_keywords = [
-        "sofortalarm",
-        "akku warnung",
-        "akkustand unter 20",
-        "ups hat auf batteriebetrieb gewechselt",
-        "batterie mode aktiviert",
-        "panic:",
-        "emergency",
-        "ueberfrequenz",
-        "unterfrequenz",
-        "offline!",
-    ];
-
-    if built_in_keywords.iter().any(|k| m.contains(k)) {
-        return true;
-    }
-
-    cfg["telegram"]["critical_error_keywords"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str())
-                .map(|s| s.trim().to_ascii_lowercase())
-                .filter(|s| !s.is_empty())
-                .any(|kw| m.contains(&kw))
-        })
-        .unwrap_or(false)
-}
-
 fn telegram_event_enabled(cfg: &serde_json::Value, event_key: &str) -> bool {
     cfg["telegram"]["alert_events"]
         .as_array()
@@ -943,21 +984,12 @@ fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<S
         }
     }
 
-    if m.contains("snmp-werte von switch") || m.contains("snmp values") && m.contains("switch") {
-        push("poe_switch_offline");
-    }
-    if (m.contains("keine snmp-werte") || m.contains("snmp values")) && m.contains("ups") {
-        push("ups_offline");
-    }
-    if (m.contains("keine modbus-werte") || m.contains("modbus values")) && m.contains("janitza") {
-        push("janitza_offline");
-    }
-    if m.contains("snmp-werte von router") || m.contains("snmp values") && (m.contains("router") || m.contains("rutx")) {
-        push("rutx_offline");
-    }
-    if m.contains("snmp-werte von nas") || m.contains("snmp values") && m.contains("nas") {
-        push("nas_offline");
-    }
+    // Absichtlich KEINE SNMP/Modbus-Query-Fehler mehr als "X offline" werten:
+    // eine einzelne haengende SNMP-Abfrage heisst nicht, dass das Geraet nicht
+    // erreichbar ist (das pruefen pollAll()/pollArtNetGateways() bereits separat
+    // per TCP-/ICMP-Ping ueber setDeviceOnline()). Nur echte Ping-Ausfaelle
+    // (siehe "ist offline"/"offline!" oben) duerfen als Offline-Ereignis zaehlen.
+    // (Betrifft sowohl die "Fehler ausblenden"-Zuordnung als auch Telegram.)
 
     if m.contains("phasen-unsymmetrie") || m.contains("asymmetrie") || m.contains("asymmetry") {
         push("janitza_asymmetry");
@@ -969,6 +1001,18 @@ fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<S
 
     if m.contains("unterfrequenz") || m.contains("underfrequency") {
         push("janitza_underfrequency");
+    }
+
+    if m.contains("uberspannung") || m.contains("overvoltage") {
+        push("janitza_overvoltage");
+    }
+
+    if m.contains("unterspannung") || m.contains("undervoltage") {
+        push("janitza_undervoltage");
+    }
+
+    if m.contains("hohe last") || m.contains("high load") || m.contains("overload") {
+        push("janitza_overload");
     }
 
     if m.contains("batteriebetrieb") || m.contains("battery mode") || m.contains("akku warnung") {
@@ -990,6 +1034,55 @@ fn detect_telegram_alert_events(message: &str, cfg: &serde_json::Value) -> Vec<S
     out
 }
 
+fn contains_critical_keyword(message: &str, cfg: &serde_json::Value) -> bool {
+    let m = message.to_ascii_lowercase();
+
+    let built_in_keywords = [
+        "sofortalarm",
+        "akku warnung",
+        "akkustand unter 20",
+        "ups hat auf batteriebetrieb gewechselt",
+        "batterie mode aktiviert",
+        "panic:",
+        "emergency",
+        "ueberfrequenz",
+        "unterfrequenz",
+        "offline!",
+    ];
+
+    if built_in_keywords.iter().any(|k| m.contains(k)) {
+        return true;
+    }
+
+    cfg["telegram"]["critical_error_keywords"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty())
+                .any(|kw| m.contains(&kw))
+        })
+        .unwrap_or(false)
+}
+
+/// Telegram meldet seit der Vereinfachung nurnoch: echte (Ping-basierte)
+/// Geraete-Offline-Ereignisse sowie Notaus und USV-Batteriebetrieb. Alle
+/// anderen weiterhin erkannten Kategorien (Janitza-Anomalien, verpasste
+/// Trigger, Timeline-Fehler, Panic, eigene Keywords) bleiben fuer die
+/// "Fehler ausblenden"-Einstellungen nutzbar, loesen aber bewusst keine
+/// Telegram-Nachricht mehr aus.
+fn is_telegram_allowed_event(event_key: &str) -> bool {
+    event_key == "offline" || event_key.ends_with("_offline") || event_key == "emergency" || event_key == "ups_battery"
+}
+
+/// Notaus und USV-Batteriebetrieb sind sicherheitskritisch und werden immer
+/// per Telegram gemeldet, unabhaengig davon, ob die jeweilige Checkbox in den
+/// Telegram-Einstellungen (noch) aktiviert ist.
+fn is_telegram_always_on_event(event_key: &str) -> bool {
+    event_key == "emergency" || event_key == "ups_battery"
+}
+
 fn error_event_is_suppressed(message: &str, cfg: &serde_json::Value) -> bool {
     let Some(suppressed) = cfg["suppressed_error_events"].as_array() else { return false; };
     let keys: Vec<String> = suppressed.iter().filter_map(|value| value.as_str()).map(|key| key.trim().to_ascii_lowercase()).filter(|key| !key.is_empty()).collect();
@@ -1001,7 +1094,8 @@ fn should_send_telegram_for_error(level: &str, message: &str, cfg: &serde_json::
     }
     detect_telegram_alert_events(message, cfg)
         .iter()
-        .any(|k| telegram_event_enabled(cfg, k))
+        .filter(|k| is_telegram_allowed_event(k))
+        .any(|k| is_telegram_always_on_event(k) || telegram_event_enabled(cfg, k))
 }
 
 fn telegram_rate_limited(fingerprint: &str, timestamp_ms: u64) -> bool {
@@ -1010,6 +1104,12 @@ fn telegram_rate_limited(fingerprint: &str, timestamp_ms: u64) -> bool {
         Ok(m) => m,
         Err(_) => return true,
     };
+
+    // Alte Eintraege laufend entfernen, damit diese Map bei lange laufenden
+    // Installationen mit vielen unterschiedlichen Fehlertexten nicht
+    // unbegrenzt waechst (jeder neue, bisher ungesehene Fingerprint wuerde
+    // sonst fuer immer einen Eintrag belegen).
+    map.retain(|_, last| timestamp_ms.saturating_sub(*last) < TELEGRAM_LAST_SENT_RETENTION_MS);
 
     if let Some(last) = map.get(fingerprint) {
         if timestamp_ms.saturating_sub(*last) < TELEGRAM_MIN_REPEAT_MS {
@@ -1137,9 +1237,8 @@ fn maybe_send_critical_telegram(level: &str, message: &str, timestamp_ms: u64) {
         if classify_error_category(&resolved) != "ups" {
             return;
         }
-        if !telegram_event_enabled(&cfg, "ups_battery") {
-            return;
-        }
+        // USV-Wiederherstellung ist Teil des sicherheitskritischen ups_battery-
+        // Ereignisses und wird daher immer gemeldet (siehe is_telegram_always_on_event).
         let fingerprint = format!("resolved:{}", resolved);
         if telegram_rate_limited(&fingerprint, timestamp_ms) {
             return;
@@ -3841,6 +3940,9 @@ fn default_config_json() -> serde_json::Value {
         "rutx50_snmp_port": 161, "rutx50_snmp_community": "projektil",
         "ups_ip": "192.168.1.6", "power_disp_ip": "192.168.1.5",
         "cam_01_ip": "192.168.1.22", "cam_02_ip": "192.168.1.23",
+        // Default true: send_once() ist ein No-Op, solange url/api_key leer sind,
+        // daher ist "an, sobald Server+Key gesetzt sind" ohne Extra-Klick erfuellt.
+        "heartbeat_enabled": true, "heartbeat_url": "", "heartbeat_api_key": "",
         "projector_start": 101, "projector_count": 16, "projector_brand": "panasonic",
         "epson_web_password": "",
         "interactive_enabled": false,
@@ -3969,6 +4071,15 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     }
     if !obj.contains_key("pixera_api_root") {
         obj.insert("pixera_api_root".to_string(), serde_json::json!(""));
+    }
+    if !obj.contains_key("heartbeat_enabled") {
+        obj.insert("heartbeat_enabled".to_string(), serde_json::json!(true));
+    }
+    if !obj.contains_key("heartbeat_url") {
+        obj.insert("heartbeat_url".to_string(), serde_json::json!(""));
+    }
+    if !obj.contains_key("heartbeat_api_key") {
+        obj.insert("heartbeat_api_key".to_string(), serde_json::json!(""));
     }
     if !obj.contains_key("pixera_scheduler_module") {
         obj.insert(
@@ -4647,23 +4758,20 @@ fn append_app_log(app: AppHandle, level: String, message: String, timestamp_ms: 
 
 #[tauri::command]
 fn load_app_logs(app: AppHandle, limit: Option<usize>) -> Result<serde_json::Value, String> {
-    prune_old_logs(Some(&app))?;
+    // Bewusst die throttled maybe_prune_logs() statt prune_old_logs() direkt:
+    // load_app_logs() wird vom periodischen System-Log-Sync im Frontend alle
+    // 3 Sekunden aufgerufen. Ein direkter prune_old_logs()-Aufruf hier wuerde
+    // bei jedem Tick BEIDE Log-Dateien komplett einlesen UND komplett neu
+    // schreiben - bei lange laufenden Installationen mit grossen Log-Dateien
+    // eine erhebliche, staendig wiederholte CPU-/IO-/Speicherlast ganz ohne
+    // Nutzen (das eigentliche Pruning ist ohnehin auf alle 12h begrenzt).
+    maybe_prune_logs(Some(&app));
 
     let sys_path = system_log_path(Some(&app))?;
     let err_path = error_log_path(Some(&app))?;
-    let mut system_entries = read_log_entries(&sys_path);
-    let mut error_entries = read_log_entries(&err_path);
-
-    system_entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
-    error_entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
-
     let max_items = limit.unwrap_or(2000);
-    if system_entries.len() > max_items {
-        system_entries.truncate(max_items);
-    }
-    if error_entries.len() > max_items {
-        error_entries.truncate(max_items);
-    }
+    let system_entries = read_recent_log_entries(&sys_path, max_items);
+    let error_entries = read_recent_log_entries(&err_path, max_items);
 
     Ok(serde_json::json!({
         "system": system_entries,
@@ -5560,14 +5668,80 @@ async fn get_next_cue() -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 fn get_config() -> serde_json::Value {
-    if let Some((_path, mut json)) = read_config_json_from_disk() {
+    let mut json = if let Some((_path, mut json)) = read_config_json_from_disk() {
         ensure_config_defaults(&mut json);
-        return json;
+        json
+    } else {
+        let default_config = default_config_json();
+        let _ = write_config_json_to_disk(&default_config);
+        default_config
+    };
+    // Der Heartbeat-API-Key darf das Backend nie Richtung Frontend verlassen
+    // (auch nicht ueber das unauthentifizierte LAN /api/invoke). Das Frontend
+    // erfaehrt nur ueber heartbeat_get_status, ob ein Key gesetzt ist.
+    if let Some(obj) = json.as_object_mut() {
+        obj.remove("heartbeat_api_key");
     }
+    json
+}
 
-    let default_config = default_config_json();
-    let _ = write_config_json_to_disk(&default_config);
-    default_config
+#[tauri::command]
+fn heartbeat_get_status() -> heartbeat::HeartbeatStatus {
+    let cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    heartbeat::get_status(&cfg)
+}
+
+#[tauri::command]
+fn heartbeat_set_config(
+    enabled: bool,
+    url: String,
+    api_key: String,
+) -> Result<bool, String> {
+    let _config_guard = config_write_lock().lock().map_err(|e| e.to_string())?;
+    let url = url.trim().to_string();
+    if !url.is_empty() && !url.starts_with("https://") {
+        return Err("Heartbeat-URL muss https:// verwenden".to_string());
+    }
+    let mut cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    ensure_config_defaults(&mut cfg);
+    if let Some(obj) = cfg.as_object_mut() {
+        obj.insert("heartbeat_enabled".to_string(), serde_json::json!(enabled));
+        obj.insert("heartbeat_url".to_string(), serde_json::json!(url));
+        // Maskiertes Feld: ein leerer Wert bedeutet "Key unveraendert lassen",
+        // da der echte Key dem Frontend nie zurueckgegeben wird und die UI
+        // das Eingabefeld deshalb nie vorbefuellen kann.
+        let api_key = api_key.trim();
+        if !api_key.is_empty() {
+            obj.insert("heartbeat_api_key".to_string(), serde_json::json!(api_key));
+        }
+    }
+    let cfg_str = cfg.to_string();
+    let config_path = resolve_config_write_path();
+    backup_config_on_change(&config_path, &cfg_str)?;
+    write_config_json_to_disk(&cfg)?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn heartbeat_send_test() -> heartbeat::SendTestResult {
+    let cfg = read_config_json_from_disk()
+        .map(|(_, json)| json)
+        .unwrap_or_else(default_config_json);
+    heartbeat::send_test(&cfg, env!("CARGO_PKG_VERSION"))
+}
+
+#[tauri::command]
+fn heartbeat_update_snapshot(devices: Vec<heartbeat::DeviceStatusEntry>, venue: String, place: String, demo_mode: bool) {
+    heartbeat::update_snapshot(devices, venue, place, demo_mode);
+}
+
+#[tauri::command]
+fn heartbeat_push_error(msg: String) {
+    heartbeat::push_error(&msg);
 }
 
 #[tauri::command]
@@ -5738,6 +5912,12 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
     match cmd {
         "get_config" => Ok(get_config()),
         "get_server_time_ms" => Ok(serde_json::json!(get_server_time_ms())),
+        // Nur der reine Status-Read ist remote erreichbar (keine Secrets enthalten).
+        // heartbeat_set_config / heartbeat_send_test / heartbeat_update_snapshot /
+        // heartbeat_push_error sind absichtlich NICHT hier registriert - der
+        // unauthentifizierte LAN-Webserver darf die Heartbeat-Konfiguration
+        // weder lesen noch aendern noch einen Testversand ausloesen.
+        "heartbeat_get_status" => Ok(serde_json::json!(heartbeat_get_status())),
 
         "save_site_metadata" => Ok(serde_json::json!(save_site_metadata(
             arg_string(args, &["locationName", "location_name"])? ,
@@ -6282,6 +6462,8 @@ fn handle_emergency_osc_command() {
 }
 
 fn main() {
+    heartbeat::mark_app_start();
+
     // Set Windows console to UTF-8 so umlauts (ä/ö/ü) don't crash stderr
     #[cfg(target_os = "windows")]
     unsafe { windows_sys::Win32::System::Console::SetConsoleOutputCP(65001); }
@@ -6306,6 +6488,14 @@ fn main() {
             start_camera_mjpeg_server();
             start_lan_web_server();
             start_emergency_listener();
+            // Bewusst NICHT get_config() hier: die entfernt heartbeat_api_key, damit
+            // der Key nie Richtung Frontend/LAN-Webserver zurueckkommt. Der Hintergrund-
+            // Thread braucht den echten Key aber, um sich beim Status-Server zu
+            // authentifizieren - deshalb liest er die Konfiguration ungeschwaerzt direkt.
+            heartbeat::start(
+                || read_config_json_from_disk().map(|(_, json)| json).unwrap_or_else(default_config_json),
+                env!("CARGO_PKG_VERSION").to_string(),
+            );
             let sep       = tauri::menu::PredefinedMenuItem::separator(app)?;
             let show      = MenuItem::with_id(app, "show",      "PROJEKTIL öffnen", true, None::<&str>)?;
             let mute_all  = MenuItem::with_id(app, "mute_all",  "Alle Mute",         true, None::<&str>)?;
@@ -6361,7 +6551,8 @@ fn main() {
             minimize_window, toggle_fullscreen,
             hide_to_tray, quit_app, open_external_url, companion_press_emergency_button, append_app_log, load_app_logs, get_daily_log_csv_status, save_daily_log_csv, open_daily_log_csv_folder, get_config,
             save_site_metadata, get_anydesk_id, save_hub_config, hub_post_json, save_telegram_config, save_suppressed_error_events, save_interactive_device_config, send_wake_on_lan, save_ui_state, telegram_send_test, get_server_time_ms,
-            get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache, reset_all_device_failures
+            get_device_health_status, get_offline_mode_enabled, set_offline_mode, clear_query_cache, reset_all_device_failures,
+            heartbeat_get_status, heartbeat_set_config, heartbeat_send_test, heartbeat_update_snapshot, heartbeat_push_error
         ])
         .run(tauri::generate_context!())
         .expect("Fehler beim Starten");
