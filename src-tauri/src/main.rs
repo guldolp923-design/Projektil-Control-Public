@@ -3955,6 +3955,8 @@ fn default_config_json() -> serde_json::Value {
         "interactive_scanner2_mac": "",
         "emergency_switch_enabled": false,
         "dante_enabled": false,
+        "dante_device1_enabled": true,
+        "dante_device2_enabled": true,
         "hotline": "+41 44 492 51 69",
         "location_name": "",
         "anydesk_address": "",
@@ -4061,6 +4063,12 @@ fn ensure_config_defaults(cfg: &mut serde_json::Value) {
     }
     if !obj.contains_key("dante_enabled") {
         obj.insert("dante_enabled".to_string(), serde_json::json!(false));
+    }
+    if !obj.contains_key("dante_device1_enabled") {
+        obj.insert("dante_device1_enabled".to_string(), serde_json::json!(true));
+    }
+    if !obj.contains_key("dante_device2_enabled") {
+        obj.insert("dante_device2_enabled".to_string(), serde_json::json!(true));
     }
     if !obj.contains_key("suppressed_error_events") {
         obj.insert("suppressed_error_events".to_string(), serde_json::json!([]));
@@ -4567,6 +4575,8 @@ fn save_ui_state(
     interactive_scanner_count: Option<u8>,
     emergency_switch_enabled: Option<bool>,
     dante_enabled: Option<bool>,
+    dante_device1_enabled: Option<bool>,
+    dante_device2_enabled: Option<bool>,
     demo_amp1_mutes: Option<Vec<bool>>,
     demo_amp2_mutes: Option<Vec<bool>>,
     demo_amp3_mutes: Option<Vec<bool>>,
@@ -4629,6 +4639,12 @@ fn save_ui_state(
         }
         if let Some(enabled) = dante_enabled {
             obj.insert("dante_enabled".to_string(), serde_json::json!(enabled));
+        }
+        if let Some(enabled) = dante_device1_enabled {
+            obj.insert("dante_device1_enabled".to_string(), serde_json::json!(enabled));
+        }
+        if let Some(enabled) = dante_device2_enabled {
+            obj.insert("dante_device2_enabled".to_string(), serde_json::json!(enabled));
         }
         if demo_amp1_mutes.is_some() || demo_amp2_mutes.is_some() || demo_amp3_mutes.is_some() {
             let entry = obj
@@ -6004,6 +6020,8 @@ fn remote_invoke_dispatch(cmd: &str, args: &serde_json::Value) -> Result<serde_j
             arg_value(args, &["interactiveScannerCount", "interactive_scanner_count"]).and_then(|v| v.as_u64()).map(|n| n.clamp(1,2) as u8),
             arg_value(args, &["emergencySwitchEnabled", "emergency_switch_enabled"]).and_then(|v| v.as_bool()),
             arg_value(args, &["danteEnabled", "dante_enabled"]).and_then(|v| v.as_bool()),
+            arg_value(args, &["danteDevice1Enabled", "dante_device1_enabled"]).and_then(|v| v.as_bool()),
+            arg_value(args, &["danteDevice2Enabled", "dante_device2_enabled"]).and_then(|v| v.as_bool()),
             arg_optional_vec_bool(args, &["demoAmp1Mutes", "demo_amp1_mutes"]),
             arg_optional_vec_bool(args, &["demoAmp2Mutes", "demo_amp2_mutes"]),
             arg_optional_vec_bool(args, &["demoAmp3Mutes", "demo_amp3_mutes"]),

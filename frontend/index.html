@@ -999,9 +999,21 @@ _setupEmergencyListener();
                 </div>
                 <div id="dante-devices-wrap" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)">
                   <div class="setting-label" data-l10n-key="dante_devices_label">Ueberwachte Dante-Geraete</div>
-                  <div class="setting-hint" data-l10n-key="dante_devices_hint">Fix vorgegeben, nicht editierbar.</div>
-                  <div class="mon-row" style="margin-top:8px"><span data-l10n-key="dante_device1_71">Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)</span><span class="pill pill-r" id="settings-dante1"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
-                  <div class="mon-row"><span data-l10n-key="dante_device2_72">Dante AVIO 4x2 (IP: 192.168.1.72)</span><span class="pill pill-r" id="settings-dante2"><span class="dot" style="width:6px;height:6px"></span>Offline</span></div>
+                  <div class="setting-hint" data-l10n-key="dante_devices_hint">Einzeln an-/abwaehlbar, falls nicht immer alle Geraete im Einsatz sind.</div>
+                  <div class="mon-row" style="margin-top:8px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0">
+                      <input type="checkbox" id="dante-device1-enabled-checkbox" onchange="setDanteDeviceEnabled('dante1',this.checked)" />
+                      <span data-l10n-key="dante_device1_71">Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)</span>
+                    </label>
+                    <span class="pill pill-r" id="settings-dante1"><span class="dot" style="width:6px;height:6px"></span>Offline</span>
+                  </div>
+                  <div class="mon-row">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0">
+                      <input type="checkbox" id="dante-device2-enabled-checkbox" onchange="setDanteDeviceEnabled('dante2',this.checked)" />
+                      <span data-l10n-key="dante_device2_72">Dante AVIO 4x2 (IP: 192.168.1.72)</span>
+                    </label>
+                    <span class="pill pill-r" id="settings-dante2"><span class="dot" style="width:6px;height:6px"></span>Offline</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2648,11 +2660,13 @@ const locales = {
     dante_enabled_title: 'Dantenetzwerk',
     dante_enabled_hint: 'Aktiviert Monitoring fuer die Dante-Audio-Geraete im Netzwerk.',
     dante_devices_label: 'Ueberwachte Dante-Geraete',
-    dante_devices_hint: 'Fix vorgegeben, nicht editierbar.',
+    dante_devices_hint: 'Einzeln an-/abwaehlbar, falls nicht immer alle Geraete im Einsatz sind.',
     dante_device1_71: 'Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)',
     dante_device2_72: 'Dante AVIO 4x2 (IP: 192.168.1.72)',
     dante_enabled_log: 'Dante-Monitoring aktiviert',
     dante_disabled_log: 'Dante-Monitoring deaktiviert',
+    dante_device_enabled_log: '{device} wird ueberwacht',
+    dante_device_disabled_log: '{device} wird nicht mehr ueberwacht',
     interactive_scanner_count_label: 'Anzahl Scanner (1-2)',
     interactive_scanner_count_hint: 'Die gleiche Anzahl Scanner-Artnet Gateways wird ebenfalls ueberwacht.',
     interactive_scanner_count_saved: 'Scanner-Anzahl auf {count} gesetzt',
@@ -3208,11 +3222,13 @@ const locales = {
     dante_enabled_title: 'Dante network',
     dante_enabled_hint: 'Enables monitoring for the Dante audio devices on the network.',
     dante_devices_label: 'Monitored Dante devices',
-    dante_devices_hint: 'Fixed, not editable.',
+    dante_devices_hint: 'Can be toggled individually if not all devices are always in use.',
     dante_device1_71: 'Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)',
     dante_device2_72: 'Dante AVIO 4x2 (IP: 192.168.1.72)',
     dante_enabled_log: 'Dante monitoring enabled',
     dante_disabled_log: 'Dante monitoring disabled',
+    dante_device_enabled_log: '{device} is now monitored',
+    dante_device_disabled_log: '{device} is no longer monitored',
     interactive_scanner_count_label: 'Scanner count (1-2)',
     interactive_scanner_count_hint: 'The same number of scanner Art-Net gateways will also be monitored.',
     interactive_scanner_count_saved: 'Scanner count set to {count}',
@@ -4156,6 +4172,10 @@ function normalizeDanteEnabled(enabled){
   return enabled === true;
 }
 
+function normalizeDanteDeviceEnabled(enabled){
+  return enabled !== false;
+}
+
 function normalizeBoolArray(values, len){
   const out = Array.from({length:len},()=>false);
   if(!Array.isArray(values)) return out;
@@ -4219,6 +4239,8 @@ function applySharedUiStateFromConfig(cfgObj){
   const nextInteractiveScannerCount = normalizeInteractiveScannerCount(cfgObj?.interactive_scanner_count);
   const nextEmergencySwitchEnabled = normalizeEmergencySwitchEnabled(cfgObj?.emergency_switch_enabled);
   const nextDanteEnabled = normalizeDanteEnabled(cfgObj?.dante_enabled);
+  const nextDanteDevice1Enabled = normalizeDanteDeviceEnabled(cfgObj?.dante_device1_enabled);
+  const nextDanteDevice2Enabled = normalizeDanteDeviceEnabled(cfgObj?.dante_device2_enabled);
   const demoRuntime = extractDemoRuntimeState(cfgObj);
   const incomingDemoRuntimeFingerprint = getDemoRuntimeFingerprint(demoRuntime);
   const localDemoRuntimeFingerprint = getDemoRuntimeFingerprint({
@@ -4239,6 +4261,8 @@ function applySharedUiStateFromConfig(cfgObj){
   const interactiveScannerCountChanged = nextInteractiveScannerCount !== normalizeInteractiveScannerCount(cfg?.interactive_scanner_count);
   const emergencySwitchEnabledChanged = nextEmergencySwitchEnabled !== normalizeEmergencySwitchEnabled(cfg?.emergency_switch_enabled);
   const danteEnabledChanged = nextDanteEnabled !== normalizeDanteEnabled(cfg?.dante_enabled);
+  const danteDevice1EnabledChanged = nextDanteDevice1Enabled !== normalizeDanteDeviceEnabled(cfg?.dante_device1_enabled);
+  const danteDevice2EnabledChanged = nextDanteDevice2Enabled !== normalizeDanteDeviceEnabled(cfg?.dante_device2_enabled);
   const incomingProjectorStates = normalizeProjectorControlStates(cfgObj?.projector_control_states);
   const incomingProjectorStatusUpdatedAt = Number(cfgObj?.projector_status_updated_at) || 0;
 
@@ -4256,6 +4280,8 @@ function applySharedUiStateFromConfig(cfgObj){
   cfgObj.interactive_scanner_count = nextInteractiveScannerCount;
   cfgObj.emergency_switch_enabled = nextEmergencySwitchEnabled;
   cfgObj.dante_enabled = nextDanteEnabled;
+  cfgObj.dante_device1_enabled = nextDanteDevice1Enabled;
+  cfgObj.dante_device2_enabled = nextDanteDevice2Enabled;
 
   appStorage.set('demoMode', demoMode);
   appStorage.set('startupMode', startupMode);
@@ -4319,7 +4345,7 @@ function applySharedUiStateFromConfig(cfgObj){
   if(emergencySwitchEnabledChanged){
     applyEmergencySwitchSettingsUI();
   }
-  if(danteEnabledChanged){
+  if(danteEnabledChanged || danteDevice1EnabledChanged || danteDevice2EnabledChanged){
     applyDanteSettingsUI();
   }
 
@@ -4351,6 +4377,8 @@ async function persistSharedUiState(changes={}){
   if(Object.prototype.hasOwnProperty.call(changes,'interactiveScannerCount')) payload.interactiveScannerCount = changes.interactiveScannerCount;
   if(Object.prototype.hasOwnProperty.call(changes,'emergencySwitchEnabled')) payload.emergencySwitchEnabled = changes.emergencySwitchEnabled;
   if(Object.prototype.hasOwnProperty.call(changes,'danteEnabled')) payload.danteEnabled = changes.danteEnabled;
+  if(Object.prototype.hasOwnProperty.call(changes,'danteDevice1Enabled')) payload.danteDevice1Enabled = changes.danteDevice1Enabled;
+  if(Object.prototype.hasOwnProperty.call(changes,'danteDevice2Enabled')) payload.danteDevice2Enabled = changes.danteDevice2Enabled;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp1Mutes')) payload.demoAmp1Mutes = changes.demoAmp1Mutes;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp2Mutes')) payload.demoAmp2Mutes = changes.demoAmp2Mutes;
   if(Object.prototype.hasOwnProperty.call(changes,'demoAmp3Mutes')) payload.demoAmp3Mutes = changes.demoAmp3Mutes;
@@ -4366,7 +4394,7 @@ async function persistSharedUiState(changes={}){
 }
 
 function computeSharedUiStateFingerprint(state){
-  return `${state.demoMode?'1':'0'}|${state.startupMode}|${state.language}|${state.cameraViewMode}|${state.projectorBrand}|${state.projectorCount}|${state.pixeraOctoCount}|${state.ampCount}|${state.interactiveEnabled?'1':'0'}|${state.interactiveScannerCount}|${state.emergencySwitchEnabled?'1':'0'}|${state.danteEnabled?'1':'0'}|${state.demoAmp1Mutes.join('')}|${state.demoAmp2Mutes.join('')}|${state.demoAmp3Mutes.join('')}|${state.demoProjectorOn.join('')}|${state.demoProjectorMute.join('')}`;
+  return `${state.demoMode?'1':'0'}|${state.startupMode}|${state.language}|${state.cameraViewMode}|${state.projectorBrand}|${state.projectorCount}|${state.pixeraOctoCount}|${state.ampCount}|${state.interactiveEnabled?'1':'0'}|${state.interactiveScannerCount}|${state.emergencySwitchEnabled?'1':'0'}|${state.danteEnabled?'1':'0'}|${state.danteDevice1Enabled?'1':'0'}|${state.danteDevice2Enabled?'1':'0'}|${state.demoAmp1Mutes.join('')}|${state.demoAmp2Mutes.join('')}|${state.demoAmp3Mutes.join('')}|${state.demoProjectorOn.join('')}|${state.demoProjectorMute.join('')}`;
 }
 
 function getCurrentSharedUiState(){
@@ -4392,6 +4420,8 @@ function getCurrentSharedUiState(){
     interactiveScannerCount: normalizeInteractiveScannerCount(cfg?.interactive_scanner_count),
     emergencySwitchEnabled: normalizeEmergencySwitchEnabled(cfg?.emergency_switch_enabled),
     danteEnabled: normalizeDanteEnabled(cfg?.dante_enabled),
+    danteDevice1Enabled: normalizeDanteDeviceEnabled(cfg?.dante_device1_enabled),
+    danteDevice2Enabled: normalizeDanteDeviceEnabled(cfg?.dante_device2_enabled),
     demoAmp1Mutes: demoRuntime.amp1 || demoRuntime.demoAmp1Mutes,
     demoAmp2Mutes: demoRuntime.amp2 || demoRuntime.demoAmp2Mutes,
     demoAmp3Mutes: demoRuntime.amp3 || demoRuntime.demoAmp3Mutes,
@@ -4961,7 +4991,7 @@ function applyDemoMode(){
     }
   }
   if(isEmergencySwitchEnabled()) demoOnlineIds.push(['mon-emergency-switch']);
-  if(isDanteEnabled()) DANTE_DEVICES.forEach(target=>demoOnlineIds.push([target.monId, target.settingsId]));
+  if(isDanteEnabled()) getEnabledDanteDevices().forEach(target=>demoOnlineIds.push([target.monId, target.settingsId]));
   ['pixera','nas','poe','rutx','ups','janitza','cam1','cam2'].forEach(key=>{deviceState[key]=true;});
   [1,2,3].forEach(n=>{deviceState[`amp${n}`]=ampNumbers.includes(n);});
   deviceState.octo1 = octoCount>=1;
@@ -4975,7 +5005,7 @@ function applyDemoMode(){
     deviceState.interactive_gateway2 = scannerCount>=2;
   }
   deviceState.emergency_switch = isEmergencySwitchEnabled();
-  if(isDanteEnabled()) DANTE_DEVICES.forEach(target=>{deviceState[target.key]=true;});
+  if(isDanteEnabled()) DANTE_DEVICES.forEach(target=>{deviceState[target.key]=isDanteDeviceEnabled(target);});
   projectorOnlineStates.fill(true);
   ['overlay-amp1','overlay-amp2','overlay-amp3','overlay-nas','overlay-poe','overlay-rutx','overlay-ups','overlay-janitza','overlay-cam1','overlay-cam2'].forEach(id=>{
     const el = document.getElementById(id);
@@ -4994,7 +5024,7 @@ function applyDemoMode(){
   if(octoCount>=2) octoStates.push(true);
   const monitoringStates=[true,...ampStates,true,true,true,true,true,true,true,...octoStates,...projectorOnlineStates];
   if(isEmergencySwitchEnabled()) monitoringStates.push(true);
-  if(isDanteEnabled()) DANTE_DEVICES.forEach(()=>monitoringStates.push(true));
+  if(isDanteEnabled()) getEnabledDanteDevices().forEach(()=>monitoringStates.push(true));
   updateMonitoringNavBadge(monitoringStates);
   updateInteractiveNavBadge(isInteractiveMonitoringEnabled() ? getInteractiveMonitorTargets().map(()=>true) : []);
   buildProjGrid();
@@ -6188,10 +6218,21 @@ function isDanteEnabled(){
 }
 
 // Fix vorgegeben (keine dynamische Liste/Anzahl) - siehe Auftrag Schritt 2.
+// Jedes Geraet kann aber einzeln per dante_device<N>_enabled ab-/angewaehlt werden.
 const DANTE_DEVICES=[
-  { key:'dante1', monId:'mon-dante1', settingsId:'settings-dante1', ip:'192.168.1.71', label:'Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)' },
-  { key:'dante2', monId:'mon-dante2', settingsId:'settings-dante2', ip:'192.168.1.72', label:'Dante AVIO 4x2 (IP: 192.168.1.72)' }
+  { key:'dante1', monId:'mon-dante1', settingsId:'settings-dante1', ip:'192.168.1.71', label:'Focusrite RedNet D16R Mk2 (IP: 192.168.1.71)', cfgKey:'dante_device1_enabled', checkboxId:'dante-device1-enabled-checkbox' },
+  { key:'dante2', monId:'mon-dante2', settingsId:'settings-dante2', ip:'192.168.1.72', label:'Dante AVIO 4x2 (IP: 192.168.1.72)', cfgKey:'dante_device2_enabled', checkboxId:'dante-device2-enabled-checkbox' }
 ];
+
+function isDanteDeviceEnabled(target){
+  const t = typeof target==='string' ? DANTE_DEVICES.find(d=>d.key===target) : target;
+  if(!t) return false;
+  return cfg?.[t.cfgKey] !== false;
+}
+
+function getEnabledDanteDevices(){
+  return DANTE_DEVICES.filter(isDanteDeviceEnabled);
+}
 
 function getInteractiveMonitorTargets(){
   if(!isInteractiveMonitoringEnabled()) return [];
@@ -6304,6 +6345,23 @@ window.setDanteEnabled=(enabled)=>{
   addLogT('info', active ? 'dante_enabled_log' : 'dante_disabled_log');
 };
 
+window.setDanteDeviceEnabled=(key,enabled)=>{
+  const target = DANTE_DEVICES.find(d=>d.key===key);
+  if(!target) return;
+  const active = enabled === true;
+  cfg[target.cfgKey] = active;
+  persistSharedUiState({
+    danteDevice1Enabled: isDanteDeviceEnabled('dante1'),
+    danteDevice2Enabled: isDanteDeviceEnabled('dante2')
+  });
+  applyDanteSettingsUI();
+  if(!active){
+    setDeviceOnline(target.key, false, target.label, null);
+    setStatus([target.monId, target.settingsId], false);
+  }
+  addLogT('info', active ? 'dante_device_enabled_log' : 'dante_device_disabled_log', {device: target.label.split(' (')[0]});
+};
+
 function applyInteractiveSettingsUI(){
   const enabled = isInteractiveMonitoringEnabled();
   const scannerCount = getInteractiveScannerCount();
@@ -6377,9 +6435,12 @@ function applyDanteSettingsUI(){
   if(wrap) wrap.style.display = enabled ? 'block' : 'none';
 
   for(const target of DANTE_DEVICES){
+    const deviceEnabled = enabled && isDanteDeviceEnabled(target);
     const row=document.getElementById(`${target.monId}-row`);
-    if(row) row.style.display = enabled ? '' : 'none';
-    if(!enabled){
+    if(row) row.style.display = deviceEnabled ? '' : 'none';
+    const checkbox=document.getElementById(target.checkboxId);
+    if(checkbox) checkbox.checked = isDanteDeviceEnabled(target);
+    if(!deviceEnabled){
       deviceState[target.key] = false;
       setStatus([target.monId, target.settingsId], false);
     }
@@ -6550,7 +6611,7 @@ function buildHeartbeatDeviceSnapshot(){
 
   if(isEmergencySwitchEnabled()) push('emergency_switch','Notaus-Schalter');
   if(isDanteEnabled()){
-    DANTE_DEVICES.forEach(target=>push(target.key,target.label));
+    getEnabledDanteDevices().forEach(target=>push(target.key,target.label));
   }
   if(isInteractiveMonitoringEnabled()){
     if(typeof getInteractiveMonitorTargets==='function'){
@@ -9243,6 +9304,11 @@ async function pollAll(){
   const danteOnlineStates=[];
   if(isDanteEnabled()){
     for(const target of DANTE_DEVICES){
+      if(!isDanteDeviceEnabled(target)){
+        setDeviceOnline(target.key, false, target.label, null);
+        setStatus([target.monId, target.settingsId], false);
+        continue;
+      }
       const online = await icmpPing(target.ip);
       danteOnlineStates.push(online);
       setDeviceOnline(target.key, online, target.label, null);
@@ -9412,7 +9478,7 @@ async function runStartupConnectivityChecks(){
   }
 
   if(isDanteEnabled()){
-    for(const target of DANTE_DEVICES){
+    for(const target of getEnabledDanteDevices()){
       checks.push({
         name:target.label.split(' (')[0],
         host:target.ip,
